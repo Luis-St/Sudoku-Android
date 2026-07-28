@@ -1,3 +1,283 @@
 <resources>
-	<string name="app_name">Sudoku-Android</string>
+	<string name="app_name">Sudoku</string>
+
+	<!-- feature-spec §6a: "Rhubarb" is a mass noun in both languages - never pluralized, so this is the
+	     only form for any amount, not a <plurals> resource.
+
+	     General item 1: the short form carries no unit at all. It only ever appears next to the rhubarb
+	     icon, which names the currency by itself now that it is a rhubarb rather than a generic coin. -->
+	<string name="currency_amount">%1$d Rhubarb</string>
+	<string name="currency_amount_short">%1$d</string>
+
+	<!-- App chrome (MainActivity) -->
+	<string name="tab_game">Game</string>
+	<string name="tab_stats">Statistics</string>
+	<string name="tab_multiplayer">Multiplayer</string>
+	<string name="tab_settings">Settings</string>
+	<string name="tab_generator">New puzzle</string>
+	<string name="tab_enter_code">Enter a code</string>
+	<string name="tab_shop">Shop</string>
+	<string name="tab_friends">Players</string>
+	<string name="action_back">Back</string>
+	<string name="action_info">What is this?</string>
+	<string name="action_copy">Copy</string>
+
+	<!-- Home screen (UI item 5) -->
+	<string name="home_section_play">Play</string>
+	<string name="home_section_more">More</string>
+	<string name="home_daily_title">Daily puzzle</string>
+	<string name="home_daily_play">Play today\'s puzzle</string>
+	<string name="home_daily_review">Review today\'s puzzle</string>
+	<string name="home_daily_solved_today">Solved today.</string>
+	<string name="home_continue">Continue current puzzle</string>
+	<string name="home_generator">Generate a puzzle</string>
+	<string name="home_enter_code">Enter a shared code</string>
+	<string name="home_stats">Statistics</string>
+	<string name="home_shop">Shop</string>
+	<string name="home_multiplayer">Multiplayer</string>
+
+	<!-- Generator screen (UI item 6) -->
+	<string name="generator_section_title">Puzzle settings</string>
+	<string name="generator_start">Generate and play</string>
+	<string name="generator_overwrites_warning">Starting a new puzzle replaces your current saved game.</string>
+	<string name="generator_small_screen_warning">A %1$d×%1$d grid is cramped on a screen this size: cells and notes will be small. You can pinch to zoom the board while you play.</string>
+	<string name="label_size">Size</string>
+	<string name="label_variant">Variant</string>
+	<string name="variant_classic">Classic</string>
+	<string name="variant_chaos">Chaos</string>
+	<string name="difficulty_lisa">Lisa</string>
+	<string name="difficulty_tier">Tier %1$d</string>
+	<string name="generator_info_current">Selected: %1$s</string>
+	<string name="generator_info_size">How large the grid is. Bigger grids use more digits and take longer to solve.</string>
+	<string name="generator_info_size_detail">A %1$d×%1$d grid uses the digits 1 to %1$d across %2$d cells.</string>
+	<string name="generator_info_variant">Which extra rules the regions follow on top of rows and columns.</string>
+	<string name="generator_info_variant_classic">Classic: regions are the usual rectangular boxes.</string>
+	<string name="generator_info_variant_chaos">Chaos: regions are irregular shapes instead of boxes, so the box you are solving is never where you expect.</string>
+	<string name="generator_info_difficulty">How much deduction the puzzle demands. Tiers 1 to 5 get progressively harder; Lisa is a separate mode.</string>
+	<string name="generator_info_difficulty_tier">Tier %1$d of 5 - the higher the tier, the more advanced the techniques you need.</string>
+	<string name="generator_info_difficulty_lisa">Lisa is the hardest band plus its own rules: fewer lives, no hints, no same-digit highlighting, and at most two notes per cell.</string>
+
+	<!-- Enter-code screen (UI item 5) -->
+	<string name="enter_code_title">Play a shared puzzle</string>
+	<string name="enter_code_explainer">Paste a share code someone sent you to play the exact same puzzle.</string>
+	<string name="enter_code_label">Share code</string>
+
+	<!-- Shop screen (UI item 10) -->
+	<string name="shop_empty_title">The shop is empty for now</string>
+	<string name="shop_empty_body">Board themes you can buy with Rhubarb will appear here.</string>
+
+	<!-- GameScreen: common controls, reused across Normal/Daily -->
+	<string name="action_undo">Undo</string>
+	<string name="action_redo">Redo</string>
+	<string name="mode_pen">Pen</string>
+	<string name="mode_pencil">Pencil</string>
+	<string name="action_new">New</string>
+	<string name="action_hint_with_count">Hint (%1$d)</string>
+	<string name="action_share">Share</string>
+	<string name="action_import">Import</string>
+	<string name="tab_normal">Normal</string>
+	<string name="tab_daily">Daily</string>
+	<string name="daily_streak">Streak: %1$d</string>
+	<string name="daily_difficulty_button">Difficulty</string>
+	<string name="daily_remind_me">Remind me daily</string>
+	<string name="daily_locked_message">Today\'s daily is solved. Come back tomorrow!</string>
+	<string name="dialog_start_new_puzzle">Start a new puzzle</string>
+	<string name="dialog_overwrites_saved_game">This overwrites your saved game.</string>
+	<string name="action_start_new">Start new</string>
+	<string name="action_cancel">Cancel</string>
+	<string name="dialog_share_code">Share code</string>
+	<string name="action_done">Done</string>
+	<string name="dialog_enter_share_code">Enter a share code</string>
+	<string name="error_invalid_share_code">That code isn\'t valid.</string>
+	<string name="action_play">Play</string>
+	<string name="outcome_solved">Solved!</string>
+	<string name="outcome_out_of_lives">Out of lives</string>
+	<string name="action_new_puzzle">New puzzle</string>
+	<string name="action_try_again">Try again</string>
+	<string name="dialog_daily_difficulty_title">Daily difficulty</string>
+	<string name="dialog_daily_difficulty_body">Takes effect from tomorrow\'s daily onward.</string>
+	<string name="action_set">Set</string>
+
+	<!-- Shared across dialogs -->
+	<string name="dialog_error_title">Error</string>
+	<string name="action_ok">OK</string>
+
+	<!-- Preferences (feature-spec §5.2/§5.6/§6b) -->
+	<string name="action_preferences">Preferences</string>
+	<string name="dialog_preferences_title">Preferences</string>
+	<string name="pref_auto_candidate_mode">Auto-candidate mode</string>
+	<string name="pref_auto_candidate_unavailable_lisa">Unavailable on Lisa (2-note cap).</string>
+	<string name="pref_hex_display">Hex display (16×16)</string>
+	<string name="pref_sound_enabled">Sound</string>
+
+	<!-- Shared across Settings/MatchSetup/Race/Duel/Coop/Players/Stats -->
+	<string name="action_connect">Connect</string>
+	<string name="action_continue">Continue</string>
+	<string name="action_close">Close</string>
+	<string name="action_leave">Leave</string>
+	<string name="match_end_reason">Reason: %1$s</string>
+
+	<!-- Settings screen (feature-spec §9.1, UI items 2 and 7) -->
+	<string name="settings_header_appearance">Appearance</string>
+	<string name="settings_header_daily">Daily puzzle</string>
+	<string name="settings_daily_difficulty_label">Daily difficulty</string>
+	<string name="settings_daily_difficulty_note">Takes effect from tomorrow\'s daily onward.</string>
+	<string name="settings_header_gameplay">Gameplay</string>
+	<string name="settings_language_label">Language</string>
+	<string name="settings_language_system">System default</string>
+	<string name="settings_language_english">English</string>
+	<string name="settings_language_german">Deutsch</string>
+	<string name="settings_theme_label">Theme</string>
+	<string name="settings_theme_system">Follow system</string>
+	<string name="settings_theme_light">Light</string>
+	<string name="settings_theme_dark">Dark</string>
+	<string name="settings_board_theme_note">Board themes bought in the shop apply on top of this, and each one has its own light and dark version.</string>
+	<string name="settings_header_server">Server</string>
+	<string name="settings_recovery_header">Account recovery</string>
+	<string name="settings_recovery_setup_explainer">Verify an email address now so you can recover this account if you ever lose access to all your devices.</string>
+	<string name="settings_recovery_explainer">Enter the email address you verified earlier and we will send a one-time recovery code to it.</string>
+	<string name="dialog_update_required_title">Update required</string>
+	<string name="dialog_update_required_body">This server needs a newer version of the app.</string>
+	<string name="dialog_link_code_title">Link code</string>
+	<string name="settings_link_code_label">Link code</string>
+	<string name="settings_no_server_configured">No server configured - no multiplayer feature appears until one is.</string>
+	<string name="settings_server_address_label">Server address</string>
+	<string name="settings_connected_not_signed_in">Connected to %1$s - not signed in.</string>
+	<string name="action_register">Register</string>
+	<string name="action_link_this_device">Link this device</string>
+	<string name="action_sign_in_again">Sign in again</string>
+	<string name="settings_invite_code_label">Invite code</string>
+	<string name="settings_display_name_label">Display name</string>
+	<string name="settings_device_label_optional">Device label (optional)</string>
+	<string name="action_forget_server">Forget this server</string>
+	<string name="settings_signed_in_as">Signed in as %1$s (%2$s)</string>
+	<string name="action_link_new_device">Link a new device</string>
+	<string name="action_sign_out">Sign out</string>
+	<string name="settings_devices_header">Devices</string>
+	<string name="settings_unnamed_device">Unnamed device</string>
+	<string name="settings_this_device_suffix"> (this device)</string>
+	<string name="action_revoke">Revoke</string>
+
+	<!-- Email verification (settings, authenticated) -->
+	<string name="settings_email_header">Email</string>
+	<string name="settings_email_label">Email address</string>
+	<string name="action_send_code">Send code</string>
+	<string name="settings_email_sent">A verification code has been sent to that address.</string>
+	<string name="settings_email_code_label">Verification code</string>
+	<string name="action_verify">Verify</string>
+	<string name="settings_email_verified">Email verified.</string>
+
+	<!-- Account recovery (settings, unauthenticated) -->
+	<string name="action_recover_account">Recover account</string>
+	<string name="settings_recovery_email_label">Verified email address</string>
+	<string name="action_send_recovery_code">Send recovery code</string>
+	<string name="settings_recovery_sent">If that email matches an account, a recovery code has been sent to it.</string>
+	<string name="settings_recovery_code_label">Recovery code</string>
+	<string name="action_recover">Recover</string>
+
+	<!-- Streak restore (daily mode) -->
+	<string name="daily_streak_restore_button">Restore streak</string>
+	<string name="dialog_streak_restore_title">Restore streak</string>
+	<string name="dialog_streak_restore_body">You missed %1$d day(s) - repairing this gap costs %2$d Rhubarb.</string>
+	<string name="daily_streak_restore_points_label">Restore points available: %1$d</string>
+	<string name="dialog_streak_restore_balance">Your balance: %1$d Rhubarb</string>
+	<string name="dialog_streak_restore_nothing_to_restore">Your streak has no gap to restore.</string>
+	<string name="dialog_streak_restore_not_enough_points">You need one restore point per missed day. Restore points are earned at one per seven days played, up to three.</string>
+	<string name="dialog_streak_restore_not_enough_currency">You don\'t have enough Rhubarb for this.</string>
+	<string name="action_restore">Restore</string>
+
+	<!-- Error copy, keyed by ApiException.code (net.luis.sudoku.ui.common.friendlyErrorMessage) -->
+	<string name="error_recovery_code_invalid">That recovery code isn\'t valid.</string>
+	<string name="error_email_taken">That email is already in use by another account.</string>
+	<string name="error_email_verification_invalid">That verification code isn\'t valid.</string>
+	<string name="error_mail_not_configured">This server can\'t send email right now.</string>
+	<string name="error_streak_restore_not_needed">Your streak has no gap to restore.</string>
+	<string name="error_insufficient_restore_points">You don\'t have enough restore points for this.</string>
+	<string name="error_insufficient_balance">You don\'t have enough Rhubarb for this.</string>
+
+	<!-- Match setup screen (feature-spec §10.1/§10.2) -->
+	<string name="matchsetup_create_header">Create a match</string>
+	<string name="matchsetup_size_label">Size</string>
+	<string name="matchsetup_variant_label">Variant</string>
+	<string name="label_difficulty">Difficulty</string>
+	<string name="matchsetup_lives_label">Lives</string>
+	<string name="matchsetup_stake_label">Stake (Rhubarb, 0 = free to join)</string>
+	<string name="action_create_match">Create match</string>
+	<string name="matchsetup_join_header">Join a match</string>
+	<string name="matchsetup_match_id_label">Match ID</string>
+	<string name="matchsetup_invite_token_label">Invite token</string>
+	<string name="action_join_match">Join match</string>
+	<string name="matchsetup_share_invite_token">Share this invite token with your opponent:</string>
+
+	<!-- Stats screen (feature-spec §7/§9.7) -->
+	<string name="stats_header">Your statistics</string>
+	<string name="stats_games_played">Games played: %1$d</string>
+	<string name="stats_games_won">Games won: %1$d</string>
+	<string name="stats_win_rate">Win rate: %1$s%%</string>
+	<string name="stats_hints_used">Hints used: %1$d</string>
+	<string name="stats_lives_lost">Lives lost: %1$d</string>
+	<string name="stats_by_tier_header">By tier (server)</string>
+	<string name="stats_tier_difficulty_suffix">difficulty %1$d</string>
+	<string name="stats_tier_solved_fraction">%1$d/%2$d solved</string>
+	<string name="stats_tier_best_suffix"> - best %1$s</string>
+	<string name="stats_tier_best">Best time %1$s</string>
+	<string name="stats_tile_played">Played</string>
+	<string name="stats_tile_won">Won</string>
+	<string name="stats_tile_hints">Hints</string>
+	<string name="stats_tile_lives_lost">Lives lost</string>
+	<string name="stats_win_rate_label">Win rate</string>
+	<string name="stats_no_server_note">Connect to a server in Settings to compare your results with other players.</string>
+
+	<!-- Multiplayer tabs + reconnect grace (server-spec §10.4) -->
+	<string name="tab_play">Play</string>
+	<string name="tab_players">Players</string>
+	<string name="multiplayer_connect_prompt">Connect and sign in from Settings to play with others.</string>
+	<string name="reconnect_grace_opponent">Opponent disconnected - reconnecting in %1$ds or the match ends</string>
+	<string name="reconnect_grace_participant">A participant disconnected - reconnecting in %1$ds or the match ends</string>
+
+	<!-- Players screen (feature-spec §9.7, UI item 9) -->
+	<string name="players_row_streak">%1$s - streak %2$d</string>
+	<string name="players_streak_label">Streak %1$d</string>
+	<string name="players_role_admin">Admin</string>
+	<string name="players_invite_to_match">Invite</string>
+	<string name="players_more_actions">More actions</string>
+	<string name="players_view_stats">View statistics</string>
+	<string name="players_promote">Make admin</string>
+	<string name="players_demote">Remove admin</string>
+	<string name="players_kick">Remove from server</string>
+	<string name="players_create_invite">Create an invite code</string>
+	<string name="players_invite_created_title">Invite code</string>
+	<string name="players_daily_leaderboard_header">Daily leaderboard</string>
+	<string name="players_leaderboard_row">%1$d. %2$s - %3$s (%4$d attempts)</string>
+	<string name="dialog_player_stats_title">Player stats</string>
+	<string name="players_stats_row">%1$d×%2$d difficulty %3$d: %4$d/%5$d</string>
+
+	<!-- Race screen (feature-spec §10.1) -->
+	<string name="race_lives">Lives: %1$d</string>
+	<string name="race_opponent_progress_header">Opponent progress</string>
+	<string name="race_percent_suffix"> %1$d%%</string>
+	<string name="dialog_race_over_title">Race over</string>
+
+	<!-- Duel screen (feature-spec §10.2) -->
+	<string name="duel_you_bank">You: %1$s</string>
+	<string name="duel_your_turn">Your turn</string>
+	<string name="duel_opponent_turn">Opponent\'s turn</string>
+	<string name="duel_them_bank">Them: %1$s</string>
+	<string name="duel_stake_display">Stake: %1$d Rhubarb - winner takes the pot</string>
+	<string name="dialog_duel_over_title">Duel over</string>
+	<string name="duel_pot_paid_out">The pot of %1$d Rhubarb has been paid out.</string>
+	<string name="duel_stakes_refunded">Stakes refunded to both players.</string>
+
+	<!-- Co-op screen (feature-spec §10.3) -->
+	<string name="coop_shared_lives">Shared lives: %1$d</string>
+	<string name="coop_other_players_active">%1$d other player(s) active</string>
+	<string name="dialog_match_over_title">Match over</string>
+
+	<!-- End-of-game summary screen (game item 7) -->
+	<string name="summary_back_to_home">Back to home</string>
+	<string name="summary_mistakes">Mistakes: %1$d</string>
+	<string name="summary_hints">Hints: %1$d</string>
+	<string name="summary_lives_lost">Lives lost: %1$d</string>
+	<string name="summary_legend_mistake">Wrong entry</string>
+	<string name="summary_legend_hint">Hint used</string>
 </resources>

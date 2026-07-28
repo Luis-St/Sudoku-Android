@@ -1,0 +1,271 @@
+<resources>
+	<string name="app_name">Sudoku</string>
+
+	<string name="currency_amount">%1$d Rhabarber</string>
+	<string name="currency_amount_short">%1$d</string>
+
+	<string name="tab_game">Spiel</string>
+	<string name="tab_stats">Statistik</string>
+	<string name="tab_multiplayer">Mehrspieler</string>
+	<string name="tab_settings">Einstellungen</string>
+
+	<string name="action_undo">Rückgängig</string>
+	<string name="action_redo">Wiederholen</string>
+	<string name="mode_pen">Stift</string>
+	<string name="mode_pencil">Notiz</string>
+	<string name="action_new">Neu</string>
+	<string name="action_hint_with_count">Tipp (%1$d)</string>
+	<string name="action_share">Teilen</string>
+	<string name="action_import">Importieren</string>
+	<string name="tab_normal">Normal</string>
+	<string name="tab_daily">Täglich</string>
+	<string name="daily_streak">Serie: %1$d</string>
+	<string name="daily_difficulty_button">Schwierigkeit</string>
+	<string name="daily_remind_me">Täglich erinnern</string>
+	<string name="daily_locked_message">Das heutige Tagesrätsel ist gelöst. Komm morgen wieder!</string>
+	<string name="dialog_start_new_puzzle">Neues Rätsel starten</string>
+	<string name="dialog_overwrites_saved_game">Dies überschreibt deinen gespeicherten Spielstand.</string>
+	<string name="action_start_new">Neu starten</string>
+	<string name="action_cancel">Abbrechen</string>
+	<string name="dialog_share_code">Freigabecode</string>
+	<string name="action_done">Fertig</string>
+	<string name="dialog_enter_share_code">Freigabecode eingeben</string>
+	<string name="error_invalid_share_code">Dieser Code ist ungültig.</string>
+	<string name="action_play">Spielen</string>
+	<string name="outcome_solved">Gelöst!</string>
+	<string name="outcome_out_of_lives">Keine Leben mehr</string>
+	<string name="action_new_puzzle">Neues Rätsel</string>
+	<string name="action_try_again">Erneut versuchen</string>
+	<string name="dialog_daily_difficulty_title">Tages-Schwierigkeit</string>
+	<string name="dialog_daily_difficulty_body">Gilt erst ab dem Tagesrätsel von morgen.</string>
+	<string name="action_set">Festlegen</string>
+
+	<string name="dialog_error_title">Fehler</string>
+	<string name="action_ok">OK</string>
+
+	<string name="action_preferences">Einstellungen</string>
+	<string name="dialog_preferences_title">Einstellungen</string>
+	<string name="pref_auto_candidate_mode">Automatische Kandidaten</string>
+	<string name="pref_auto_candidate_unavailable_lisa">Bei Lisa nicht verfügbar (Notizlimit 2).</string>
+	<string name="pref_hex_display">Hex-Anzeige (16×16)</string>
+	<string name="pref_sound_enabled">Ton</string>
+
+	<string name="action_connect">Verbinden</string>
+	<string name="action_continue">Weiter</string>
+	<string name="action_close">Schließen</string>
+	<string name="action_leave">Verlassen</string>
+	<string name="match_end_reason">Grund: %1$s</string>
+
+	<string name="settings_header_server">Server</string>
+	<string name="dialog_update_required_title">Update erforderlich</string>
+	<string name="dialog_update_required_body">Dieser Server benötigt eine neuere Version der App.</string>
+	<string name="dialog_link_code_title">Verknüpfungscode</string>
+	<string name="settings_link_code_label">Verknüpfungscode</string>
+	<string name="settings_no_server_configured">Kein Server konfiguriert - keine Mehrspieler-Funktion erscheint, bis einer eingerichtet ist.</string>
+	<string name="settings_server_address_label">Serveradresse</string>
+	<string name="settings_connected_not_signed_in">Verbunden mit %1$s - nicht angemeldet.</string>
+	<string name="action_register">Registrieren</string>
+	<string name="action_link_this_device">Dieses Gerät verknüpfen</string>
+	<string name="action_sign_in_again">Erneut anmelden</string>
+	<string name="settings_invite_code_label">Einladungscode</string>
+	<string name="settings_display_name_label">Anzeigename</string>
+	<string name="settings_device_label_optional">Gerätebezeichnung (optional)</string>
+	<string name="action_forget_server">Diesen Server vergessen</string>
+	<string name="settings_signed_in_as">Angemeldet als %1$s (%2$s)</string>
+	<string name="action_link_new_device">Neues Gerät verknüpfen</string>
+	<string name="action_sign_out">Abmelden</string>
+	<string name="settings_devices_header">Geräte</string>
+	<string name="settings_unnamed_device">Unbenanntes Gerät</string>
+	<string name="settings_this_device_suffix"> (dieses Gerät)</string>
+	<string name="action_revoke">Widerrufen</string>
+
+	<!-- E-Mail-Verifizierung (Einstellungen, angemeldet) -->
+	<string name="settings_email_header">E-Mail</string>
+	<string name="settings_email_label">E-Mail-Adresse</string>
+	<string name="action_send_code">Code senden</string>
+	<string name="settings_email_sent">An diese Adresse wurde ein Bestätigungscode gesendet.</string>
+	<string name="settings_email_code_label">Bestätigungscode</string>
+	<string name="action_verify">Bestätigen</string>
+	<string name="settings_email_verified">E-Mail bestätigt.</string>
+
+	<!-- Kontowiederherstellung (Einstellungen, nicht angemeldet) -->
+	<string name="action_recover_account">Konto wiederherstellen</string>
+	<string name="settings_recovery_email_label">Bestätigte E-Mail-Adresse</string>
+	<string name="action_send_recovery_code">Wiederherstellungscode senden</string>
+	<string name="settings_recovery_sent">Falls diese E-Mail zu einem Konto passt, wurde ein Wiederherstellungscode dorthin gesendet.</string>
+	<string name="settings_recovery_code_label">Wiederherstellungscode</string>
+	<string name="action_recover">Wiederherstellen</string>
+
+	<!-- Serien-Wiederherstellung (Tagesmodus) -->
+	<string name="daily_streak_restore_button">Serie wiederherstellen</string>
+	<string name="dialog_streak_restore_title">Serie wiederherstellen</string>
+	<string name="dialog_streak_restore_body">Du hast %1$d Tag(e) verpasst - die Reparatur dieser Lücke kostet %2$d Rhabarber.</string>
+	<string name="daily_streak_restore_points_label">Verfügbare Wiederherstellungspunkte: %1$d</string>
+	<string name="action_restore">Wiederherstellen</string>
+
+	<!-- Fehlertexte, referenziert über ApiException.code (net.luis.sudoku.ui.common.friendlyErrorMessage) -->
+	<string name="error_recovery_code_invalid">Dieser Wiederherstellungscode ist ungültig.</string>
+	<string name="error_email_taken">Diese E-Mail wird bereits von einem anderen Konto verwendet.</string>
+	<string name="error_email_verification_invalid">Dieser Bestätigungscode ist ungültig.</string>
+	<string name="error_mail_not_configured">Dieser Server kann derzeit keine E-Mails senden.</string>
+	<string name="error_streak_restore_not_needed">Deine Serie hat keine Lücke zum Wiederherstellen.</string>
+	<string name="error_insufficient_restore_points">Du hast nicht genug Wiederherstellungspunkte dafür.</string>
+	<string name="error_insufficient_balance">Du hast nicht genug Rhabarber dafür.</string>
+
+	<string name="matchsetup_create_header">Match erstellen</string>
+	<string name="matchsetup_size_label">Größe</string>
+	<string name="matchsetup_variant_label">Variante</string>
+	<string name="label_difficulty">Schwierigkeit</string>
+	<string name="matchsetup_lives_label">Leben</string>
+	<string name="matchsetup_stake_label">Einsatz (Rhabarber, 0 = kostenlos beitreten)</string>
+	<string name="action_create_match">Match erstellen</string>
+	<string name="matchsetup_join_header">Match beitreten</string>
+	<string name="matchsetup_match_id_label">Match-ID</string>
+	<string name="matchsetup_invite_token_label">Einladungstoken</string>
+	<string name="action_join_match">Match beitreten</string>
+	<string name="matchsetup_share_invite_token">Teile diesen Einladungstoken mit deinem Gegner:</string>
+
+	<string name="stats_header">Deine Statistiken</string>
+	<string name="stats_games_played">Gespielte Spiele: %1$d</string>
+	<string name="stats_games_won">Gewonnene Spiele: %1$d</string>
+	<string name="stats_win_rate">Gewinnrate: %1$s%%</string>
+	<string name="stats_hints_used">Verwendete Tipps: %1$d</string>
+	<string name="stats_lives_lost">Verlorene Leben: %1$d</string>
+	<string name="stats_by_tier_header">Nach Stufe (Server)</string>
+	<string name="stats_tier_difficulty_suffix">Schwierigkeit %1$d</string>
+	<string name="stats_tier_solved_fraction">%1$d/%2$d gelöst</string>
+	<string name="stats_tier_best_suffix"> - beste %1$s</string>
+
+	<string name="tab_play">Spielen</string>
+	<string name="tab_players">Spieler</string>
+	<string name="multiplayer_connect_prompt">Verbinde dich und melde dich in den Einstellungen an, um mit anderen zu spielen.</string>
+	<string name="reconnect_grace_opponent">Gegner getrennt - Wiederverbindung in %1$ds oder das Match endet</string>
+	<string name="reconnect_grace_participant">Ein Teilnehmer wurde getrennt - Wiederverbindung in %1$ds oder das Match endet</string>
+
+	<string name="players_row_streak">%1$s - Serie %2$d</string>
+	<string name="players_daily_leaderboard_header">Tages-Bestenliste</string>
+	<string name="players_leaderboard_row">%1$d. %2$s - %3$s (%4$d Versuche)</string>
+	<string name="dialog_player_stats_title">Spielerstatistik</string>
+	<string name="players_stats_row">%1$d×%2$d Schwierigkeit %3$d: %4$d/%5$d</string>
+
+	<string name="race_lives">Leben: %1$d</string>
+	<string name="race_opponent_progress_header">Fortschritt des Gegners</string>
+	<string name="race_percent_suffix"> %1$d%%</string>
+	<string name="dialog_race_over_title">Rennen beendet</string>
+
+	<string name="duel_you_bank">Du: %1$s</string>
+	<string name="duel_your_turn">Du bist dran</string>
+	<string name="duel_opponent_turn">Gegner ist dran</string>
+	<string name="duel_them_bank">Gegner: %1$s</string>
+	<string name="duel_stake_display">Einsatz: %1$d Rhabarber - Gewinner nimmt den Pot</string>
+	<string name="dialog_duel_over_title">Duell beendet</string>
+	<string name="duel_pot_paid_out">Der Pot von %1$d Rhabarber wurde ausgezahlt.</string>
+	<string name="duel_stakes_refunded">Einsätze an beide Spieler zurückerstattet.</string>
+
+	<string name="coop_shared_lives">Gemeinsame Leben: %1$d</string>
+	<string name="coop_other_players_active">%1$d andere(r) Spieler aktiv</string>
+	<string name="dialog_match_over_title">Match beendet</string>
+
+	<!-- App-Rahmen, Startbildschirm, Generator, Code-Eingabe, Shop (UI-Punkte 5, 6, 10) -->
+	<string name="tab_generator">Neues Rätsel</string>
+	<string name="tab_enter_code">Code eingeben</string>
+	<string name="tab_shop">Shop</string>
+	<string name="tab_friends">Spieler</string>
+	<string name="action_back">Zurück</string>
+	<string name="action_info">Was ist das?</string>
+	<string name="action_copy">Kopieren</string>
+
+	<string name="home_section_play">Spielen</string>
+	<string name="home_section_more">Mehr</string>
+	<string name="home_daily_title">Tagesrätsel</string>
+	<string name="home_daily_play">Heutiges Rätsel spielen</string>
+	<string name="home_daily_review">Heutiges Rätsel ansehen</string>
+	<string name="home_daily_solved_today">Heute gelöst.</string>
+	<string name="home_continue">Aktuelles Rätsel fortsetzen</string>
+	<string name="home_generator">Rätsel erzeugen</string>
+	<string name="home_enter_code">Geteilten Code eingeben</string>
+	<string name="home_stats">Statistik</string>
+	<string name="home_shop">Shop</string>
+	<string name="home_multiplayer">Mehrspieler</string>
+
+	<string name="generator_section_title">Rätseleinstellungen</string>
+	<string name="generator_start">Erzeugen und spielen</string>
+	<string name="generator_overwrites_warning">Ein neues Rätsel ersetzt deinen aktuellen Spielstand.</string>
+	<string name="generator_small_screen_warning">Ein %1$d×%1$d-Gitter ist auf einem Bildschirm dieser Größe sehr eng: Zellen und Notizen werden klein. Du kannst das Gitter beim Spielen mit zwei Fingern vergrößern.</string>
+	<string name="label_size">Größe</string>
+	<string name="label_variant">Variante</string>
+	<string name="variant_classic">Klassisch</string>
+	<string name="variant_chaos">Chaos</string>
+	<string name="difficulty_lisa">Lisa</string>
+	<string name="difficulty_tier">Stufe %1$d</string>
+	<string name="generator_info_current">Ausgewählt: %1$s</string>
+	<string name="generator_info_size">Wie groß das Gitter ist. Größere Gitter nutzen mehr Ziffern und dauern länger.</string>
+	<string name="generator_info_size_detail">Ein %1$d×%1$d-Gitter nutzt die Ziffern 1 bis %1$d auf %2$d Feldern.</string>
+	<string name="generator_info_variant">Welche zusätzlichen Regeln die Regionen neben Zeilen und Spalten befolgen.</string>
+	<string name="generator_info_variant_classic">Klassisch: Die Regionen sind die üblichen rechteckigen Blöcke.</string>
+	<string name="generator_info_variant_chaos">Chaos: Die Regionen sind unregelmäßig geformt statt rechteckig - der Block, den du gerade löst, liegt nie dort, wo du ihn erwartest.</string>
+	<string name="generator_info_difficulty">Wie viel Kombinieren das Rätsel verlangt. Die Stufen 1 bis 5 werden zunehmend schwerer; Lisa ist ein eigener Modus.</string>
+	<string name="generator_info_difficulty_tier">Stufe %1$d von 5 - je höher die Stufe, desto fortgeschrittener die nötigen Techniken.</string>
+	<string name="generator_info_difficulty_lisa">Lisa ist die schwerste Stufe mit eigenen Regeln: weniger Leben, keine Tipps, keine Hervorhebung gleicher Ziffern und höchstens zwei Notizen pro Feld.</string>
+
+	<string name="enter_code_title">Geteiltes Rätsel spielen</string>
+	<string name="enter_code_explainer">Füge einen Code ein, den dir jemand geschickt hat, um genau dasselbe Rätsel zu spielen.</string>
+	<string name="enter_code_label">Rätselcode</string>
+
+	<string name="shop_empty_title">Der Shop ist noch leer</string>
+	<string name="shop_empty_body">Hier erscheinen Brett-Designs, die du mit Rhabarber kaufen kannst.</string>
+
+	<!-- Einstellungen: Darstellung und Spiel (UI-Punkte 2 und 7) -->
+	<string name="settings_header_appearance">Darstellung</string>
+	<string name="settings_header_daily">Tägliches Rätsel</string>
+	<string name="settings_daily_difficulty_label">Schwierigkeit des täglichen Rätsels</string>
+	<string name="settings_daily_difficulty_note">Gilt ab dem morgigen täglichen Rätsel.</string>
+	<string name="settings_header_gameplay">Spiel</string>
+	<string name="settings_language_label">Sprache</string>
+	<string name="settings_language_system">Systemsprache</string>
+	<string name="settings_language_english">English</string>
+	<string name="settings_language_german">Deutsch</string>
+	<string name="settings_theme_label">Design</string>
+	<string name="settings_theme_system">Wie das System</string>
+	<string name="settings_theme_light">Hell</string>
+	<string name="settings_theme_dark">Dunkel</string>
+	<string name="settings_board_theme_note">Im Shop gekaufte Brett-Designs kommen zusätzlich dazu und haben jeweils eine helle und eine dunkle Fassung.</string>
+	<string name="settings_recovery_header">Kontowiederherstellung</string>
+	<string name="settings_recovery_setup_explainer">Bestätige jetzt eine E-Mail-Adresse, damit du dieses Konto wiederherstellen kannst, falls du den Zugriff auf alle deine Geräte verlierst.</string>
+	<string name="settings_recovery_explainer">Gib die zuvor bestätigte E-Mail-Adresse ein - wir senden einen einmaligen Wiederherstellungscode dorthin.</string>
+
+	<!-- Serienwiederherstellung (UI-Punkt 11) -->
+	<string name="dialog_streak_restore_balance">Dein Guthaben: %1$d Rhabarber</string>
+	<string name="dialog_streak_restore_nothing_to_restore">Deine Serie hat keine Lücke zum Wiederherstellen.</string>
+	<string name="dialog_streak_restore_not_enough_points">Du brauchst einen Wiederherstellungspunkt pro verpasstem Tag. Punkte gibt es alle sieben gespielten Tage, höchstens drei.</string>
+	<string name="dialog_streak_restore_not_enough_currency">Du hast dafür nicht genug Rhabarber.</string>
+
+	<!-- Statistik (UI-Punkt 8) -->
+	<string name="stats_tile_played">Gespielt</string>
+	<string name="stats_tile_won">Gewonnen</string>
+	<string name="stats_tile_hints">Tipps</string>
+	<string name="stats_tile_lives_lost">Leben verloren</string>
+	<string name="stats_win_rate_label">Gewinnquote</string>
+	<string name="stats_tier_best">Bestzeit %1$s</string>
+	<string name="stats_no_server_note">Verbinde dich in den Einstellungen mit einem Server, um deine Ergebnisse mit anderen zu vergleichen.</string>
+
+	<!-- Spielerliste und Verwaltung (UI-Punkt 9) -->
+	<string name="players_streak_label">Serie %1$d</string>
+	<string name="players_role_admin">Admin</string>
+	<string name="players_invite_to_match">Einladen</string>
+	<string name="players_more_actions">Weitere Aktionen</string>
+	<string name="players_view_stats">Statistik ansehen</string>
+	<string name="players_promote">Zum Admin machen</string>
+	<string name="players_demote">Adminrechte entziehen</string>
+	<string name="players_kick">Vom Server entfernen</string>
+	<string name="players_create_invite">Einladungscode erstellen</string>
+	<string name="players_invite_created_title">Einladungscode</string>
+
+	<!-- Abschlussbildschirm (Spiel-Punkt 7) -->
+	<string name="summary_back_to_home">Zurück zur Startseite</string>
+	<string name="summary_mistakes">Fehler: %1$d</string>
+	<string name="summary_hints">Tipps: %1$d</string>
+	<string name="summary_lives_lost">Verlorene Leben: %1$d</string>
+	<string name="summary_legend_mistake">Falsche Eingabe</string>
+	<string name="summary_legend_hint">Tipp genutzt</string>
+</resources>

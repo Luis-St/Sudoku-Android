@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	The languages this app ships translations for. Declaring them lets Android list the app under
+	Settings > Apps > Language, so the in-app picker (settings item 7) and the system picker stay the
+	same setting rather than two competing ones.
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+	<locale android:name="en" />
+	<locale android:name="de" />
+</locale-config>

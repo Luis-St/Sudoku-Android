@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bar chart: the statistics destination, replacing the 📊 emoji. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+	android:width="24dp"
+	android:height="24dp"
+	android:viewportWidth="24"
+	android:viewportHeight="24">
+	<path
+		android:fillColor="@android:color/white"
+		android:pathData="M4,13h3v7L4,20zM10.5,4h3v16h-3zM17,9h3v11h-3z" />
+</vector>

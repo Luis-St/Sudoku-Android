@@ -1,0 +1,276 @@
+package net.luis.sudoku.ui.multiplayer.players
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import net.luis.sudoku.R
+import net.luis.sudoku.data.remote.dto.PlayerResponse
+import net.luis.sudoku.ui.common.OutlinedActionButton
+import net.luis.sudoku.ui.common.SectionCard
+
+/**
+ * feature-spec §9.7 plus UI item 9: every player gets an avatar, a name, their role, an invite button
+ * and - for admins - the administration actions.
+ *
+ * Reached from the top bar's own button now (left of settings), not only from inside the multiplayer
+ * flow, which is why [onInvite] is a callback: this screen does not own match creation.
+ */
+@Composable
+fun PlayersScreen(
+	onInvite: () -> Unit,
+	modifier: Modifier = Modifier,
+	viewModel: PlayersViewModel = hiltViewModel()
+) {
+	Column(
+		modifier = modifier
+			.fillMaxSize()
+			.verticalScroll(rememberScrollState())
+			.padding(horizontal = 16.dp, vertical = 8.dp)
+	) {
+		SectionCard(title = stringResource(R.string.tab_players)) {
+			Column {
+				if (viewModel.isAdmin) {
+					OutlinedActionButton(
+						text = stringResource(R.string.players_create_invite),
+						onClick = viewModel::createInvite,
+						modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+					)
+				}
+
+				viewModel.players.forEachIndexed { index, player ->
+					if (index > 0) HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+					PlayerRow(
+						player = player,
+						isAdminViewer = viewModel.isAdmin,
+						isSelf = player.id == viewModel.currentUserId,
+						onShowStats = { viewModel.loadPlayerStats(player.id) },
+						onInvite = onInvite,
+						onChangeRole = { role -> viewModel.changeRole(player.id, role) },
+						onKick = { viewModel.kick(player.id) }
+					)
+				}
+			}
+		}
+
+		SectionCard(
+			title = stringResource(R.string.players_daily_leaderboard_header),
+			modifier = Modifier.padding(top = 12.dp)
+		) {
+			Column {
+				FlowRow {
+					(1..5).forEach { difficulty ->
+						FilterChip(
+							selected = viewModel.leaderboardDifficulty == difficulty,
+							onClick = { viewModel.loadLeaderboard(difficulty) },
+							label = { Text(difficulty.toString()) },
+							modifier = Modifier.padding(end = 4.dp, top = 4.dp)
+						)
+					}
+				}
+				viewModel.leaderboard.forEachIndexed { index, entry ->
+					Text(
+						text = stringResource(
+							R.string.players_leaderboard_row,
+							index + 1,
+							entry.displayName ?: entry.userId ?: "",
+							formatMs(entry.elapsedMs),
+							entry.attempts
+						),
+						style = MaterialTheme.typography.bodyMedium,
+						modifier = Modifier.padding(top = 6.dp)
+					)
+				}
+			}
+		}
+	}
+
+	viewModel.createdInviteCode?.let { code ->
+		AlertDialog(
+			onDismissRequest = viewModel::dismissInviteCode,
+			title = { Text(stringResource(R.string.players_invite_created_title)) },
+			text = { SelectionContainer { Text(code, style = MaterialTheme.typography.titleMedium) } },
+			confirmButton = { TextButton(onClick = viewModel::dismissInviteCode) { Text(stringResource(R.string.action_done)) } }
+		)
+	}
+
+	viewModel.selectedPlayerStats?.let { stats ->
+		AlertDialog(
+			onDismissRequest = viewModel::dismissPlayerStats,
+			title = { Text(stringResource(R.string.dialog_player_stats_title)) },
+			text = {
+				Column {
+					stats.forEach { entry ->
+						Text(stringResource(R.string.players_stats_row, entry.size, entry.size, entry.difficulty, entry.solved, entry.gamesPlayed))
+					}
+				}
+			},
+			confirmButton = { TextButton(onClick = viewModel::dismissPlayerStats) { Text(stringResource(R.string.action_close)) } }
+		)
+	}
+
+	viewModel.errorMessage?.let { message ->
+		AlertDialog(
+			onDismissRequest = viewModel::dismissError,
+			title = { Text(stringResource(R.string.dialog_error_title)) },
+			text = { Text(message) },
+			confirmButton = { TextButton(onClick = viewModel::dismissError) { Text(stringResource(R.string.action_ok)) } }
+		)
+	}
+}
+
+@Composable
+private fun PlayerRow(
+	player: PlayerResponse,
+	isAdminViewer: Boolean,
+	isSelf: Boolean,
+	onShowStats: () -> Unit,
+	onInvite: () -> Unit,
+	onChangeRole: (String) -> Unit,
+	onKick: () -> Unit
+) {
+	var menuOpen by remember { mutableStateOf(false) }
+	val name = player.displayName ?: player.id
+	val isTargetAdmin = player.role.equals("ADMIN", ignoreCase = true)
+
+	Row(
+		modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+		verticalAlignment = Alignment.CenterVertically
+	) {
+		Avatar(name = name, seed = player.id)
+
+		Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
+			Row(verticalAlignment = Alignment.CenterVertically) {
+				Text(name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+				if (isTargetAdmin) {
+					AssistChip(
+						onClick = onShowStats,
+						label = { Text(stringResource(R.string.players_role_admin), style = MaterialTheme.typography.labelSmall) },
+						modifier = Modifier.padding(start = 8.dp)
+					)
+				}
+			}
+			Text(
+				text = stringResource(R.string.players_streak_label, player.streak),
+				style = MaterialTheme.typography.bodySmall,
+				color = MaterialTheme.colorScheme.onSurfaceVariant
+			)
+		}
+
+		// Inviting yourself to a match is meaningless, so self gets no invite button.
+		if (!isSelf) {
+			TextButton(onClick = onInvite) { Text(stringResource(R.string.players_invite_to_match)) }
+		}
+
+		Box {
+			IconButton(onClick = { menuOpen = true }) {
+				Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.players_more_actions))
+			}
+			DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+				DropdownMenuItem(
+					text = { Text(stringResource(R.string.players_view_stats)) },
+					onClick = {
+						onShowStats()
+						menuOpen = false
+					}
+				)
+				// Administration is admin-only and never applies to yourself: the server refuses a
+				// self-demotion that would leave no admin, and self-kick, anyway.
+				if (isAdminViewer && !isSelf) {
+					DropdownMenuItem(
+						text = {
+							Text(stringResource(if (isTargetAdmin) R.string.players_demote else R.string.players_promote))
+						},
+						onClick = {
+							onChangeRole(if (isTargetAdmin) "PLAYER" else "ADMIN")
+							menuOpen = false
+						}
+					)
+					DropdownMenuItem(
+						text = { Text(stringResource(R.string.players_kick), color = MaterialTheme.colorScheme.error) },
+						onClick = {
+							onKick()
+							menuOpen = false
+						}
+					)
+				}
+			}
+		}
+	}
+}
+
+/**
+ * A monogram avatar. The server stores no profile image, so rather than ship a single generic silhouette
+ * for everyone, the initial and a hue derived from the stable user id give each player a distinguishable
+ * icon - and it swaps for a real image later without touching this screen's layout.
+ */
+@Composable
+private fun Avatar(name: String, seed: String) {
+	val palette = listOf(
+		MaterialTheme.colorScheme.primaryContainer,
+		MaterialTheme.colorScheme.secondaryContainer,
+		MaterialTheme.colorScheme.tertiaryContainer
+	)
+	val onPalette = listOf(
+		MaterialTheme.colorScheme.onPrimaryContainer,
+		MaterialTheme.colorScheme.onSecondaryContainer,
+		MaterialTheme.colorScheme.onTertiaryContainer
+	)
+	val index = (seed.hashCode().mod(palette.size))
+
+	Box(
+		modifier = Modifier
+			.size(40.dp)
+			.clip(CircleShape)
+			.background(palette[index]),
+		contentAlignment = Alignment.Center
+	) {
+		Text(
+			text = name.trim().take(1).uppercase().ifBlank { "?" },
+			style = MaterialTheme.typography.titleMedium,
+			fontWeight = FontWeight.SemiBold,
+			color = onPalette[index]
+		)
+	}
+}
+
+private fun formatMs(millis: Long): String {
+	val totalSeconds = millis / 1000
+	return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
+}

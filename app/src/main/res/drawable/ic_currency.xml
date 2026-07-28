@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	Rhubarb, the currency (feature-spec §6a) - general item 1: the icon is the plant the currency is named
+	after, not a generic coin. A coin said nothing about "Rhubarb", which is why the amount had to spell out
+	an abbreviation next to it; a rhubarb does, so the abbreviation is gone from the label.
+
+	Two stalks under a broad, deeply lobed leaf. The lobes are exaggerated well past life size because the
+	whole thing is a single flat fill at 18-20dp: the silhouette is the only cue there is, and a smooth leaf
+	at that size is just an oval.
+
+	The fill stays white and is tinted at the call site, so it follows light/dark and any board theme.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+	android:width="24dp"
+	android:height="24dp"
+	android:viewportWidth="24"
+	android:viewportHeight="24">
+	<!-- Leaf -->
+	<path
+		android:fillColor="@android:color/white"
+		android:pathData="M12,2.5c2.9,0 5.6,1.2 7.3,3.2 0.6,0.7 0.4,1.5 -0.4,1.7 -0.8,0.2 -1.5,0.1 -2,0.5 -0.5,0.4 -0.4,1.1 -1.1,1.4 -0.7,0.3 -1.4,-0.1 -2,0.2 -0.6,0.3 -0.7,1.1 -1.8,1.1 -1.1,0 -1.2,-0.8 -1.8,-1.1 -0.6,-0.3 -1.3,0.1 -2,-0.2 -0.7,-0.3 -0.6,-1 -1.1,-1.4 -0.5,-0.4 -1.2,-0.3 -2,-0.5 -0.8,-0.2 -1,-1 -0.4,-1.7 1.7,-2 4.4,-3.2 7.3,-3.2z" />
+	<!-- Stalks -->
+	<path
+		android:fillColor="@android:color/white"
+		android:pathData="M9.5,12.4l1.6,0.1 -0.4,8.2c-0.03,0.9 -1.3,0.9 -1.3,0z" />
+	<path
+		android:fillColor="@android:color/white"
+		android:pathData="M12.9,12.5l1.6,-0.1 0.1,8.3c0,0.9 -1.27,0.9 -1.3,0z" />
+</vector>
