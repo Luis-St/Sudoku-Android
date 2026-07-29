@@ -509,10 +509,12 @@ class GameViewModel @Inject constructor(
 		// Failed puzzles earn nothing (§6a).
 		if (outcome == GameOutcome.WON) {
 			val difficultyIndex = this.session.key.difficulty().index()
+			// The award scales with the grid too (§6a) - ten solved 4x4s must not be worth ten solved 16x16s.
+			val edgeLength = this.session.edgeLength
 			if (this.slot == SaveSlot.NORMAL) {
-				this.currencyController.awardForNormalSolve(difficultyIndex)
+				this.currencyController.awardForNormalSolve(difficultyIndex, edgeLength)
 			} else {
-				this.currencyController.awardForDailySolve(difficultyIndex)
+				this.currencyController.awardForDailySolve(difficultyIndex, edgeLength)
 				val recorded = this.dailyController.recordSuccess(this.dailyRecord, this.timerController.elapsedMillis())
 				this.dailyRecord = recorded
 				this.dailyStreak = recorded.streak
