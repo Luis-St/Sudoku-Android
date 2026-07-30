@@ -34,6 +34,7 @@ import net.luis.sudoku.data.remote.dto.LeaderboardEntryResponse
 import net.luis.sudoku.data.remote.dto.LinkCodeResponse
 import net.luis.sudoku.data.remote.dto.LinkDeviceRequest
 import net.luis.sudoku.data.remote.dto.MatchConfigDto
+import net.luis.sudoku.data.remote.dto.MatchRequestRequest
 import net.luis.sudoku.data.remote.dto.MatchResponse
 import net.luis.sudoku.data.remote.dto.MatchSettingsDto
 import net.luis.sudoku.data.remote.dto.PlayerResponse
@@ -218,6 +219,21 @@ class ApiClient @Inject constructor(private val client: HttpClient) {
 
 	suspend fun inviteToMatch(baseUrl: String, token: String, matchId: String): CreatedMatchResponse =
 		handle(this.client.post(url(baseUrl, "matches/$matchId/invite")) { authorized(token) })
+
+	/**
+	 * Asks one specific player to join a match already created (server-spec `/matches/{id}/request`). The
+	 * server pushes it over their presence socket, so an offline target fails with `PLAYER_OFFLINE` rather
+	 * than queueing an invite for a match that will not exist by the time they see it.
+	 */
+	suspend fun requestMatch(baseUrl: String, token: String, matchId: String, userId: String) {
+		handleUnit(
+			this.client.post(url(baseUrl, "matches/$matchId/request")) {
+				authorized(token)
+				contentType(ContentType.Application.Json)
+				setBody(MatchRequestRequest(userId))
+			}
+		)
+	}
 
 	suspend fun joinMatch(baseUrl: String, token: String, matchId: String, inviteToken: String?): MatchResponse =
 		handle(

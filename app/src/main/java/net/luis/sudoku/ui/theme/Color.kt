@@ -97,3 +97,7 @@ val GradientVioletEnd = Color(0xFF4530B8)
 
 val GradientSkyStart = Color(0xFF2B8FE0)
 val GradientSkyEnd = Color(0xFF1F5FC4)
+
+// Online presence. A fixed green rather than a scheme role: "connected" has to read the same in light and
+// dark, and no Material role means availability - the nearest, `secondary`, changes with the board theme.
+val OnlineGreen = Color(0xFF2E9E5B)

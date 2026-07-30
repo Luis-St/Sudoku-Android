@@ -1,14 +1,14 @@
-<?xml version="1.0" encoding="utf-8"?>
 <!--
-	Rhubarb, the currency (feature-spec §6a) - general item 1: the icon is the plant the currency is named
-	after, not a generic coin. A coin said nothing about "Rhubarb", which is why the amount had to spell out
-	an abbreviation next to it; a rhubarb does, so the abbreviation is gone from the label.
+	Notification small icon: the rhubarb silhouette (feature-spec §6a).
+
+	This is the flat-fill twin of the ic_currency artwork. The in-app currency icon is now the full-colour
+	render in drawable-*dpi, but a notification small icon cannot be that: Android discards the colours and
+	draws the icon as a solid tinted mask, so a photographic source collapses into a blob. Hence a
+	single-colour vector kept alongside it.
 
 	Two stalks under a broad, deeply lobed leaf. The lobes are exaggerated well past life size because the
-	whole thing is a single flat fill at 18-20dp: the silhouette is the only cue there is, and a smooth leaf
-	at that size is just an oval.
-
-	The fill stays white and is tinted at the call site, so it follows light/dark and any board theme.
+	whole thing is a single flat fill at status-bar size: the silhouette is the only cue there is, and a
+	smooth leaf at that size is just an oval.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
 	android:width="24dp"

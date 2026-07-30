@@ -9,6 +9,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
@@ -90,14 +91,26 @@ class RaceViewModel @AssistedInject constructor(
 	var endReason by mutableStateOf<String?>(null)
 		private set
 
+	/** Set when the socket never opened (server down, wrong address) - the screen can then only offer "leave". */
+	var connectionError by mutableStateOf<String?>(null)
+		private set
+
 	init {
 		this.viewModelScope.launch {
-			this@RaceViewModel.socketClient.connect(
-				url = matchSocketUrl(this@RaceViewModel.baseUrl, this@RaceViewModel.matchId, this@RaceViewModel.token),
-				onMessage = { envelope -> handleMessage(envelope.type, envelope.payload.jsonObjectOrEmpty()) },
-				onClosed = {}
-			)
-			this@RaceViewModel.socketClient.ready()
+			try {
+				this@RaceViewModel.socketClient.connect(
+					url = matchSocketUrl(this@RaceViewModel.baseUrl, this@RaceViewModel.matchId, this@RaceViewModel.token),
+					onMessage = { envelope -> handleMessage(envelope.type, envelope.payload.jsonObjectOrEmpty()) },
+					onClosed = {}
+				)
+				this@RaceViewModel.socketClient.ready()
+			} catch (e: CancellationException) {
+				throw e
+			} catch (e: Exception) {
+				// Failing the upgrade is an ordinary outcome (server down, address without a port) - reported
+				// on the screen, since an uncaught throw here takes the whole app down.
+				this@RaceViewModel.connectionError = e.message ?: e.javaClass.simpleName
+			}
 		}
 	}
 

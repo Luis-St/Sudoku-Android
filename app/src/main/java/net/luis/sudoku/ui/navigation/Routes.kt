@@ -18,13 +18,22 @@ object Routes {
 	const val STATS = "stats"
 	const val SETTINGS = "settings"
 	const val FRIENDS = "friends"
-	const val MULTIPLAYER = "multiplayer"
 
 	const val ARG_MODE = "mode"
 	const val ARG_SIZE = "size"
 	const val ARG_VARIANT = "variant"
 	const val ARG_DIFFICULTY = "difficulty"
 	const val ARG_CODE = "code"
+	const val ARG_MATCH_ID = "matchId"
+	const val ARG_INVITE_TOKEN = "inviteToken"
+	const val ARG_STAKE = "stake"
+
+	/**
+	 * Plain `multiplayer` is the match-setup screen. The optional arguments carry a match that already
+	 * exists - one this player just created for a specific opponent, or one they were asked to join from
+	 * the match-request overlay - so those paths skip setup entirely.
+	 */
+	const val MULTIPLAYER = "multiplayer?$ARG_MATCH_ID={$ARG_MATCH_ID}&$ARG_INVITE_TOKEN={$ARG_INVITE_TOKEN}&$ARG_MODE={$ARG_MODE}&$ARG_STAKE={$ARG_STAKE}"
 
 	/**
 	 * `mode` picks the save slot; the optional arguments carry what the generator or the share-code
@@ -35,6 +44,17 @@ object Routes {
 	const val PLAY = "play/{$ARG_MODE}?$ARG_SIZE={$ARG_SIZE}&$ARG_VARIANT={$ARG_VARIANT}&$ARG_DIFFICULTY={$ARG_DIFFICULTY}&$ARG_CODE={$ARG_CODE}"
 
 	fun play(mode: PlayMode): String = "play/${mode.name}"
+
+	/** The match-setup screen, with nothing pre-selected. */
+	fun multiplayer(): String = "multiplayer"
+
+	/** A match this player created and has already asked someone to join - go straight into it. */
+	fun multiplayerMatch(matchId: String, mode: String, stake: Int): String =
+		"multiplayer?$ARG_MATCH_ID=$matchId&$ARG_MODE=$mode&$ARG_STAKE=$stake"
+
+	/** A match request that was accepted: join with the token that came with it, then play. */
+	fun multiplayerJoin(matchId: String, inviteToken: String): String =
+		"multiplayer?$ARG_MATCH_ID=$matchId&$ARG_INVITE_TOKEN=$inviteToken"
 
 	fun playGenerated(size: GridSize, variant: Variant, difficulty: Difficulty): String =
 		"play/${PlayMode.NORMAL.name}?$ARG_SIZE=${size.name}&$ARG_VARIANT=${variant.name}&$ARG_DIFFICULTY=${difficulty.name}"

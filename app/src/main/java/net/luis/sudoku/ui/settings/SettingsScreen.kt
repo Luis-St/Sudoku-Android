@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -35,6 +36,7 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import net.luis.sudoku.R
 import net.luis.sudoku.data.local.ThemeMode
+import net.luis.sudoku.device.DeviceNames
 import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.ui.app.AppViewModel
 import net.luis.sudoku.ui.common.DropdownTrigger
@@ -42,6 +44,7 @@ import net.luis.sudoku.ui.common.GradientButton
 import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.common.SectionCard
 import net.luis.sudoku.ui.common.friendlyErrorMessage
+import net.luis.sudoku.ui.common.isValidEmail
 import net.luis.sudoku.ui.theme.ActionAccent
 
 /**
@@ -333,14 +336,46 @@ private fun ServerUrlForm(onConnect: (String) -> Unit, busy: Boolean) {
 	}
 }
 
-private enum class AuthMode { REGISTER, LINK, RECOVER }
+private enum class AuthMode { REGISTER, LINK, RECOVER, REAUTH }
+
+@Composable
+private fun authModeLabel(mode: AuthMode): String = when (mode) {
+	AuthMode.REGISTER -> stringResource(R.string.action_register)
+	AuthMode.LINK -> stringResource(R.string.action_link_this_device)
+	AuthMode.RECOVER -> stringResource(R.string.action_recover_account)
+	AuthMode.REAUTH -> stringResource(R.string.action_sign_in_again)
+}
+
+/**
+ * The four ways in, as a 2x2 grid of tabs. A single row could not hold four labels at this width - they
+ * truncated to the point where "Link this device" and "Sign in again" were indistinguishable.
+ */
+@Composable
+private fun AuthModeTabs(selected: AuthMode, onSelect: (AuthMode) -> Unit, modifier: Modifier = Modifier) {
+	Column(modifier = modifier.fillMaxWidth()) {
+		AuthMode.entries.chunked(2).forEach { row ->
+			Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+				row.forEach { mode ->
+					FilterChip(
+						selected = selected == mode,
+						onClick = { onSelect(mode) },
+						label = { Text(authModeLabel(mode), maxLines = 1) },
+						modifier = Modifier.weight(1f)
+					)
+				}
+			}
+		}
+	}
+}
 
 @Composable
 private fun UnauthenticatedPanel(viewModel: SettingsViewModel, onServerStateChanged: () -> Unit) {
 	var mode by remember { mutableStateOf(AuthMode.REGISTER) }
 	var code by remember { mutableStateOf("") }
 	var displayName by remember { mutableStateOf("") }
-	var deviceLabel by remember { mutableStateOf("") }
+	// Prefilled rather than left blank (server item 2): the player can still edit it, but doing nothing
+	// now yields a device they can actually recognise in the device list later.
+	var deviceLabel by remember { mutableStateOf(DeviceNames.default()) }
 	var email by remember { mutableStateOf("") }
 
 	fun switchMode(next: AuthMode) {
@@ -355,13 +390,25 @@ private fun UnauthenticatedPanel(viewModel: SettingsViewModel, onServerStateChan
 			style = MaterialTheme.typography.bodyMedium
 		)
 
-		Row(modifier = Modifier.padding(top = 8.dp)) {
-			TextButton(onClick = { switchMode(AuthMode.REGISTER) }) { Text(stringResource(R.string.action_register)) }
-			TextButton(onClick = { switchMode(AuthMode.LINK) }) { Text(stringResource(R.string.action_link_this_device)) }
-			TextButton(onClick = { switchMode(AuthMode.RECOVER) }) { Text(stringResource(R.string.action_recover_account)) }
-		}
-		TextButton(onClick = { viewModel.reauthenticate(); onServerStateChanged() }) {
-			Text(stringResource(R.string.action_sign_in_again))
+		AuthModeTabs(selected = mode, onSelect = ::switchMode)
+
+		if (mode == AuthMode.REAUTH) {
+			Text(
+				text = stringResource(R.string.settings_reauth_explainer),
+				style = MaterialTheme.typography.bodySmall,
+				color = MaterialTheme.colorScheme.onSurfaceVariant,
+				modifier = Modifier.padding(top = 8.dp)
+			)
+			Box(modifier = Modifier.padding(top = 12.dp)) {
+				GradientButton(
+					text = stringResource(R.string.action_sign_in_again),
+					onClick = { viewModel.reauthenticate(); onServerStateChanged() },
+					enabled = !viewModel.busy
+				)
+			}
+
+			DropServerButton(viewModel, onServerStateChanged)
+			return@Column
 		}
 
 		if (mode == AuthMode.RECOVER) {
@@ -398,7 +445,7 @@ private fun UnauthenticatedPanel(viewModel: SettingsViewModel, onServerStateChan
 				OutlinedTextField(
 					value = deviceLabel,
 					onValueChange = { deviceLabel = it },
-					label = { Text(stringResource(R.string.settings_device_label_optional)) },
+					label = { Text(stringResource(R.string.settings_device_label)) },
 					singleLine = true,
 					modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 				)
@@ -406,7 +453,7 @@ private fun UnauthenticatedPanel(viewModel: SettingsViewModel, onServerStateChan
 					GradientButton(
 						text = stringResource(R.string.action_recover),
 						onClick = {
-							viewModel.redeemRecovery(code.trim(), deviceLabel.trim().ifBlank { null })
+							viewModel.redeemRecovery(code.trim(), deviceLabel.trim().ifBlank { DeviceNames.default() })
 							onServerStateChanged()
 						},
 						enabled = !viewModel.busy && code.isNotBlank()
@@ -433,11 +480,22 @@ private fun UnauthenticatedPanel(viewModel: SettingsViewModel, onServerStateChan
 				singleLine = true,
 				modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 			)
+			// Server item 3: the address is collected here, not later in the account section, and it is
+			// required - an account with no verified address has no way back after losing every device.
+			OutlinedTextField(
+				value = email,
+				onValueChange = { email = it },
+				label = { Text(stringResource(R.string.settings_email_label)) },
+				singleLine = true,
+				isError = email.isNotBlank() && !isValidEmail(email),
+				supportingText = { Text(stringResource(R.string.settings_email_required_note)) },
+				modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+			)
 		}
 		OutlinedTextField(
 			value = deviceLabel,
 			onValueChange = { deviceLabel = it },
-			label = { Text(stringResource(R.string.settings_device_label_optional)) },
+			label = { Text(stringResource(R.string.settings_device_label)) },
 			singleLine = true,
 			modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 		)
@@ -446,14 +504,16 @@ private fun UnauthenticatedPanel(viewModel: SettingsViewModel, onServerStateChan
 			GradientButton(
 				text = stringResource(R.string.action_continue),
 				onClick = {
+					val label = deviceLabel.trim().ifBlank { DeviceNames.default() }
 					if (mode == AuthMode.REGISTER) {
-						viewModel.register(code.trim(), displayName.trim(), deviceLabel.trim().ifBlank { null })
+						viewModel.register(code.trim(), displayName.trim(), label, email.trim())
 					} else {
-						viewModel.linkThisDevice(code.trim(), deviceLabel.trim().ifBlank { null })
+						viewModel.linkThisDevice(code.trim(), label)
 					}
 					onServerStateChanged()
 				},
-				enabled = !viewModel.busy && code.isNotBlank() && (mode == AuthMode.LINK || displayName.isNotBlank())
+				enabled = !viewModel.busy && code.isNotBlank() &&
+					(mode == AuthMode.LINK || (displayName.isNotBlank() && isValidEmail(email)))
 			)
 		}
 

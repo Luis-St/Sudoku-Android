@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	Debug-only. Sudoku-Server speaks plain HTTP by design (nginx terminates TLS in front of it), so a
+	debug build talking to a local server needs cleartext explicitly allowed - targetSdk 36 blocks it
+	otherwise. This lives in src/debug so the release build keeps the platform default of "no cleartext,
+	anywhere"; a real deployment is reached over https:// through nginx.
+
+	10.0.2.2 is the emulator's alias for the host loopback, i.e. where `docker compose` publishes 7000.
+-->
+<network-security-config>
+	<domain-config cleartextTrafficPermitted="true">
+		<domain includeSubdomains="true">10.0.2.2</domain>
+		<domain includeSubdomains="true">10.0.3.2</domain>
+		<domain includeSubdomains="true">localhost</domain>
+		<domain includeSubdomains="true">127.0.0.1</domain>
+	</domain-config>
+</network-security-config>

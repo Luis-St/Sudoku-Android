@@ -6,13 +6,20 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import net.luis.sudoku.data.local.ServerConfigStore
 import net.luis.sudoku.data.remote.ApiClient
 import net.luis.sudoku.data.remote.ApiException
 import net.luis.sudoku.data.remote.dto.LeaderboardEntryResponse
+import net.luis.sudoku.data.remote.dto.MatchConfigDto
+import net.luis.sudoku.data.remote.dto.MatchSettingsDto
 import net.luis.sudoku.data.remote.dto.PlayerResponse
 import net.luis.sudoku.data.remote.dto.StatsEntryResponse
+import net.luis.sudoku.difficulty.Difficulty
+import net.luis.sudoku.grid.GridSize
+import net.luis.sudoku.grid.Variant
+import net.luis.sudoku.ui.multiplayer.setup.ActiveMatch
 import javax.inject.Inject
 
 /**
@@ -46,11 +53,25 @@ class PlayersViewModel @Inject constructor(
 	var currentUserId by mutableStateOf<String?>(null)
 		private set
 
+	/**
+	 * The match this player just created for someone else, ready for the screen to navigate into. The
+	 * requester is already a participant, so there is nothing left to join.
+	 */
+	var startedMatch by mutableStateOf<ActiveMatch?>(null)
+		private set
+
 	/** A freshly minted invite code, shown once so the admin can pass it on. */
 	var createdInviteCode by mutableStateOf<String?>(null)
 		private set
 
 	var errorMessage by mutableStateOf<String?>(null)
+		private set
+
+	var errorCode by mutableStateOf<String?>(null)
+		private set
+
+	/** A request in flight - the send button must not fire twice and create two matches. */
+	var busy by mutableStateOf(false)
 		private set
 
 	init {
@@ -106,6 +127,33 @@ class PlayersViewModel @Inject constructor(
 		}
 	}
 
+	/**
+	 * Creates a match and asks one specific player to join it (feature-spec §9.7). Both halves are one
+	 * action deliberately: a match nobody was asked to join would just sit there, and a request cannot be
+	 * sent before its match exists.
+	 *
+	 * Config is fixed at a 9x9 classic - the mode is what the two players are actually choosing between
+	 * here, and the full picker already exists on the match-setup screen for anything else.
+	 */
+	fun requestMatch(playerId: String, mode: String, difficulty: Difficulty) {
+		runOrReportError {
+			val (baseUrl, token) = serverCredentials() ?: return@runOrReportError
+			val created = this.apiClient.createMatch(
+				baseUrl,
+				token,
+				mode,
+				MatchConfigDto(GridSize.NINE.n(), Variant.CLASSIC.name, difficulty.index()),
+				MatchSettingsDto(livesEnabled = true, stake = 0)
+			)
+			this.apiClient.requestMatch(baseUrl, token, created.matchId, playerId)
+			this.startedMatch = ActiveMatch(created.matchId, mode)
+		}
+	}
+
+	fun clearStartedMatch() {
+		this.startedMatch = null
+	}
+
 	fun createInvite() {
 		runOrReportError {
 			val (baseUrl, token) = serverCredentials() ?: return@runOrReportError
@@ -119,6 +167,7 @@ class PlayersViewModel @Inject constructor(
 
 	fun dismissError() {
 		this.errorMessage = null
+		this.errorCode = null
 	}
 
 	private suspend fun serverCredentials(): Pair<String, String>? {
@@ -129,11 +178,21 @@ class PlayersViewModel @Inject constructor(
 	}
 
 	private fun runOrReportError(block: suspend () -> Unit) {
+		this.busy = true
 		this.viewModelScope.launch {
 			try {
 				block()
 			} catch (e: ApiException) {
 				this@PlayersViewModel.errorMessage = e.message ?: e.code
+				this@PlayersViewModel.errorCode = e.code
+			} catch (e: CancellationException) {
+				throw e
+			} catch (e: Exception) {
+				// Unreachable server: no ErrorResponse to read, but still an error to show rather than a crash.
+				this@PlayersViewModel.errorMessage = e.message ?: ApiException.NETWORK_ERROR
+				this@PlayersViewModel.errorCode = ApiException.NETWORK_ERROR
+			} finally {
+				this@PlayersViewModel.busy = false
 			}
 		}
 	}

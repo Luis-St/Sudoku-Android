@@ -24,6 +24,10 @@ data class CreatedMatchResponse(val matchId: String, val inviteToken: String)
 @Serializable
 data class JoinMatchRequest(val inviteToken: String? = null)
 
+/** Body of `POST /matches/{id}/request`: which online player to ask (feature-spec §9.7). */
+@Serializable
+data class MatchRequestRequest(val userId: String)
+
 @Serializable
 data class PuzzleKeyResponse(val genVersion: Int, val size: Int, val variant: String? = null, val difficulty: Int, val seed: String? = null) {
 	/** `seed` travels as a string on the wire (server-spec §9) - a 64-bit value doesn't survive a JSON double. */

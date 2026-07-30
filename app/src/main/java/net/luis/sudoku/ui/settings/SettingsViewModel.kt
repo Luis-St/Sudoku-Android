@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import net.luis.sudoku.data.keystore.DeviceKeyManager
 import net.luis.sudoku.data.local.CurrencyStore
@@ -64,9 +65,11 @@ class SettingsViewModel @Inject constructor(
 		private set
 
 	init {
-		this.viewModelScope.launch {
-			this@SettingsViewModel.config = this@SettingsViewModel.configStore.current()
-			if (this@SettingsViewModel.config.isAuthenticated) refreshDevices()
+		// Through the error path deliberately: the device list is a network call, and opening settings while
+		// the server happens to be down must surface that, not crash.
+		runOrReportError {
+			this.config = this.configStore.current()
+			if (this.config.isAuthenticated) refreshDevices()
 		}
 	}
 
@@ -86,12 +89,23 @@ class SettingsViewModel @Inject constructor(
 		}
 	}
 
-	fun register(inviteCode: String, displayName: String, deviceLabel: String?) {
+	/**
+	 * Registration now carries the recovery address (server item 3). The server has no email field on
+	 * `/register` - it is set on the signed-in user - so this is two calls, in this order deliberately:
+	 * an address that the server rejects (already verified elsewhere) must not cost the invite code,
+	 * which is one-time. A failed `setEmail` therefore leaves a registered, signed-in account whose
+	 * address can be re-entered in the account section, rather than a burned invite and no account.
+	 */
+	fun register(inviteCode: String, displayName: String, deviceLabel: String?, email: String) {
 		val baseUrl = this.config.serverUrl ?: return
 		runOrReportError {
 			val publicKey = this.keyManager.ensurePublicKeyBase64()
 			val session = this.apiClient.register(baseUrl, publicKey, DeviceKeyManager.KEY_ALGORITHM, inviteCode, displayName, deviceLabel)
 			storeSession(session.sessionToken, session.user.id, session.user.displayName, session.user.role)
+			this.apiClient.setEmail(baseUrl, session.sessionToken, email)
+			// Straight into the "we sent you a code" state: the verification code is already in flight, and
+			// the account section is what the screen shows next.
+			this.emailVerificationSent = true
 			syncLocalHistory(baseUrl, session.sessionToken)
 			refreshDevices()
 		}
@@ -258,6 +272,13 @@ class SettingsViewModel @Inject constructor(
 			} catch (e: ApiException) {
 				this@SettingsViewModel.errorMessage = e.message ?: e.code
 				this@SettingsViewModel.errorCode = e.code
+			} catch (e: CancellationException) {
+				throw e
+			} catch (e: Exception) {
+				// A wrong address or a stopped server fails before there is any ErrorResponse to read - it is
+				// still just an error to show, never a reason to take the app down with it.
+				this@SettingsViewModel.errorMessage = e.message ?: ApiException.NETWORK_ERROR
+				this@SettingsViewModel.errorCode = ApiException.NETWORK_ERROR
 			} finally {
 				this@SettingsViewModel.busy = false
 			}

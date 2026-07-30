@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -246,7 +247,8 @@ fun GameScreen(
 						text = stringResource(R.string.action_hint_with_count, viewModel.hintsRemaining),
 						onClick = viewModel::onHintTap,
 						enabled = viewModel.hintsRemaining > 0 || viewModel.hintCandidate != null,
-						iconPainter = painterResource(R.drawable.ic_hint)
+						iconPainter = painterResource(R.drawable.ic_hint),
+						iconIsArtwork = true
 					)
 				}
 			}
@@ -376,20 +378,19 @@ private fun StatusBar(viewModel: GameViewModel) {
 	) {
 		Row {
 			repeat(viewModel.livesRemaining) {
-				Icon(
+				// Image, not Icon: these are full-color artwork, and Icon would tint them flat (see Components.kt).
+				Image(
 					painter = painterResource(R.drawable.ic_heart),
 					contentDescription = null,
-					tint = MaterialTheme.colorScheme.error,
 					modifier = Modifier.size(18.dp).padding(end = 2.dp)
 				)
 			}
 		}
 		Text(formatElapsed(viewModel.elapsedMillis), style = MaterialTheme.typography.titleMedium)
 		Row(verticalAlignment = Alignment.CenterVertically) {
-			Icon(
+			Image(
 				painter = painterResource(R.drawable.ic_currency),
 				contentDescription = null,
-				tint = MaterialTheme.colorScheme.secondary,
 				modifier = Modifier.size(18.dp)
 			)
 			Text(

@@ -28,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,23 +42,44 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import net.luis.sudoku.R
+import net.luis.sudoku.data.remote.dto.MatchMode
 import net.luis.sudoku.data.remote.dto.PlayerResponse
+import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.ui.common.OutlinedActionButton
+import net.luis.sudoku.ui.common.friendlyErrorMessage
 import net.luis.sudoku.ui.common.SectionCard
+import net.luis.sudoku.ui.multiplayer.setup.ActiveMatch
+import net.luis.sudoku.ui.presence.PresenceViewModel
+import net.luis.sudoku.ui.theme.OnlineGreen
 
 /**
  * feature-spec §9.7 plus UI item 9: every player gets an avatar, a name, their role, an invite button
  * and - for admins - the administration actions.
  *
  * Reached from the top bar's own button now (left of settings), not only from inside the multiplayer
- * flow, which is why [onInvite] is a callback: this screen does not own match creation.
+ * flow. Online status comes from [presenceViewModel]'s live socket rather than the list response, so it
+ * changes as players come and go without a refresh; the REST `online` flag is only the value at load.
+ *
+ * A match request may only be sent to an online player: the server pushes it over their presence socket
+ * rather than storing it, so an offline target has nothing to receive it.
  */
 @Composable
 fun PlayersScreen(
-	onInvite: () -> Unit,
+	presenceViewModel: PresenceViewModel,
+	onMatchStarted: (ActiveMatch) -> Unit,
 	modifier: Modifier = Modifier,
 	viewModel: PlayersViewModel = hiltViewModel()
 ) {
+	var invitee by remember { mutableStateOf<PlayerResponse?>(null) }
+
+	LaunchedEffect(viewModel.startedMatch) {
+		viewModel.startedMatch?.let { match ->
+			invitee = null
+			viewModel.clearStartedMatch()
+			onMatchStarted(match)
+		}
+	}
+
 	Column(
 		modifier = modifier
 			.fillMaxSize()
@@ -80,8 +102,9 @@ fun PlayersScreen(
 						player = player,
 						isAdminViewer = viewModel.isAdmin,
 						isSelf = player.id == viewModel.currentUserId,
+						isOnline = presenceViewModel.isOnline(player.id) || player.online,
 						onShowStats = { viewModel.loadPlayerStats(player.id) },
-						onInvite = onInvite,
+						onInvite = { invitee = player },
 						onChangeRole = { role -> viewModel.changeRole(player.id, role) },
 						onKick = { viewModel.kick(player.id) }
 					)
@@ -121,6 +144,15 @@ fun PlayersScreen(
 		}
 	}
 
+	invitee?.let { player ->
+		MatchRequestDialog(
+			player = player,
+			busy = viewModel.busy,
+			onDismiss = { invitee = null },
+			onSend = { mode, difficulty -> viewModel.requestMatch(player.id, mode.name, difficulty) }
+		)
+	}
+
 	viewModel.createdInviteCode?.let { code ->
 		AlertDialog(
 			onDismissRequest = viewModel::dismissInviteCode,
@@ -149,10 +181,69 @@ fun PlayersScreen(
 		AlertDialog(
 			onDismissRequest = viewModel::dismissError,
 			title = { Text(stringResource(R.string.dialog_error_title)) },
-			text = { Text(message) },
+			text = { Text(friendlyErrorMessage(viewModel.errorCode ?: "", message)) },
 			confirmButton = { TextButton(onClick = viewModel::dismissError) { Text(stringResource(R.string.action_ok)) } }
 		)
 	}
+}
+
+/**
+ * Picks what kind of match to ask for. Only the mode and the tier are offered: those are the two the
+ * invitee actually cares about, and the full size/variant/lives/stake picker already exists on the
+ * match-setup screen.
+ */
+@Composable
+private fun MatchRequestDialog(
+	player: PlayerResponse,
+	busy: Boolean,
+	onDismiss: () -> Unit,
+	onSend: (MatchMode, Difficulty) -> Unit
+) {
+	var mode by remember { mutableStateOf(MatchMode.RACE) }
+	var difficulty by remember { mutableStateOf(Difficulty.THREE) }
+
+	AlertDialog(
+		onDismissRequest = onDismiss,
+		title = { Text(stringResource(R.string.players_request_match_title, player.displayName ?: player.id)) },
+		text = {
+			Column {
+				Text(stringResource(R.string.matchsetup_create_header), style = MaterialTheme.typography.labelLarge)
+				FlowRow {
+					listOf(MatchMode.RACE, MatchMode.DUEL, MatchMode.COOP).forEach { candidate ->
+						FilterChip(
+							selected = mode == candidate,
+							onClick = { mode = candidate },
+							label = { Text(candidate.name) },
+							modifier = Modifier.padding(end = 4.dp, top = 4.dp)
+						)
+					}
+				}
+				Text(
+					text = stringResource(R.string.label_difficulty),
+					style = MaterialTheme.typography.labelLarge,
+					modifier = Modifier.padding(top = 12.dp)
+				)
+				FlowRow {
+					// Lisa is single-player/daily only (feature-spec §4.3) and the server rejects it for
+					// every mode, so it is never offered.
+					Difficulty.values().filterNot { it.isLisa }.forEach { candidate ->
+						FilterChip(
+							selected = difficulty == candidate,
+							onClick = { difficulty = candidate },
+							label = { Text(candidate.index().toString()) },
+							modifier = Modifier.padding(end = 4.dp, top = 4.dp)
+						)
+					}
+				}
+			}
+		},
+		confirmButton = {
+			TextButton(onClick = { onSend(mode, difficulty) }, enabled = !busy) {
+				Text(stringResource(R.string.players_send_request))
+			}
+		},
+		dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } }
+	)
 }
 
 @Composable
@@ -160,6 +251,7 @@ private fun PlayerRow(
 	player: PlayerResponse,
 	isAdminViewer: Boolean,
 	isSelf: Boolean,
+	isOnline: Boolean,
 	onShowStats: () -> Unit,
 	onInvite: () -> Unit,
 	onChangeRole: (String) -> Unit,
@@ -186,15 +278,28 @@ private fun PlayerRow(
 					)
 				}
 			}
-			Text(
-				text = stringResource(R.string.players_streak_label, player.streak),
-				style = MaterialTheme.typography.bodySmall,
-				color = MaterialTheme.colorScheme.onSurfaceVariant
-			)
+			Row(verticalAlignment = Alignment.CenterVertically) {
+				OnlineDot(isOnline)
+				Text(
+					text = stringResource(
+						if (isOnline) R.string.players_online else R.string.players_offline
+					),
+					style = MaterialTheme.typography.bodySmall,
+					color = MaterialTheme.colorScheme.onSurfaceVariant,
+					modifier = Modifier.padding(start = 6.dp)
+				)
+				Text(
+					text = stringResource(R.string.players_streak_label, player.streak),
+					style = MaterialTheme.typography.bodySmall,
+					color = MaterialTheme.colorScheme.onSurfaceVariant,
+					modifier = Modifier.padding(start = 12.dp)
+				)
+			}
 		}
 
-		// Inviting yourself to a match is meaningless, so self gets no invite button.
-		if (!isSelf) {
+		// Inviting yourself is meaningless, and an offline player has no socket the request could arrive
+		// on - the server would answer PLAYER_OFFLINE - so neither gets the button.
+		if (!isSelf && isOnline) {
 			TextButton(onClick = onInvite) { Text(stringResource(R.string.players_invite_to_match)) }
 		}
 
@@ -233,6 +338,17 @@ private fun PlayerRow(
 			}
 		}
 	}
+}
+
+/** Green when connected, muted otherwise - the same "is this player reachable" the invite button gates on. */
+@Composable
+private fun OnlineDot(isOnline: Boolean) {
+	Box(
+		modifier = Modifier
+			.size(8.dp)
+			.clip(CircleShape)
+			.background(if (isOnline) OnlineGreen else MaterialTheme.colorScheme.outlineVariant)
+	)
 }
 
 /**

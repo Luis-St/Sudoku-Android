@@ -3,6 +3,7 @@ package net.luis.sudoku.ui.common
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import net.luis.sudoku.R
+import net.luis.sudoku.data.remote.ApiException
 
 /** Translates a stable [net.luis.sudoku.data.remote.ApiException.code] into user-facing copy; anything unmapped falls back to [fallback]. */
 @Composable
@@ -14,5 +15,7 @@ fun friendlyErrorMessage(code: String, fallback: String): String = when (code) {
 	"STREAK_RESTORE_NOT_NEEDED" -> stringResource(R.string.error_streak_restore_not_needed)
 	"INSUFFICIENT_RESTORE_POINTS" -> stringResource(R.string.error_insufficient_restore_points)
 	"INSUFFICIENT_BALANCE" -> stringResource(R.string.error_insufficient_balance)
+	"PLAYER_OFFLINE" -> stringResource(R.string.error_player_offline)
+	ApiException.NETWORK_ERROR -> stringResource(R.string.error_network, fallback)
 	else -> fallback
 }

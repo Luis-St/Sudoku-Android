@@ -8,6 +8,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -26,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
@@ -50,6 +52,8 @@ import net.luis.sudoku.ui.home.HomeScreen
 import net.luis.sudoku.ui.multiplayer.MultiplayerScreen
 import net.luis.sudoku.ui.multiplayer.players.PlayersScreen
 import net.luis.sudoku.ui.navigation.PlayMode
+import net.luis.sudoku.ui.presence.MatchRequestOverlay
+import net.luis.sudoku.ui.presence.PresenceViewModel
 import net.luis.sudoku.ui.navigation.PlayRequest
 import net.luis.sudoku.ui.navigation.Routes
 import net.luis.sudoku.ui.settings.SettingsScreen
@@ -121,6 +125,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun SudokuApp(appViewModel: AppViewModel) {
 	val navController = rememberNavController()
+	// Activity-scoped: the socket has to outlive every destination, and a match request must surface
+	// wherever the player currently is - including mid-puzzle.
+	val presenceViewModel: PresenceViewModel = hiltViewModel()
 	val backStackEntry by navController.currentBackStackEntryAsState()
 	val route = backStackEntry?.destination?.route
 	val onHome = route == Routes.HOME
@@ -164,7 +171,21 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 			)
 		}
 	) { innerPadding ->
-		AppNavHost(navController, appViewModel, gameTopBarActions, Modifier.padding(innerPadding))
+		Box(modifier = Modifier.padding(innerPadding)) {
+			AppNavHost(navController, appViewModel, presenceViewModel, gameTopBarActions, Modifier)
+
+			presenceViewModel.incomingRequest?.let { request ->
+				MatchRequestOverlay(
+					request = request,
+					onAccept = {
+						presenceViewModel.dismissRequest()
+						navController.navigate(Routes.multiplayerJoin(request.matchId, request.inviteToken))
+					},
+					onDecline = presenceViewModel::dismissRequest,
+					modifier = Modifier.align(Alignment.TopCenter)
+				)
+			}
+		}
 	}
 }
 
@@ -186,6 +207,7 @@ private fun titleFor(route: String?): String = when (route) {
 private fun AppNavHost(
 	navController: NavHostController,
 	appViewModel: AppViewModel,
+	presenceViewModel: PresenceViewModel,
 	gameTopBarActions: GameTopBarActions,
 	modifier: Modifier
 ) {
@@ -198,7 +220,9 @@ private fun AppNavHost(
 				onOpenEnterCode = { navController.navigate(Routes.ENTER_CODE) },
 				onOpenShop = { navController.navigate(Routes.SHOP) },
 				onOpenStats = { navController.navigate(Routes.STATS) },
-				onOpenMultiplayer = { navController.navigate(Routes.MULTIPLAYER) },
+				// multiplayer(), never the MULTIPLAYER pattern: navigating to the pattern itself would pass its
+				// own `{matchId}`/`{inviteToken}` placeholders through as literal argument values.
+				onOpenMultiplayer = { navController.navigate(Routes.multiplayer()) },
 				onContinue = { navController.navigate(Routes.play(PlayMode.NORMAL)) }
 			)
 		}
@@ -252,8 +276,37 @@ private fun AppNavHost(
 
 		composable(Routes.SHOP) { ShopScreen() }
 		composable(Routes.STATS) { StatsScreen() }
-		composable(Routes.FRIENDS) { PlayersScreen(onInvite = { navController.navigate(Routes.MULTIPLAYER) }) }
-		composable(Routes.MULTIPLAYER) { MultiplayerScreen(config = appViewModel.serverConfig) }
+		composable(Routes.FRIENDS) {
+			PlayersScreen(
+				presenceViewModel = presenceViewModel,
+				// The match exists and its creator is already a participant, so this goes straight into it
+				// rather than back through match setup. popUpTo(FRIENDS) keeps Back out of the finished match.
+				onMatchStarted = { match ->
+					navController.navigate(Routes.multiplayerMatch(match.matchId, match.mode, match.stake)) {
+						popUpTo(Routes.FRIENDS) { inclusive = true }
+					}
+				}
+			)
+		}
+
+		composable(
+			route = Routes.MULTIPLAYER,
+			arguments = listOf(
+				navArgument(Routes.ARG_MATCH_ID) { type = NavType.StringType; nullable = true; defaultValue = null },
+				navArgument(Routes.ARG_INVITE_TOKEN) { type = NavType.StringType; nullable = true; defaultValue = null },
+				navArgument(Routes.ARG_MODE) { type = NavType.StringType; nullable = true; defaultValue = null },
+				navArgument(Routes.ARG_STAKE) { type = NavType.StringType; nullable = true; defaultValue = null }
+			)
+		) { entry ->
+			val args = entry.arguments
+			MultiplayerScreen(
+				config = appViewModel.serverConfig,
+				matchId = args?.getString(Routes.ARG_MATCH_ID),
+				inviteToken = args?.getString(Routes.ARG_INVITE_TOKEN),
+				mode = args?.getString(Routes.ARG_MODE),
+				stake = args?.getString(Routes.ARG_STAKE)?.toIntOrNull() ?: 0
+			)
+		}
 
 		composable(Routes.SETTINGS) {
 			SettingsScreen(

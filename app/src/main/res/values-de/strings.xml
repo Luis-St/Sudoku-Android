@@ -69,7 +69,6 @@
 	<string name="action_sign_in_again">Erneut anmelden</string>
 	<string name="settings_invite_code_label">Einladungscode</string>
 	<string name="settings_display_name_label">Anzeigename</string>
-	<string name="settings_device_label_optional">Gerätebezeichnung (optional)</string>
 	<string name="action_forget_server">Diesen Server vergessen</string>
 	<string name="settings_signed_in_as">Angemeldet als %1$s (%2$s)</string>
 	<string name="action_link_new_device">Neues Gerät verknüpfen</string>
@@ -268,4 +267,19 @@
 	<string name="summary_lives_lost">Verlorene Leben: %1$d</string>
 	<string name="summary_legend_mistake">Falsche Eingabe</string>
 	<string name="summary_legend_hint">Tipp genutzt</string>
+	<string name="settings_device_label">Gerätename</string>
+	<string name="settings_email_required_note">Erforderlich - der einzige Weg zurück in dein Konto, wenn du alle Geräte verlierst.</string>
+	<string name="settings_reauth_explainer">Mit dem bereits auf diesem Gerät gespeicherten Schlüssel erneut anmelden. Nutze das, wenn eine Sitzung abgelaufen ist oder von einem anderen Gerät abgelöst wurde.</string>
+	<string name="players_online">Online</string>
+	<string name="players_offline">Offline</string>
+	<string name="players_request_match_title">Gegen %1$s spielen</string>
+	<string name="players_send_request">Anfrage senden</string>
+	<string name="presence_match_request_title">%1$s möchte spielen</string>
+	<string name="presence_match_request_body">Spielmodus: %1$s</string>
+	<string name="action_accept">Annehmen</string>
+	<string name="action_decline">Ablehnen</string>
+	<string name="error_player_offline">Dieser Spieler ist gerade offline gegangen. Frag erneut, sobald er zurück ist.</string>
+
+	<string name="error_network">Der Server ist nicht erreichbar. Prüfe die Adresse (samt Port) und ob der Server läuft.\n\n%1$s</string>
+	<string name="error_match_connect">Beitritt zum Match fehlgeschlagen: Der Server ist nicht erreichbar.\n\n%1$s</string>
 </resources>

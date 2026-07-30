@@ -1,6 +1,7 @@
 package net.luis.sudoku.ui.common
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -68,7 +69,9 @@ fun OutlinedActionButton(
 	modifier: Modifier = Modifier,
 	enabled: Boolean = true,
 	icon: ImageVector? = null,
-	iconPainter: Painter? = null
+	iconPainter: Painter? = null,
+	/** `true` when [iconPainter] is a full-color drawable rather than a tintable glyph - see `ButtonLabel`. */
+	iconIsArtwork: Boolean = false
 ) {
 	OutlinedButton(
 		onClick = onClick,
@@ -85,7 +88,7 @@ fun OutlinedActionButton(
 		border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = if (enabled) 0.7f else 0.25f)),
 		contentPadding = ACTION_BUTTON_PADDING
 	) {
-		ButtonLabel(text, icon, iconPainter)
+		ButtonLabel(text, icon, iconPainter, iconIsArtwork)
 	}
 }
 
@@ -165,6 +168,8 @@ fun GradientButton(
 	enabled: Boolean = true,
 	icon: ImageVector? = null,
 	iconPainter: Painter? = null,
+	/** `true` when [iconPainter] is a full-color drawable rather than a tintable glyph - see `ButtonLabel`. */
+	iconIsArtwork: Boolean = false,
 	accent: ActionAccent? = null,
 	/** `false` for a button that has to size itself to its label - the pen/pencil toggles (visual item 3). */
 	fillWidth: Boolean = true
@@ -191,7 +196,7 @@ fun GradientButton(
 			contentPadding = ACTION_BUTTON_PADDING,
 			modifier = if (fillWidth) Modifier.fillMaxWidth() else Modifier
 		) {
-			ButtonLabel(text, icon, iconPainter)
+			ButtonLabel(text, icon, iconPainter, iconIsArtwork)
 		}
 	}
 }
@@ -256,10 +261,14 @@ fun <T> DropdownTrigger(
 }
 
 @Composable
-private fun ButtonLabel(text: String, icon: ImageVector?, iconPainter: Painter?) {
+private fun ButtonLabel(text: String, icon: ImageVector?, iconPainter: Painter?, iconIsArtwork: Boolean) {
 	Row(verticalAlignment = Alignment.CenterVertically) {
 		when {
 			icon != null -> Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp).padding(end = 0.dp))
+			// Artwork draws through Image, not Icon: Icon paints the drawable as a single-color mask, which
+			// throws away every color in a full-color source and leaves a silhouette.
+			iconPainter != null && iconIsArtwork ->
+				Image(painter = iconPainter, contentDescription = null, modifier = Modifier.size(20.dp))
 			iconPainter != null -> Icon(iconPainter, contentDescription = null, modifier = Modifier.size(18.dp))
 		}
 		if (icon != null || iconPainter != null) {

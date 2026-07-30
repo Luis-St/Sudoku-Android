@@ -9,6 +9,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
@@ -99,15 +100,27 @@ class CoopViewModel @AssistedInject constructor(
 	var endReason by mutableStateOf<String?>(null)
 		private set
 
+	/** Set when the socket never opened (server down, wrong address) - the screen can then only offer "leave". */
+	var connectionError by mutableStateOf<String?>(null)
+		private set
+
 	init {
 		this.viewModelScope.launch {
-			this@CoopViewModel.myUserId = this@CoopViewModel.serverConfigStore.current().userId ?: ""
-			this@CoopViewModel.socketClient.connect(
-				url = matchSocketUrl(this@CoopViewModel.baseUrl, this@CoopViewModel.matchId, this@CoopViewModel.token),
-				onMessage = { envelope -> handleMessage(envelope.type, envelope.payload.jsonObjectOrEmpty()) },
-				onClosed = {}
-			)
-			this@CoopViewModel.socketClient.ready()
+			try {
+				this@CoopViewModel.myUserId = this@CoopViewModel.serverConfigStore.current().userId ?: ""
+				this@CoopViewModel.socketClient.connect(
+					url = matchSocketUrl(this@CoopViewModel.baseUrl, this@CoopViewModel.matchId, this@CoopViewModel.token),
+					onMessage = { envelope -> handleMessage(envelope.type, envelope.payload.jsonObjectOrEmpty()) },
+					onClosed = {}
+				)
+				this@CoopViewModel.socketClient.ready()
+			} catch (e: CancellationException) {
+				throw e
+			} catch (e: Exception) {
+				// Failing the upgrade is an ordinary outcome (server down, address without a port) - reported
+				// on the screen, since an uncaught throw here takes the whole app down.
+				this@CoopViewModel.connectionError = e.message ?: e.javaClass.simpleName
+			}
 		}
 	}
 

@@ -48,6 +48,17 @@ fun DuelScreen(baseUrl: String, token: String, matchId: String, stake: Int = 0, 
 		onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
 	}
 
+	// The socket never opened: nothing can be played, so the only thing on offer is going back.
+	viewModel.connectionError?.let { message ->
+		AlertDialog(
+			onDismissRequest = onLeave,
+			title = { Text(stringResource(R.string.dialog_error_title)) },
+			text = { Text(stringResource(R.string.error_match_connect, message)) },
+			confirmButton = { TextButton(onClick = onLeave) { Text(stringResource(R.string.action_leave)) } }
+		)
+		return
+	}
+
 	if (!viewModel.ready) {
 		Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
 		return

@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import net.luis.sudoku.data.local.ServerConfigStore
 import net.luis.sudoku.data.local.Statistics
@@ -48,6 +49,12 @@ class StatsViewModel @Inject constructor(
 					this@StatsViewModel.serverStatsByTier = this@StatsViewModel.apiClient.playerStats(baseUrl, token, userId)
 				} catch (e: ApiException) {
 					this@StatsViewModel.errorMessage = e.message ?: e.code
+				} catch (e: CancellationException) {
+					throw e
+				} catch (e: Exception) {
+					// Local statistics are already shown at this point - an unreachable server only costs the
+					// server-side section, so it is reported, never fatal.
+					this@StatsViewModel.errorMessage = e.message ?: ApiException.NETWORK_ERROR
 				}
 			}
 		}

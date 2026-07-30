@@ -28,6 +28,7 @@ import net.luis.sudoku.data.remote.dto.MatchMode
 import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.grid.Variant
+import net.luis.sudoku.ui.common.friendlyErrorMessage
 
 /** feature-spec §10.1/§10.2: creator picks size/variant/difficulty (never Lisa) + lives + duel stake. */
 @Composable
@@ -162,7 +163,7 @@ fun MatchSetupScreen(
 		AlertDialog(
 			onDismissRequest = viewModel::dismissError,
 			title = { Text(stringResource(R.string.dialog_error_title)) },
-			text = { Text(message) },
+			text = { Text(friendlyErrorMessage(viewModel.errorCode ?: "", message)) },
 			confirmButton = { TextButton(onClick = viewModel::dismissError) { Text(stringResource(R.string.action_ok)) } }
 		)
 	}

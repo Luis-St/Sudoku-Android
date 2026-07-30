@@ -1,6 +1,7 @@
 package net.luis.sudoku.ui.home
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -157,10 +158,10 @@ private fun CurrencyRow(balance: Long) {
 		horizontalArrangement = Arrangement.End,
 		verticalAlignment = Alignment.CenterVertically
 	) {
-		Icon(
+		// Image, not Icon: full-color artwork, which Icon would tint down to a silhouette.
+		Image(
 			painter = painterResource(R.drawable.ic_currency),
 			contentDescription = null,
-			tint = MaterialTheme.colorScheme.secondary,
 			modifier = Modifier.size(20.dp)
 		)
 		Text(

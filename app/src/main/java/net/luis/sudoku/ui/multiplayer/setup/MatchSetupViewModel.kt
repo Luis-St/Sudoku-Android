@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import net.luis.sudoku.data.local.ServerConfigStore
 import net.luis.sudoku.data.remote.ApiClient
@@ -37,6 +38,10 @@ class MatchSetupViewModel @Inject constructor(
 		private set
 
 	var errorMessage by mutableStateOf<String?>(null)
+		private set
+
+	/** The [ApiException.code] behind [errorMessage], so the screen can show friendlier copy than the raw message. */
+	var errorCode by mutableStateOf<String?>(null)
 		private set
 
 	var inviteToken by mutableStateOf<String?>(null)
@@ -76,6 +81,7 @@ class MatchSetupViewModel @Inject constructor(
 
 	fun dismissError() {
 		this.errorMessage = null
+		this.errorCode = null
 	}
 
 	private fun runOrReportError(block: suspend () -> Unit) {
@@ -85,6 +91,13 @@ class MatchSetupViewModel @Inject constructor(
 				block()
 			} catch (e: ApiException) {
 				this@MatchSetupViewModel.errorMessage = e.message ?: e.code
+				this@MatchSetupViewModel.errorCode = e.code
+			} catch (e: CancellationException) {
+				throw e
+			} catch (e: Exception) {
+				// Unreachable server: no ErrorResponse to read, but still an error to show rather than a crash.
+				this@MatchSetupViewModel.errorMessage = e.message ?: ApiException.NETWORK_ERROR
+				this@MatchSetupViewModel.errorCode = ApiException.NETWORK_ERROR
 			} finally {
 				this@MatchSetupViewModel.busy = false
 			}

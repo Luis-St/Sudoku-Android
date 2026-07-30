@@ -8,7 +8,9 @@ data class PlayerResponse(
 	val displayName: String? = null,
 	val role: String? = null,
 	val streak: Int = 0,
-	val lastSeenAt: String? = null
+	val lastSeenAt: String? = null,
+	/** Holds a presence socket open right now - "reachable for a match request", not "seen recently". */
+	val online: Boolean = false
 )
 
 /** Grouped by difficulty tier - solve times are only comparable within one (feature-spec §8.4/§9.7). */

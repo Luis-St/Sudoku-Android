@@ -9,6 +9,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -104,16 +105,28 @@ class DuelViewModel @AssistedInject constructor(
 	var endReason by mutableStateOf<String?>(null)
 		private set
 
+	/** Set when the socket never opened (server down, wrong address) - the screen can then only offer "leave". */
+	var connectionError by mutableStateOf<String?>(null)
+		private set
+
 	init {
 		this.viewModelScope.launch {
-			this@DuelViewModel.myUserId = this@DuelViewModel.serverConfigStore.current().userId ?: ""
-			this@DuelViewModel.socketClient.connect(
-				url = matchSocketUrl(this@DuelViewModel.baseUrl, this@DuelViewModel.matchId, this@DuelViewModel.token),
-				onMessage = { envelope -> handleMessage(envelope.type, envelope.payload.jsonObjectOrEmpty()) },
-				onClosed = {}
-			)
-			this@DuelViewModel.socketClient.ready()
-			startBankInterpolationTicker()
+			try {
+				this@DuelViewModel.myUserId = this@DuelViewModel.serverConfigStore.current().userId ?: ""
+				this@DuelViewModel.socketClient.connect(
+					url = matchSocketUrl(this@DuelViewModel.baseUrl, this@DuelViewModel.matchId, this@DuelViewModel.token),
+					onMessage = { envelope -> handleMessage(envelope.type, envelope.payload.jsonObjectOrEmpty()) },
+					onClosed = {}
+				)
+				this@DuelViewModel.socketClient.ready()
+				startBankInterpolationTicker()
+			} catch (e: CancellationException) {
+				throw e
+			} catch (e: Exception) {
+				// Failing the upgrade is an ordinary outcome (server down, address without a port) - reported
+				// on the screen, since an uncaught throw here takes the whole app down.
+				this@DuelViewModel.connectionError = e.message ?: e.javaClass.simpleName
+			}
 		}
 	}
 

@@ -61,10 +61,18 @@ class AppViewModel @Inject constructor(
 			val record = this@AppViewModel.dailyStore.current()
 			this@AppViewModel.pendingDailyDifficulty = record.pendingDifficulty ?: record.activeDifficulty
 		}
-		refreshServerConfig()
+		// collectLatest rather than a read per settings change: `onServerStateChanged` used to fire the
+		// instant a register/sign-in coroutine was *launched*, so the read raced the session write and the
+		// friends and multiplayer entry points stayed hidden until the next navigation.
+		this.viewModelScope.launch {
+			this@AppViewModel.serverConfigStore.config.collectLatest { this@AppViewModel.serverConfig = it }
+		}
 	}
 
-	/** Called whenever the settings screen may have connected, signed in, or dropped the server. */
+	/**
+	 * Kept for the settings screen's existing call sites. The config is now collected continuously, so
+	 * this is only a nudge - nothing depends on it having happened.
+	 */
 	fun refreshServerConfig() {
 		this.viewModelScope.launch {
 			this@AppViewModel.serverConfig = this@AppViewModel.serverConfigStore.current()

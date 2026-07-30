@@ -148,7 +148,6 @@
 	<string name="action_sign_in_again">Sign in again</string>
 	<string name="settings_invite_code_label">Invite code</string>
 	<string name="settings_display_name_label">Display name</string>
-	<string name="settings_device_label_optional">Device label (optional)</string>
 	<string name="action_forget_server">Forget this server</string>
 	<string name="settings_signed_in_as">Signed in as %1$s (%2$s)</string>
 	<string name="action_link_new_device">Link a new device</string>
@@ -280,4 +279,20 @@
 	<string name="summary_lives_lost">Lives lost: %1$d</string>
 	<string name="summary_legend_mistake">Wrong entry</string>
 	<string name="summary_legend_hint">Hint used</string>
+	<string name="settings_device_label">Device name</string>
+	<string name="settings_email_required_note">Required - the only way back into your account if you lose every device.</string>
+	<string name="settings_reauth_explainer">Sign in again with the key already stored on this device. Use this after a session expired or was replaced by another device.</string>
+	<string name="players_online">Online</string>
+	<string name="players_offline">Offline</string>
+	<string name="players_request_match_title">Play against %1$s</string>
+	<string name="players_send_request">Send request</string>
+	<string name="presence_match_request_title">%1$s wants to play</string>
+	<string name="presence_match_request_body">Match mode: %1$s</string>
+	<string name="action_accept">Accept</string>
+	<string name="action_decline">Decline</string>
+	<string name="error_player_offline">That player just went offline. Ask them again once they are back.</string>
+
+	<!-- Transport failures: the call never reached the server, so there is no server message to show. -->
+	<string name="error_network">Can\'t reach the server. Check the address (including its port) and that it is running.\n\n%1$s</string>
+	<string name="error_match_connect">Couldn\'t join the match: the server is unreachable.\n\n%1$s</string>
 </resources>

@@ -47,7 +47,7 @@ class DailyReminderWorker @AssistedInject constructor(
 		)
 
 		val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-			.setSmallIcon(R.drawable.ic_currency) // placeholder, same one-file-swap seam as the currency icon
+			.setSmallIcon(R.drawable.ic_notification) // flat rhubarb silhouette; the status bar tints it to a mask
 			.setContentTitle("Today's daily is ready")
 			.setContentText("Keep your streak going.")
 			.setContentIntent(pendingIntent)
