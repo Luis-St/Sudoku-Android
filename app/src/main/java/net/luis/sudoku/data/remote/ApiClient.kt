@@ -28,6 +28,7 @@ import net.luis.sudoku.data.remote.dto.DailyResultRequest
 import net.luis.sudoku.data.remote.dto.DailyResultResponse
 import net.luis.sudoku.data.remote.dto.DeviceResponse
 import net.luis.sudoku.data.remote.dto.ErrorResponse
+import net.luis.sudoku.data.remote.dto.HeartbeatResponse
 import net.luis.sudoku.data.remote.dto.InviteResponse
 import net.luis.sudoku.data.remote.dto.JoinMatchRequest
 import net.luis.sudoku.data.remote.dto.LeaderboardEntryResponse
@@ -221,9 +222,39 @@ class ApiClient @Inject constructor(private val client: HttpClient) {
 		handle(this.client.post(url(baseUrl, "matches/$matchId/invite")) { authorized(token) })
 
 	/**
+	 * Reports this device as running, and collects anything waiting for it (server-spec §9.7).
+	 *
+	 * Called on a timer for as long as the app is foregrounded and signed in - that repetition *is* this
+	 * player's online status to everyone else, so a gap longer than
+	 * [HeartbeatResponse.onlineTtlSeconds][net.luis.sudoku.data.remote.dto.HeartbeatResponse.onlineTtlSeconds]
+	 * shows them as offline.
+	 */
+	suspend fun presenceHeartbeat(baseUrl: String, token: String): HeartbeatResponse =
+		handle(this.client.post(url(baseUrl, "presence/heartbeat")) { authorized(token) })
+
+	/**
+	 * Goes offline now rather than when the last heartbeat goes stale - sign-out and backgrounding.
+	 *
+	 * Best-effort by nature, and that is fine: the server's TTL is what actually guarantees a player who
+	 * vanished stops showing as online, so this only shortens the window.
+	 */
+	suspend fun presenceOffline(baseUrl: String, token: String) {
+		handleUnit(this.client.post(url(baseUrl, "presence/offline")) { authorized(token) })
+	}
+
+	/**
+	 * Drops a match request this player has answered. Idempotent server-side, so retrying one that already
+	 * landed is safe.
+	 */
+	suspend fun dismissMatchRequest(baseUrl: String, token: String, requestId: String) {
+		handleUnit(this.client.delete(url(baseUrl, "match-requests/$requestId")) { authorized(token) })
+	}
+
+	/**
 	 * Asks one specific player to join a match already created (server-spec `/matches/{id}/request`). The
-	 * server pushes it over their presence socket, so an offline target fails with `PLAYER_OFFLINE` rather
-	 * than queueing an invite for a match that will not exist by the time they see it.
+	 * server stores it for the target's next heartbeat, so it arrives within a heartbeat interval; a target
+	 * with no fresh heartbeat fails with `PLAYER_OFFLINE` rather than queueing an invite for a match that
+	 * will not exist by the time they see it.
 	 */
 	suspend fun requestMatch(baseUrl: String, token: String, matchId: String, userId: String) {
 		handleUnit(

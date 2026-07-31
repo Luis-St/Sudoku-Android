@@ -9,7 +9,11 @@ data class PlayerResponse(
 	val role: String? = null,
 	val streak: Int = 0,
 	val lastSeenAt: String? = null,
-	/** Holds a presence socket open right now - "reachable for a match request", not "seen recently". */
+	/**
+	 * Their presence heartbeat is still fresh - "reachable for a match request right now", not "seen
+	 * recently", which is what [lastSeenAt] says. Authoritative: this is the only source of online status,
+	 * derived server-side from how long ago that player's app last reported itself.
+	 */
 	val online: Boolean = false
 )
 

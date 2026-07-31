@@ -85,6 +85,28 @@ class PlayersViewModel @Inject constructor(
 	}
 
 	/**
+	 * Re-reads the list without touching [busy] or [errorMessage] - the poll the screen runs every few
+	 * seconds so online status stays current (friends item 6).
+	 *
+	 * Deliberately not [loadPlayers]: on a timer that one would blink the send button disabled through every
+	 * refresh, and pop an error dialog every few seconds for as long as the server was unreachable. A poll
+	 * that fails is not an event worth telling the player about - the next one will either work or it will
+	 * not, and the stale list in front of them is the best answer available either way.
+	 */
+	fun refreshPlayers() {
+		this.viewModelScope.launch {
+			try {
+				val (baseUrl, token) = serverCredentials() ?: return@launch
+				this@PlayersViewModel.players = this@PlayersViewModel.apiClient.listPlayers(baseUrl, token)
+			} catch (e: CancellationException) {
+				throw e
+			} catch (e: Exception) {
+				// Silent on purpose - see above.
+			}
+		}
+	}
+
+	/**
 	 * Moves a player to one of [ServerRole]'s three roles - the server rejects a demotion that would leave
 	 * no admin, and any role name it does not know.
 	 */

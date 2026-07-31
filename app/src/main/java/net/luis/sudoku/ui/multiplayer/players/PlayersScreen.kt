@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.delay
 import net.luis.sudoku.R
 import net.luis.sudoku.data.remote.dto.MatchMode
 import net.luis.sudoku.data.remote.dto.PlayerResponse
@@ -49,24 +50,28 @@ import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.common.friendlyErrorMessage
 import net.luis.sudoku.ui.common.SectionCard
 import net.luis.sudoku.ui.multiplayer.setup.ActiveMatch
-import net.luis.sudoku.ui.presence.PresenceViewModel
 import net.luis.sudoku.ui.theme.OnlineGreen
+
+/**
+ * How often the list is re-read while this screen is open. Matched to the presence heartbeat interval:
+ * polling faster could not surface a change sooner, since a player's own status only moves that often.
+ */
+private const val PLAYERS_REFRESH_MS = 10_000L
 
 /**
  * feature-spec §9.7 plus UI item 9: every player gets an avatar, a name, their role, an invite button
  * and - for admins - the administration actions.
  *
  * Reached from the top bar's own button now (left of settings), not only from inside the multiplayer
- * flow. Online status comes from [presenceViewModel]'s live socket rather than the list response, so it
- * changes as players come and go without a refresh; the REST `online` flag is now only the stand-in for
- * the window before that socket has said anything (friends item 6).
+ * flow. Online status is `PlayerResponse.online`, which the server derives from how recently each player's
+ * app last reported itself - so this screen re-reads the list on a timer and the dots follow, rather than
+ * merging a live socket's opinion with a stale flag from load time (friends item 6).
  *
- * A match request may only be sent to an online player: the server pushes it over their presence socket
- * rather than storing it, so an offline target has nothing to receive it.
+ * A match request may only be sent to a player who is online: the server stores it for their next heartbeat
+ * and expires it within the minute, so a target who is not there would never see it.
  */
 @Composable
 fun PlayersScreen(
-	presenceViewModel: PresenceViewModel,
 	onMatchStarted: (ActiveMatch) -> Unit,
 	onOpenPlayer: (String) -> Unit,
 	modifier: Modifier = Modifier,
@@ -82,11 +87,16 @@ fun PlayersScreen(
 		}
 	}
 
-	// Friends item 6: the presence socket announcing a change is also the best signal that this list is out
-	// of date - somebody just signed in or out, and whoever signed in may not be on it at all. Re-reading it
-	// here is what makes a player who joined the server while this screen was open actually appear, which no
-	// amount of fixing the online dot alone would have done.
-	LaunchedEffect(presenceViewModel.onlineUserIds) { viewModel.loadPlayers() }
+	// Friends item 6: this list is the *only* source of online status now, so keeping it current is keeping
+	// the dots current - and it is also what makes a player who joined the server while this screen was open
+	// appear at all. Polled only while this screen is composed: nothing else on the list changes fast enough
+	// to be worth a request, and the heartbeat that keeps *this* device online runs regardless.
+	LaunchedEffect(Unit) {
+		while (true) {
+			delay(PLAYERS_REFRESH_MS)
+			viewModel.refreshPlayers()
+		}
+	}
 
 	Column(
 		modifier = modifier
@@ -113,8 +123,7 @@ fun PlayersScreen(
 						player = player,
 						isAdminViewer = viewModel.isAdmin,
 						isSelf = player.id == viewModel.currentUserId,
-						isOnline = presenceViewModel.isOnline(player.id) ||
-							(!presenceViewModel.connected && player.online),
+						isOnline = player.online,
 						onOpen = { onOpenPlayer(player.id) },
 						onInvite = { invitee = player },
 						onChangeRole = { role -> viewModel.changeRole(player.id, role.name) },

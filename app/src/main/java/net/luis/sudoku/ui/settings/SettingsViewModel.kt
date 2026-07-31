@@ -206,6 +206,7 @@ class SettingsViewModel @Inject constructor(
 	/** Session cleared, server address kept - `SESSION_SUPERSEDED`'s "returns to the offline state" (server-spec §6.2). */
 	fun signOut() {
 		this.viewModelScope.launch {
+			reportOffline()
 			this@SettingsViewModel.configStore.clearSession()
 			this@SettingsViewModel.config = this@SettingsViewModel.configStore.current()
 			this@SettingsViewModel.devices = emptyList()
@@ -215,9 +216,29 @@ class SettingsViewModel @Inject constructor(
 	/** Fully unconfigures - back to no multiplayer UI anywhere (§9.1). */
 	fun disconnect() {
 		this.viewModelScope.launch {
+			reportOffline()
 			this@SettingsViewModel.configStore.clearAll()
 			this@SettingsViewModel.config = ServerConfig.UNCONFIGURED
 			this@SettingsViewModel.devices = emptyList()
+		}
+	}
+
+	/**
+	 * Stops showing as online, *before* the credentials that would let us say so are cleared.
+	 *
+	 * Order matters and is the whole point: once the token is gone there is no way to tell the server, and
+	 * the player would keep showing as online to their friends for the rest of the presence TTL - offering an
+	 * invite button that answers `PLAYER_OFFLINE`. Best-effort otherwise; the TTL is still the guarantee.
+	 */
+	private suspend fun reportOffline() {
+		val baseUrl = this.config.serverUrl ?: return
+		val token = this.config.sessionToken ?: return
+		try {
+			this.apiClient.presenceOffline(baseUrl, token)
+		} catch (e: CancellationException) {
+			throw e
+		} catch (e: Exception) {
+			// Signing out must succeed locally whether or not the server is reachable.
 		}
 	}
 

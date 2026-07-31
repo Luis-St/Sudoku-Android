@@ -25,7 +25,6 @@ import net.luis.sudoku.R
 import net.luis.sudoku.ui.common.ProgressRow
 import net.luis.sudoku.ui.common.SectionCard
 import net.luis.sudoku.ui.common.friendlyErrorMessage
-import net.luis.sudoku.ui.presence.PresenceViewModel
 
 /**
  * One player, in full (friends item 2): who they are, and how they are doing per difficulty tier.
@@ -35,12 +34,12 @@ import net.luis.sudoku.ui.presence.PresenceViewModel
  * a player's profile something that vanishes on a stray tap outside it rather than somewhere you navigate
  * to and can press Back out of.
  *
- * Online status comes from [presenceViewModel], the same live socket the list reads, so it keeps changing
- * while the profile is open rather than freezing at whatever it was when the row was tapped.
+ * Online status is the profile's own `online` flag, which the server derives from how recently this player's
+ * app reported itself. It is a snapshot from when the profile was opened: unlike the list, this screen does
+ * not poll, because a dot on a profile somebody is reading is not worth a request every few seconds.
  */
 @Composable
 fun PlayerDetailScreen(
-	presenceViewModel: PresenceViewModel,
 	modifier: Modifier = Modifier,
 	viewModel: PlayerDetailViewModel = hiltViewModel()
 ) {
@@ -67,8 +66,7 @@ fun PlayerDetailScreen(
 				Column(modifier = Modifier.weight(1f).padding(start = 16.dp)) {
 					Text(name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
 
-					val online = presenceViewModel.isOnline(viewModel.playerId) ||
-						(!presenceViewModel.connected && player?.online == true)
+					val online = player?.online == true
 					Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
 						OnlineDot(online)
 						Text(

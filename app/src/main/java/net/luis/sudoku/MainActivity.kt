@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -35,6 +36,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -126,9 +130,18 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun SudokuApp(appViewModel: AppViewModel) {
 	val navController = rememberNavController()
-	// Activity-scoped: the socket has to outlive every destination, and a match request must surface
+	// Activity-scoped: the heartbeat has to outlive every destination, and a match request must surface
 	// wherever the player currently is - including mid-puzzle.
 	val presenceViewModel: PresenceViewModel = hiltViewModel()
+
+	// Online status is tied to the lifecycle, not to the view model: STARTED means the app is actually in
+	// front of the player, which is what "online" should mean. Beating from the view model's own scope
+	// instead would report a process that Android has merely not killed yet - a player shown as available
+	// while their phone is in a pocket, and a wakeup every few seconds to say so.
+	val lifecycleOwner = LocalLifecycleOwner.current
+	LaunchedEffect(lifecycleOwner) {
+		lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { presenceViewModel.runHeartbeat() }
+	}
 	val backStackEntry by navController.currentBackStackEntryAsState()
 	val route = backStackEntry?.destination?.route
 	val onHome = route == Routes.HOME
@@ -173,13 +186,13 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 		}
 	) { innerPadding ->
 		Box(modifier = Modifier.padding(innerPadding)) {
-			AppNavHost(navController, appViewModel, presenceViewModel, gameTopBarActions, Modifier)
+			AppNavHost(navController, appViewModel, gameTopBarActions, Modifier)
 
 			presenceViewModel.incomingRequest?.let { request ->
 				MatchRequestOverlay(
 					request = request,
 					onAccept = {
-						presenceViewModel.dismissRequest()
+						presenceViewModel.acceptRequest(request)
 						navController.navigate(Routes.multiplayerJoin(request.matchId, request.inviteToken))
 					},
 					onDecline = presenceViewModel::dismissRequest,
@@ -209,7 +222,6 @@ private fun titleFor(route: String?): String = when (route) {
 private fun AppNavHost(
 	navController: NavHostController,
 	appViewModel: AppViewModel,
-	presenceViewModel: PresenceViewModel,
 	gameTopBarActions: GameTopBarActions,
 	modifier: Modifier
 ) {
@@ -280,7 +292,6 @@ private fun AppNavHost(
 		composable(Routes.STATS) { StatsScreen() }
 		composable(Routes.FRIENDS) {
 			PlayersScreen(
-				presenceViewModel = presenceViewModel,
 				// The match exists and its creator is already a participant, so this goes straight into it
 				// rather than back through match setup. popUpTo(FRIENDS) keeps Back out of the finished match.
 				onMatchStarted = { match ->
@@ -296,7 +307,7 @@ private fun AppNavHost(
 			route = Routes.PLAYER_DETAIL,
 			arguments = listOf(navArgument(Routes.ARG_PLAYER_ID) { type = NavType.StringType })
 		) {
-			PlayerDetailScreen(presenceViewModel = presenceViewModel)
+			PlayerDetailScreen()
 		}
 
 		composable(

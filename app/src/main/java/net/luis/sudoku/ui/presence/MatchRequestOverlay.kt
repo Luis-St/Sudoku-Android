@@ -17,17 +17,18 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import net.luis.sudoku.R
+import net.luis.sudoku.data.remote.dto.MatchRequestResponse
 
 /**
  * Another player's match request, drawn over whatever is on screen (feature-spec §9.7).
  *
  * A banner rather than a dialog on purpose: a request can arrive mid-puzzle, and a modal would steal
- * input from a game that is still running and still timed. Ignoring it costs nothing - the requester's
- * match simply never fills.
+ * input from a game that is still running and still timed. Ignoring it costs nothing - the request expires
+ * server-side within the minute and the requester's match simply never fills.
  */
 @Composable
 fun MatchRequestOverlay(
-	request: IncomingMatchRequest,
+	request: MatchRequestResponse,
 	onAccept: () -> Unit,
 	onDecline: () -> Unit,
 	modifier: Modifier = Modifier

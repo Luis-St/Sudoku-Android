@@ -421,6 +421,67 @@ class LiveServerVerificationTest {
 		)))
 	}
 
+	/**
+	 * The whole presence protocol against the real server: a heartbeat making a player online, the online
+	 * flag lapsing, a match request being stored and collected, not being consumed by being read, and being
+	 * dismissed.
+	 *
+	 * Worth verifying live rather than only in unit tests because every claim here is about the *server's*
+	 * behaviour - what `online` means in a `/players` response, whether `PLAYER_OFFLINE` is what an offline
+	 * target actually produces, whether a request survives being read - and a mocked engine can only confirm
+	 * this client's own idea of those.
+	 */
+	@Test
+	fun presence_heartbeatsRequestsAndDismissals_behaveAsThisClientAssumes() = runBlocking {
+		assumeTrue("No local Sudoku-Server reachable at $baseUrl - skipping live verification", serverReachable())
+
+		val http = httpClient()
+		val api = ApiClient(http)
+		val creatorToken = adminSessionToken()
+
+		val targetKeys = keyPair()
+		val target = api.register(baseUrl, publicKeyBase64(targetKeys), "ECDSA_P256", createInvite(http, creatorToken),
+			"Target-${UUID.randomUUID().toString().take(8)}", "jvm-test")
+
+		// A player who has never heartbeat is offline, and cannot be asked to play.
+		assertEquals(false, api.listPlayers(baseUrl, creatorToken).single { it.id == target.user.id }.online)
+		val match = api.createMatch(baseUrl, creatorToken, "RACE",
+			MatchConfigDto(GridSize.FOUR.n(), Variant.CLASSIC.name, Difficulty.ONE.index()), MatchSettingsDto(true, 0))
+		val offline = try {
+			api.requestMatch(baseUrl, creatorToken, match.matchId, target.user.id)
+			null
+		} catch (e: net.luis.sudoku.data.remote.ApiException) {
+			e.code
+		}
+		assertEquals("PLAYER_OFFLINE", offline)
+
+		// One heartbeat is enough to be online to everybody else, and the server reports its own TTL.
+		val firstBeat = api.presenceHeartbeat(baseUrl, target.sessionToken)
+		assertTrue("the server must publish a usable TTL", firstBeat.onlineTtlSeconds > 0)
+		assertTrue(firstBeat.requests.isEmpty())
+		assertTrue(api.listPlayers(baseUrl, creatorToken).single { it.id == target.user.id }.online)
+
+		// Now the request is accepted, and arrives on the target's next beat with the match's own details.
+		api.requestMatch(baseUrl, creatorToken, match.matchId, target.user.id)
+		val delivered = api.presenceHeartbeat(baseUrl, target.sessionToken).requests.single()
+		assertEquals(match.matchId, delivered.matchId)
+		assertEquals(match.inviteToken, delivered.inviteToken)
+		assertEquals("RACE", delivered.mode)
+
+		// Reading it does not consume it - this is what stops a request being lost when the app is killed
+		// between receiving one and showing it, and what `nextRequestToOffer` exists to absorb.
+		assertEquals(delivered.id, api.presenceHeartbeat(baseUrl, target.sessionToken).requests.single().id)
+
+		// Dismissing it does, and the invite token was a real one all along.
+		api.dismissMatchRequest(baseUrl, target.sessionToken, delivered.id)
+		assertTrue(api.presenceHeartbeat(baseUrl, target.sessionToken).requests.isEmpty())
+		assertEquals("RACE", api.joinMatch(baseUrl, target.sessionToken, delivered.matchId, delivered.inviteToken).mode)
+
+		// Going offline explicitly takes effect at once rather than at the TTL.
+		api.presenceOffline(baseUrl, target.sessionToken)
+		assertEquals(false, api.listPlayers(baseUrl, creatorToken).single { it.id == target.user.id }.online)
+	}
+
 	/** Raw call - creating invites is an admin/ops action this client's `ApiClient` was never scoped to expose. */
 	private suspend fun createInvite(http: HttpClient, token: String): String {
 		val response = http.post("$baseUrl/api/v1/invites") {

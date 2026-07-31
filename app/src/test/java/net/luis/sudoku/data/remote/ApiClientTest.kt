@@ -151,6 +151,72 @@ class ApiClientTest {
 	}
 
 	@Test
+	fun listPlayers_readsOnlineStatusFromTheListItself() = runBlocking {
+		val client = clientReturning(
+			HttpStatusCode.OK,
+			"""[{"id":"u1","displayName":"Lisa","online":true},{"id":"u2","displayName":"Bob","online":false}]"""
+		)
+
+		val players = client.listPlayers("https://example.com", "tok")
+
+		// This flag is the only source of online status now - the server derives it from each player's last
+		// heartbeat, so there is nothing left to merge it with client-side.
+		assertTrue(players.single { it.id == "u1" }.online)
+		assertEquals(false, players.single { it.id == "u2" }.online)
+	}
+
+	@Test
+	fun presenceHeartbeat_postsAuthorizedAndParsesPendingRequests() = runBlocking {
+		val requests = mutableListOf<HttpRequestData>()
+		val client = clientReturning(
+			HttpStatusCode.OK,
+			"""{"onlineTtlSeconds":30,"requests":[{"id":"r1","matchId":"m1","inviteToken":"tok1","mode":"DUEL","stake":5,"fromUserId":"u2","fromDisplayName":"Bob"}]}""",
+			requests
+		)
+
+		val response = client.presenceHeartbeat("https://example.com", "tok123")
+
+		assertEquals(30, response.onlineTtlSeconds)
+		assertEquals("r1", response.requests.single().id)
+		assertEquals("tok1", response.requests.single().inviteToken)
+		assertEquals("DUEL", response.requests.single().mode)
+		assertEquals(5, response.requests.single().stake)
+		assertEquals("Bob", response.requests.single().fromDisplayName)
+		assertEquals("/api/v1/presence/heartbeat", requests.single().url.encodedPath)
+		assertEquals(HttpMethod.Post, requests.single().method)
+		assertEquals("Bearer tok123", requests.single().headers[HttpHeaders.Authorization])
+	}
+
+	@Test
+	fun presenceHeartbeat_toleratesAResponseWithNoRequests() = runBlocking {
+		val client = clientReturning(HttpStatusCode.OK, """{"onlineTtlSeconds":30}""")
+
+		assertTrue(client.presenceHeartbeat("https://example.com", "tok").requests.isEmpty())
+	}
+
+	@Test
+	fun presenceOffline_postsToTheOfflineEndpoint() = runBlocking {
+		val requests = mutableListOf<HttpRequestData>()
+		val client = clientReturning(HttpStatusCode.NoContent, "", requests)
+
+		client.presenceOffline("https://example.com", "tok")
+
+		assertEquals("/api/v1/presence/offline", requests.single().url.encodedPath)
+		assertEquals(HttpMethod.Post, requests.single().method)
+	}
+
+	@Test
+	fun dismissMatchRequest_deletesTheRequestById() = runBlocking {
+		val requests = mutableListOf<HttpRequestData>()
+		val client = clientReturning(HttpStatusCode.NoContent, "", requests)
+
+		client.dismissMatchRequest("https://example.com", "tok", "r1")
+
+		assertEquals("/api/v1/match-requests/r1", requests.single().url.encodedPath)
+		assertEquals(HttpMethod.Delete, requests.single().method)
+	}
+
+	@Test
 	fun dailyLeaderboard_sendsTheDifficultyQueryParam() = runBlocking {
 		val requests = mutableListOf<HttpRequestData>()
 		val client = clientReturning(HttpStatusCode.OK, """[{"elapsedMs":60000,"attempts":1,"displayName":"Lisa"}]""", requests)
