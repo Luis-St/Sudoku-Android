@@ -1,15 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-	The launcher foreground: one Sudoku cell - a 3x3 grid with six of its nine squares filled (app_icon.svg).
+	The launcher foreground: one Sudoku cell - a 3x3 grid with six of its nine squares filled.
 
-	The artwork is the 90x90 cell out of that SVG, mapped onto the 66dp safe zone of the 108dp adaptive
-	canvas, so nothing is lost to a round, squircle or teardrop mask.
+	`icons/app_icon.svg` is the source of truth for this icon (owner's decision). That file draws a 150x150
+	white field with a 90px cell centred in it, four #a8d4f0 rules dividing the cell into a 3x3 grid, and six
+	black sans-serif digits. Mapping the 150px field onto the 108dp adaptive canvas puts the 90px cell at 64.8
+	units, i.e. inside the 66dp safe zone, so nothing is lost to a round, squircle or teardrop mask - the
+	artwork's own 30px margin is what the adaptive format wants anyway.
 
-	Two deliberate departures from the source SVG:
-	- The rules are 1.6 units wide, not the 0.73 the 90 -> 66 scale would give. At 48px in a launcher the
-	  geometrically correct hairline all but disappears; the colour is untouched.
-	- The digits are Noto Sans outlines baked into paths, because a VectorDrawable has no text element. The
-	  ink is #1B1B1F rather than pure black so the icon does not out-contrast everything around it.
+	Two departures from the source, both forced by the format rather than chosen:
+	- The rules are 1.6 units wide, not the 0.72 the 150 -> 108 scale gives. 0.72 units is under half a pixel
+	  at the 48dp a launcher draws, so the geometrically correct hairline does not survive rasterization at
+	  all. The colour is untouched.
+	- The digits are the SVG's sans-serif glyphs baked into outlines, because a VectorDrawable has no text
+	  element. Size and position are the SVG's.
+
+	There was briefly a version of this file with a white-on-indigo palette, a cell outline and digits scaled
+	1.7x, because at 48dp the artwork as specified is very light and reads as an almost empty tile. That is a
+	redesign, not this icon, and it has been reverted; if the icon needs more weight, app_icon.svg is where
+	that decision belongs.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
 		android:width="108dp"
@@ -38,26 +47,26 @@
 			android:strokeWidth="1.6" />
 	<!-- 1 -->
 	<path
-			android:fillColor="#FF1B1B1F"
+			android:fillColor="#FF000000"
 			android:pathData="M32.810 36.107H31.801V30.252Q31.801 29.748 31.812 29.442Q31.824 29.137 31.847 28.809Q31.660 28.997 31.507 29.126Q31.355 29.255 31.120 29.454L30.228 30.182L29.689 29.489L31.953 27.729H32.810Z" />
 	<!-- 3 -->
 	<path
-			android:fillColor="#FF1B1B1F"
+			android:fillColor="#FF000000"
 			android:pathData="M78.429 29.689Q78.429 30.534 77.959 31.032Q77.490 31.531 76.692 31.695V31.742Q77.701 31.860 78.194 32.376Q78.687 32.892 78.687 33.725Q78.687 34.453 78.347 35.022Q78.006 35.591 77.297 35.908Q76.587 36.224 75.472 36.224Q74.815 36.224 74.252 36.125Q73.689 36.025 73.172 35.767V34.805Q73.700 35.063 74.310 35.209Q74.921 35.356 75.484 35.356Q76.610 35.356 77.109 34.916Q77.607 34.476 77.607 33.702Q77.607 32.916 76.991 32.569Q76.375 32.223 75.261 32.223H74.451V31.343H75.273Q76.305 31.343 76.839 30.909Q77.373 30.475 77.373 29.759Q77.373 29.149 76.962 28.815Q76.551 28.480 75.847 28.480Q75.167 28.480 74.686 28.680Q74.205 28.879 73.735 29.184L73.219 28.480Q73.665 28.128 74.328 27.870Q74.991 27.612 75.836 27.612Q77.150 27.612 77.789 28.199Q78.429 28.785 78.429 29.689Z" />
 	<!-- 4 -->
 	<path
-			android:fillColor="#FF1B1B1F"
+			android:fillColor="#FF000000"
 			android:pathData="M35.121 56.206H33.901V58.107H32.903V56.206H28.891V55.326L32.833 49.682H33.901V55.279H35.121ZM32.903 52.639Q32.903 52.029 32.927 51.601Q32.950 51.173 32.962 50.785H32.915Q32.821 51.008 32.681 51.266Q32.540 51.525 32.411 51.701L29.900 55.279H32.903Z" />
 	<!-- 5 -->
 	<path
-			android:fillColor="#FF1B1B1F"
+			android:fillColor="#FF000000"
 			android:pathData="M53.871 52.968Q55.162 52.968 55.924 53.613Q56.687 54.258 56.687 55.432Q56.687 56.734 55.860 57.479Q55.033 58.224 53.554 58.224Q52.909 58.224 52.340 58.107Q51.771 57.990 51.383 57.767V56.793Q51.806 57.051 52.410 57.198Q53.014 57.344 53.566 57.344Q54.493 57.344 55.062 56.904Q55.631 56.464 55.631 55.537Q55.631 54.716 55.126 54.276Q54.622 53.836 53.531 53.836Q53.202 53.836 52.780 53.895Q52.357 53.953 52.099 54.012L51.583 53.684L51.900 49.729H56.100V50.668H52.780L52.580 53.097Q52.780 53.062 53.120 53.015Q53.460 52.968 53.871 52.968Z" />
 	<!-- 8 -->
 	<path
-			android:fillColor="#FF1B1B1F"
+			android:fillColor="#FF000000"
 			android:pathData="M53.988 71.612Q55.091 71.612 55.795 72.128Q56.499 72.645 56.499 73.618Q56.499 74.123 56.282 74.498Q56.065 74.874 55.701 75.161Q55.338 75.449 54.903 75.672Q55.420 75.918 55.842 76.229Q56.265 76.540 56.517 76.951Q56.769 77.361 56.769 77.936Q56.769 78.992 56.024 79.608Q55.279 80.224 54.023 80.224Q52.674 80.224 51.947 79.632Q51.219 79.039 51.219 77.972Q51.219 77.397 51.460 76.974Q51.700 76.552 52.099 76.247Q52.498 75.942 52.956 75.730Q52.346 75.378 51.917 74.880Q51.489 74.381 51.489 73.607Q51.489 72.961 51.818 72.521Q52.146 72.081 52.709 71.847Q53.273 71.612 53.988 71.612ZM53.977 72.445Q53.331 72.445 52.915 72.756Q52.498 73.067 52.498 73.654Q52.498 74.088 52.703 74.381Q52.909 74.674 53.261 74.880Q53.613 75.085 54.035 75.273Q54.645 75.015 55.062 74.651Q55.478 74.287 55.478 73.654Q55.478 73.067 55.068 72.756Q54.657 72.445 53.977 72.445ZM52.228 77.983Q52.228 78.593 52.662 78.998Q53.097 79.403 54.000 79.403Q54.857 79.403 55.308 78.998Q55.760 78.593 55.760 77.948Q55.760 77.338 55.279 76.933Q54.798 76.528 54.000 76.223L53.812 76.153Q53.038 76.481 52.633 76.910Q52.228 77.338 52.228 77.983Z" />
 	<!-- 9 -->
 	<path
-			android:fillColor="#FF1B1B1F"
+			android:fillColor="#FF000000"
 			android:pathData="M78.746 75.308Q78.746 76.212 78.587 77.086Q78.429 77.960 78.012 78.670Q77.596 79.380 76.839 79.802Q76.082 80.224 74.897 80.224Q74.662 80.224 74.351 80.195Q74.041 80.166 73.841 80.107V79.227Q74.299 79.380 74.874 79.380Q75.695 79.380 76.229 79.110Q76.763 78.840 77.079 78.376Q77.396 77.913 77.537 77.297Q77.678 76.681 77.701 76.000H77.631Q77.373 76.399 76.886 76.687Q76.399 76.974 75.636 76.974Q74.557 76.974 73.894 76.311Q73.231 75.648 73.231 74.440Q73.231 73.560 73.565 72.926Q73.900 72.293 74.498 71.952Q75.097 71.612 75.906 71.612Q76.704 71.612 77.349 72.017Q77.995 72.422 78.370 73.237Q78.746 74.053 78.746 75.308ZM75.906 72.480Q75.179 72.480 74.715 72.961Q74.252 73.442 74.252 74.428Q74.252 75.238 74.645 75.701Q75.038 76.165 75.859 76.165Q76.422 76.165 76.833 75.936Q77.244 75.707 77.473 75.355Q77.701 75.003 77.701 74.628Q77.701 74.123 77.502 73.630Q77.302 73.137 76.903 72.809Q76.505 72.480 75.906 72.480Z" />
 </vector>

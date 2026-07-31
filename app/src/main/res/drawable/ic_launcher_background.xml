@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-	The launcher background: the paper the cell is drawn on (app_icon.svg's white field).
+	The launcher background: the paper the cell is drawn on - the white 150x150 field of `icons/app_icon.svg`,
+	which is the source of truth for this icon (owner's decision).
 
-	Not pure #FFFFFF - a flat white icon dissolves into a light wallpaper and loses its own outline. #FAFBFD
-	is the same paper one step off white, which keeps the mask's silhouette readable while leaving the blue
-	rules and the digits the only things with any colour in them.
+	Pure #FFFFFF, as in the SVG. It was briefly an indigo gradient, to stop the icon reading as an empty tile
+	on a light launcher; that is not the artwork, so it is gone. If the white tile turns out to disappear into
+	the wallpaper, the fix belongs in app_icon.svg, not here.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
 		android:width="108dp"
@@ -12,6 +13,6 @@
 		android:viewportWidth="108"
 		android:viewportHeight="108">
 	<path
-			android:fillColor="#FFFAFBFD"
+			android:fillColor="#FFFFFFFF"
 			android:pathData="M0,0h108v108h-108z" />
 </vector>
