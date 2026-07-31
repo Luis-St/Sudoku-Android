@@ -1,9 +1,5 @@
 package net.luis.sudoku.ui.game
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.content.Intent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,9 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -33,11 +26,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -46,10 +37,10 @@ import net.luis.sudoku.R
 import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.ui.board.BoardScreen
+import net.luis.sudoku.ui.common.CodeShareDialog
 import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.common.OutlinedIconActionButton
 import net.luis.sudoku.ui.common.ToggleActionButton
-import net.luis.sudoku.ui.common.dialogContainerColor
 import net.luis.sudoku.ui.common.friendlyErrorMessage
 import net.luis.sudoku.ui.input.NumberPad
 import net.luis.sudoku.ui.navigation.PlayMode
@@ -299,59 +290,16 @@ private fun IconOnlyAction(iconRes: Int, contentDescriptionRes: Int, onClick: ()
 
 /**
  * The share code plus the two things a player actually wants to do with it (UI item 3): copy it, or hand
- * it to the system share sheet.
+ * it to the system share sheet. The popup itself is [CodeShareDialog], shared with the invite code.
  */
 @Composable
 private fun ShareCodeDialog(code: String, onDismiss: () -> Unit) {
-	val context = LocalContext.current
-
-	AlertDialog(
-		onDismissRequest = onDismiss,
-		// Share item 2: the same plain surface the generator's info dialog uses. Material's default dialog
-		// container is tonally elevated, so the two popups were two different whites.
-		containerColor = dialogContainerColor(),
-		titleContentColor = MaterialTheme.colorScheme.onSurface,
-		textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-		title = { Text(stringResource(R.string.dialog_share_code)) },
-		text = {
-			Column {
-				SelectionContainer {
-					Text(code, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-				}
-				// Share item 4: the two actions split the dialog's width evenly. Sized to their labels they
-				// left a ragged gap on the right, and "Copy" ended up visibly smaller than "Share" purely
-				// because the word is shorter.
-				Row(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
-					OutlinedActionButton(
-						text = stringResource(R.string.action_copy),
-						onClick = { copyToClipboard(context, code) },
-						iconPainter = painterResource(R.drawable.ic_copy),
-						modifier = Modifier.weight(1f)
-					)
-					OutlinedActionButton(
-						text = stringResource(R.string.action_share),
-						onClick = { shareText(context, code) },
-						icon = Icons.Filled.Share,
-						modifier = Modifier.weight(1f).padding(start = 8.dp)
-					)
-				}
-			}
-		},
-		confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_done)) } }
+	CodeShareDialog(
+		title = stringResource(R.string.dialog_share_code),
+		code = code,
+		clipLabel = "sudoku-share-code",
+		onDismiss = onDismiss
 	)
-}
-
-private fun copyToClipboard(context: Context, code: String) {
-	val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-	clipboard.setPrimaryClip(ClipData.newPlainText("sudoku-share-code", code))
-}
-
-private fun shareText(context: Context, code: String) {
-	val intent = Intent(Intent.ACTION_SEND).apply {
-		type = "text/plain"
-		putExtra(Intent.EXTRA_TEXT, code)
-	}
-	context.startActivity(Intent.createChooser(intent, null))
 }
 
 /**

@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
@@ -45,6 +44,7 @@ import net.luis.sudoku.R
 import net.luis.sudoku.data.remote.dto.MatchMode
 import net.luis.sudoku.data.remote.dto.PlayerResponse
 import net.luis.sudoku.difficulty.Difficulty
+import net.luis.sudoku.ui.common.CodeShareDialog
 import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.common.friendlyErrorMessage
 import net.luis.sudoku.ui.common.SectionCard
@@ -134,12 +134,14 @@ fun PlayersScreen(
 		)
 	}
 
+	// Friends item 1: a freshly minted invite code is only useful once it reaches the person being invited,
+	// so it gets the same copy/share pair as the game's share code rather than a code you have to retype.
 	viewModel.createdInviteCode?.let { code ->
-		AlertDialog(
-			onDismissRequest = viewModel::dismissInviteCode,
-			title = { Text(stringResource(R.string.players_invite_created_title)) },
-			text = { SelectionContainer { Text(code, style = MaterialTheme.typography.titleMedium) } },
-			confirmButton = { TextButton(onClick = viewModel::dismissInviteCode) { Text(stringResource(R.string.action_done)) } }
+		CodeShareDialog(
+			title = stringResource(R.string.players_invite_created_title),
+			code = code,
+			clipLabel = "sudoku-invite-code",
+			onDismiss = viewModel::dismissInviteCode
 		)
 	}
 
