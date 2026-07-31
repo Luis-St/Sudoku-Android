@@ -96,8 +96,8 @@ fun BoardScreen(
 									highlight = CellHighlight(
 										selected = activeIndex == index,
 										peer = index in peersOfActive,
-										sameValuePen = lockedDigit != null && snapshot.value == lockedDigit,
-										sameValuePencil = lockedDigit != null && snapshot.empty && snapshot.hasPencilMark(lockedDigit),
+										markedValue = lockedDigit != null && snapshot.value == lockedDigit,
+										markedPencilDigit = lockedDigit?.takeIf { snapshot.empty && snapshot.hasPencilMark(it) },
 										conflict = snapshot.conflicted,
 										hintCandidate = hintCandidateIndex == index,
 										mistakeDigit = mistake?.takeIf { it.first == index }?.second,

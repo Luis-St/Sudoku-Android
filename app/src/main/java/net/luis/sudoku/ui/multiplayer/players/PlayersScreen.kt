@@ -1,7 +1,7 @@
 package net.luis.sudoku.ui.multiplayer.players
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -36,9 +36,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import net.luis.sudoku.R
@@ -58,7 +58,8 @@ import net.luis.sudoku.ui.theme.OnlineGreen
  *
  * Reached from the top bar's own button now (left of settings), not only from inside the multiplayer
  * flow. Online status comes from [presenceViewModel]'s live socket rather than the list response, so it
- * changes as players come and go without a refresh; the REST `online` flag is only the value at load.
+ * changes as players come and go without a refresh; the REST `online` flag is now only the stand-in for
+ * the window before that socket has said anything (friends item 6).
  *
  * A match request may only be sent to an online player: the server pushes it over their presence socket
  * rather than storing it, so an offline target has nothing to receive it.
@@ -67,6 +68,7 @@ import net.luis.sudoku.ui.theme.OnlineGreen
 fun PlayersScreen(
 	presenceViewModel: PresenceViewModel,
 	onMatchStarted: (ActiveMatch) -> Unit,
+	onOpenPlayer: (String) -> Unit,
 	modifier: Modifier = Modifier,
 	viewModel: PlayersViewModel = hiltViewModel()
 ) {
@@ -80,64 +82,43 @@ fun PlayersScreen(
 		}
 	}
 
+	// Friends item 6: the presence socket announcing a change is also the best signal that this list is out
+	// of date - somebody just signed in or out, and whoever signed in may not be on it at all. Re-reading it
+	// here is what makes a player who joined the server while this screen was open actually appear, which no
+	// amount of fixing the online dot alone would have done.
+	LaunchedEffect(presenceViewModel.onlineUserIds) { viewModel.loadPlayers() }
+
 	Column(
 		modifier = modifier
 			.fillMaxSize()
 			.verticalScroll(rememberScrollState())
 			.padding(horizontal = 16.dp, vertical = 8.dp)
 	) {
+		// Friends item 1: above the players card, not inside it. Minting an invite code is about the server,
+		// not about anyone on the list, and sitting at the top of that list it read as an action on the first
+		// player in it - and pushed the players themselves below the fold on a short screen.
+		if (viewModel.isAdmin) {
+			OutlinedActionButton(
+				text = stringResource(R.string.players_create_invite),
+				onClick = viewModel::createInvite,
+				modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+			)
+		}
+
 		SectionCard(title = stringResource(R.string.tab_players)) {
 			Column {
-				if (viewModel.isAdmin) {
-					OutlinedActionButton(
-						text = stringResource(R.string.players_create_invite),
-						onClick = viewModel::createInvite,
-						modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
-					)
-				}
-
 				viewModel.players.forEachIndexed { index, player ->
 					if (index > 0) HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 					PlayerRow(
 						player = player,
 						isAdminViewer = viewModel.isAdmin,
 						isSelf = player.id == viewModel.currentUserId,
-						isOnline = presenceViewModel.isOnline(player.id) || player.online,
-						onShowStats = { viewModel.loadPlayerStats(player.id) },
+						isOnline = presenceViewModel.isOnline(player.id) ||
+							(!presenceViewModel.connected && player.online),
+						onOpen = { onOpenPlayer(player.id) },
 						onInvite = { invitee = player },
-						onChangeRole = { role -> viewModel.changeRole(player.id, role) },
+						onChangeRole = { role -> viewModel.changeRole(player.id, role.name) },
 						onKick = { viewModel.kick(player.id) }
-					)
-				}
-			}
-		}
-
-		SectionCard(
-			title = stringResource(R.string.players_daily_leaderboard_header),
-			modifier = Modifier.padding(top = 12.dp)
-		) {
-			Column {
-				FlowRow {
-					(1..5).forEach { difficulty ->
-						FilterChip(
-							selected = viewModel.leaderboardDifficulty == difficulty,
-							onClick = { viewModel.loadLeaderboard(difficulty) },
-							label = { Text(difficulty.toString()) },
-							modifier = Modifier.padding(end = 4.dp, top = 4.dp)
-						)
-					}
-				}
-				viewModel.leaderboard.forEachIndexed { index, entry ->
-					Text(
-						text = stringResource(
-							R.string.players_leaderboard_row,
-							index + 1,
-							entry.displayName ?: entry.userId ?: "",
-							formatMs(entry.elapsedMs),
-							entry.attempts
-						),
-						style = MaterialTheme.typography.bodyMedium,
-						modifier = Modifier.padding(top = 6.dp)
 					)
 				}
 			}
@@ -159,21 +140,6 @@ fun PlayersScreen(
 			title = { Text(stringResource(R.string.players_invite_created_title)) },
 			text = { SelectionContainer { Text(code, style = MaterialTheme.typography.titleMedium) } },
 			confirmButton = { TextButton(onClick = viewModel::dismissInviteCode) { Text(stringResource(R.string.action_done)) } }
-		)
-	}
-
-	viewModel.selectedPlayerStats?.let { stats ->
-		AlertDialog(
-			onDismissRequest = viewModel::dismissPlayerStats,
-			title = { Text(stringResource(R.string.dialog_player_stats_title)) },
-			text = {
-				Column {
-					stats.forEach { entry ->
-						Text(stringResource(R.string.players_stats_row, entry.size, entry.size, entry.difficulty, entry.solved, entry.gamesPlayed))
-					}
-				}
-			},
-			confirmButton = { TextButton(onClick = viewModel::dismissPlayerStats) { Text(stringResource(R.string.action_close)) } }
 		)
 	}
 
@@ -252,28 +218,34 @@ private fun PlayerRow(
 	isAdminViewer: Boolean,
 	isSelf: Boolean,
 	isOnline: Boolean,
-	onShowStats: () -> Unit,
+	onOpen: () -> Unit,
 	onInvite: () -> Unit,
-	onChangeRole: (String) -> Unit,
+	onChangeRole: (ServerRole) -> Unit,
 	onKick: () -> Unit
 ) {
 	var menuOpen by remember { mutableStateOf(false) }
+	var rolePickerOpen by remember { mutableStateOf(false) }
 	val name = player.displayName ?: player.id
-	val isTargetAdmin = player.role.equals("ADMIN", ignoreCase = true)
+	val role = ServerRole.of(player.role)
 
 	Row(
-		modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+		// Friends item 2: the row is the way into the profile. Everything that is not one of the two explicit
+		// action controls belongs to that tap - a name and an avatar are what a player reaches for.
+		modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(vertical = 6.dp),
 		verticalAlignment = Alignment.CenterVertically
 	) {
-		Avatar(name = name, seed = player.id)
+		PlayerAvatar(name = name, seed = player.id)
 
 		Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
 			Row(verticalAlignment = Alignment.CenterVertically) {
 				Text(name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-				if (isTargetAdmin) {
+				// Every role is labelled now, not just ADMIN (friends item 4) - with three of them, an
+				// unlabelled row means "NEW or MEMBER, no way to tell", which is the distinction an admin is
+				// on this screen to manage.
+				if (role != null) {
 					AssistChip(
-						onClick = onShowStats,
-						label = { Text(stringResource(R.string.players_role_admin), style = MaterialTheme.typography.labelSmall) },
+						onClick = onOpen,
+						label = { Text(stringResource(role.labelRes), style = MaterialTheme.typography.labelSmall) },
 						modifier = Modifier.padding(start = 8.dp)
 					)
 				}
@@ -311,38 +283,100 @@ private fun PlayerRow(
 				DropdownMenuItem(
 					text = { Text(stringResource(R.string.players_view_stats)) },
 					onClick = {
-						onShowStats()
 						menuOpen = false
+						onOpen()
 					}
 				)
 				// Administration is admin-only and never applies to yourself: the server refuses a
 				// self-demotion that would leave no admin, and self-kick, anyway.
 				if (isAdminViewer && !isSelf) {
 					DropdownMenuItem(
-						text = {
-							Text(stringResource(if (isTargetAdmin) R.string.players_demote else R.string.players_promote))
-						},
+						text = { Text(stringResource(R.string.players_change_role)) },
 						onClick = {
-							onChangeRole(if (isTargetAdmin) "PLAYER" else "ADMIN")
 							menuOpen = false
+							rolePickerOpen = true
 						}
 					)
 					DropdownMenuItem(
 						text = { Text(stringResource(R.string.players_kick), color = MaterialTheme.colorScheme.error) },
 						onClick = {
-							onKick()
 							menuOpen = false
+							onKick()
 						}
 					)
 				}
 			}
 		}
 	}
+
+	if (rolePickerOpen) {
+		RolePickerDialog(
+			name = name,
+			current = role,
+			onDismiss = { rolePickerOpen = false },
+			onPick = { picked ->
+				rolePickerOpen = false
+				onChangeRole(picked)
+			}
+		)
+	}
+}
+
+/**
+ * Friends item 4: all three server roles, each with what it actually grants.
+ *
+ * A dialog rather than a nested submenu, because the roles need their one-line descriptions to be
+ * choosable at all - "New", "Member" and "Admin" as bare words say nothing about which one lets someone
+ * invite. Any role can be picked from any other, including the direct NEW-to-ADMIN jump: the server
+ * validates the transition (it refuses to demote the last admin), and there is no reason the client should
+ * invent an ordering it does not have.
+ */
+@Composable
+private fun RolePickerDialog(
+	name: String,
+	current: ServerRole?,
+	onDismiss: () -> Unit,
+	onPick: (ServerRole) -> Unit
+) {
+	AlertDialog(
+		onDismissRequest = onDismiss,
+		title = { Text(stringResource(R.string.players_change_role_title, name)) },
+		text = {
+			Column {
+				ServerRole.entries.forEach { role ->
+					val isCurrent = role == current
+					Column(
+						modifier = Modifier
+							.fillMaxWidth()
+							.clickable(enabled = !isCurrent) { onPick(role) }
+							.padding(vertical = 10.dp)
+					) {
+						Text(
+							text = stringResource(role.labelRes),
+							style = MaterialTheme.typography.bodyLarge,
+							fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
+							color = if (isCurrent) {
+								MaterialTheme.colorScheme.primary
+							} else {
+								MaterialTheme.colorScheme.onSurface
+							}
+						)
+						Text(
+							text = stringResource(role.descriptionRes),
+							style = MaterialTheme.typography.bodySmall,
+							color = MaterialTheme.colorScheme.onSurfaceVariant
+						)
+					}
+				}
+			}
+		},
+		confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } }
+	)
 }
 
 /** Green when connected, muted otherwise - the same "is this player reachable" the invite button gates on. */
 @Composable
-private fun OnlineDot(isOnline: Boolean) {
+internal fun OnlineDot(isOnline: Boolean) {
 	Box(
 		modifier = Modifier
 			.size(8.dp)
@@ -357,7 +391,7 @@ private fun OnlineDot(isOnline: Boolean) {
  * icon - and it swaps for a real image later without touching this screen's layout.
  */
 @Composable
-private fun Avatar(name: String, seed: String) {
+internal fun PlayerAvatar(name: String, seed: String, size: Dp = 40.dp) {
 	val palette = listOf(
 		MaterialTheme.colorScheme.primaryContainer,
 		MaterialTheme.colorScheme.secondaryContainer,
@@ -372,7 +406,7 @@ private fun Avatar(name: String, seed: String) {
 
 	Box(
 		modifier = Modifier
-			.size(40.dp)
+			.size(size)
 			.clip(CircleShape)
 			.background(palette[index]),
 		contentAlignment = Alignment.Center
@@ -386,7 +420,7 @@ private fun Avatar(name: String, seed: String) {
 	}
 }
 
-private fun formatMs(millis: Long): String {
+internal fun formatMs(millis: Long): String {
 	val totalSeconds = millis / 1000
 	return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 }

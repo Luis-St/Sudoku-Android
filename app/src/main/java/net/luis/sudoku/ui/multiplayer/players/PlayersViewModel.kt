@@ -11,11 +11,9 @@ import kotlinx.coroutines.launch
 import net.luis.sudoku.data.local.ServerConfigStore
 import net.luis.sudoku.data.remote.ApiClient
 import net.luis.sudoku.data.remote.ApiException
-import net.luis.sudoku.data.remote.dto.LeaderboardEntryResponse
 import net.luis.sudoku.data.remote.dto.MatchConfigDto
 import net.luis.sudoku.data.remote.dto.MatchSettingsDto
 import net.luis.sudoku.data.remote.dto.PlayerResponse
-import net.luis.sudoku.data.remote.dto.StatsEntryResponse
 import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.grid.Variant
@@ -23,8 +21,13 @@ import net.luis.sudoku.ui.multiplayer.setup.ActiveMatch
 import javax.inject.Inject
 
 /**
- * feature-spec §9.7: browse players on the same server (display name, streak, aggregate stats) and the
- * per-tier daily leaderboard, plus the administration actions UI item 9 asks for.
+ * feature-spec §9.7: browse players on the same server (display name, streak, role, online status), invite
+ * one to a match, and the administration actions UI item 9 asks for.
+ *
+ * The per-tier daily leaderboard used to live here too and is gone (friends item 5): it is a ranking of
+ * *today's puzzle*, not a fact about the people on this list, and it pushed the players - the reason the
+ * screen exists - into being the top half of a screen about something else. Per-player statistics moved out
+ * as well, onto [net.luis.sudoku.ui.multiplayer.players.PlayerDetailScreen] (friends item 2).
  *
  * [isAdmin] only decides whether the admin controls are *drawn*. The server re-checks every one of them
  * and answers 403 otherwise, so this is presentation, never the permission check.
@@ -36,15 +39,6 @@ class PlayersViewModel @Inject constructor(
 ) : ViewModel() {
 
 	var players by mutableStateOf<List<PlayerResponse>>(emptyList())
-		private set
-
-	var selectedPlayerStats by mutableStateOf<List<StatsEntryResponse>?>(null)
-		private set
-
-	var leaderboard by mutableStateOf<List<LeaderboardEntryResponse>>(emptyList())
-		private set
-
-	var leaderboardDifficulty by mutableStateOf(3)
 		private set
 
 	var isAdmin by mutableStateOf(false)
@@ -81,7 +75,6 @@ class PlayersViewModel @Inject constructor(
 			this@PlayersViewModel.currentUserId = config.userId
 		}
 		loadPlayers()
-		loadLeaderboard(this.leaderboardDifficulty)
 	}
 
 	fun loadPlayers() {
@@ -91,26 +84,10 @@ class PlayersViewModel @Inject constructor(
 		}
 	}
 
-	fun loadPlayerStats(playerId: String) {
-		runOrReportError {
-			val (baseUrl, token) = serverCredentials() ?: return@runOrReportError
-			this.selectedPlayerStats = this.apiClient.playerStats(baseUrl, token, playerId)
-		}
-	}
-
-	fun dismissPlayerStats() {
-		this.selectedPlayerStats = null
-	}
-
-	fun loadLeaderboard(difficultyIndex: Int) {
-		this.leaderboardDifficulty = difficultyIndex
-		runOrReportError {
-			val (baseUrl, token) = serverCredentials() ?: return@runOrReportError
-			this.leaderboard = this.apiClient.dailyLeaderboard(baseUrl, token, difficultyIndex)
-		}
-	}
-
-	/** Promote to ADMIN or demote to PLAYER - the server rejects a demotion that would leave no admin. */
+	/**
+	 * Moves a player to one of [ServerRole]'s three roles - the server rejects a demotion that would leave
+	 * no admin, and any role name it does not know.
+	 */
 	fun changeRole(playerId: String, role: String) {
 		runOrReportError {
 			val (baseUrl, token) = serverCredentials() ?: return@runOrReportError

@@ -142,10 +142,6 @@
 	<string name="reconnect_grace_participant">Ein Teilnehmer wurde getrennt - Wiederverbindung in %1$ds oder das Match endet</string>
 
 	<string name="players_row_streak">%1$s - Serie %2$d</string>
-	<string name="players_daily_leaderboard_header">Tages-Bestenliste</string>
-	<string name="players_leaderboard_row">%1$d. %2$s - %3$s (%4$d Versuche)</string>
-	<string name="dialog_player_stats_title">Spielerstatistik</string>
-	<string name="players_stats_row">%1$d×%2$d Schwierigkeit %3$d: %4$d/%5$d</string>
 
 	<string name="race_lives">Leben: %1$d</string>
 	<string name="race_opponent_progress_header">Fortschritt des Gegners</string>
@@ -250,15 +246,22 @@
 
 	<!-- Spielerliste und Verwaltung (UI-Punkt 9) -->
 	<string name="players_streak_label">Serie %1$d</string>
+	<string name="players_role_new">Neu</string>
+	<string name="players_role_new_description">Darf spielen, sonst nichts.</string>
+	<string name="players_role_member">Mitglied</string>
+	<string name="players_role_member_description">Darf spielen und Einladungscodes erstellen.</string>
 	<string name="players_role_admin">Admin</string>
+	<string name="players_role_admin_description">Darf spielen, einladen, Spieler entfernen und Rollen ändern.</string>
 	<string name="players_invite_to_match">Einladen</string>
 	<string name="players_more_actions">Weitere Aktionen</string>
 	<string name="players_view_stats">Statistik ansehen</string>
-	<string name="players_promote">Zum Admin machen</string>
-	<string name="players_demote">Adminrechte entziehen</string>
+	<string name="players_change_role">Rolle ändern</string>
+	<string name="players_change_role_title">Rolle für %1$s</string>
 	<string name="players_kick">Vom Server entfernen</string>
 	<string name="players_create_invite">Einladungscode erstellen</string>
 	<string name="players_invite_created_title">Einladungscode</string>
+	<string name="players_detail_title">Spieler</string>
+	<string name="players_no_stats">Dieser Spieler hat noch kein Rätsel abgeschlossen.</string>
 
 	<!-- Abschlussbildschirm (Spiel-Punkt 7) -->
 	<string name="summary_back_to_home">Zurück zur Startseite</string>

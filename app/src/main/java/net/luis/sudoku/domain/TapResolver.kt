@@ -50,6 +50,25 @@ fun resolveTap(cell: CellSnapshot, lock: LockState): Pair<TapAction, LockState> 
 }
 
 /**
+ * Game item 1: whether a tap that resolved to [action] should also move the row/column/region focus onto
+ * the cell it hit.
+ *
+ * **Writing a pencil mark never moves it.** Marking is annotation, not selection: it is done in runs, and
+ * every mark dragging the focus along behind it repaints a different row and column each time - underneath
+ * the very same-digit marks the player is reading to decide where the next note goes. The cell shows what
+ * the player just put there; it has not become what they are looking at.
+ *
+ * Everything else moves it. Locking a cell, relocking onto a digit, releasing a lock and entering a pen
+ * digit are all acts of picking a subject, which is exactly what the focus exists to follow.
+ *
+ * Keyed on the resolved action rather than on [LockState], because the distinction is what the tap *did*:
+ * the same lock and the same mode both write a mark and relock onto a digit depending only on the cell, so
+ * a rule phrased over the lock cannot tell those apart. Separate from [resolveTap] rather than a third
+ * component of its result, because it decides nothing about the board.
+ */
+fun focusFollowsTap(action: TapAction): Boolean = action !is TapAction.TogglePencil
+
+/**
  * Pure implementation of the number-button half of 5.2/5.4: locking/relocking/releasing a digit, or -
  * while a cell is locked - entering exactly one number into it and releasing that lock. Long-press
  * always places a pencil mark without switching modes (5.2), which is only meaningful in the cell-lock

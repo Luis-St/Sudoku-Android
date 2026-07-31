@@ -50,6 +50,7 @@ import net.luis.sudoku.ui.game.GameTopBarActions
 import net.luis.sudoku.ui.generator.GeneratorScreen
 import net.luis.sudoku.ui.home.HomeScreen
 import net.luis.sudoku.ui.multiplayer.MultiplayerScreen
+import net.luis.sudoku.ui.multiplayer.players.PlayerDetailScreen
 import net.luis.sudoku.ui.multiplayer.players.PlayersScreen
 import net.luis.sudoku.ui.navigation.PlayMode
 import net.luis.sudoku.ui.presence.MatchRequestOverlay
@@ -198,6 +199,7 @@ private fun titleFor(route: String?): String = when (route) {
 	Routes.STATS -> stringResource(R.string.tab_stats)
 	Routes.SETTINGS -> stringResource(R.string.tab_settings)
 	Routes.FRIENDS -> stringResource(R.string.tab_friends)
+	Routes.PLAYER_DETAIL -> stringResource(R.string.players_detail_title)
 	Routes.MULTIPLAYER -> stringResource(R.string.tab_multiplayer)
 	Routes.PLAY -> stringResource(R.string.tab_game)
 	else -> stringResource(R.string.app_name)
@@ -285,8 +287,16 @@ private fun AppNavHost(
 					navController.navigate(Routes.multiplayerMatch(match.matchId, match.mode, match.stake)) {
 						popUpTo(Routes.FRIENDS) { inclusive = true }
 					}
-				}
+				},
+				onOpenPlayer = { playerId -> navController.navigate(Routes.playerDetail(playerId)) }
 			)
+		}
+
+		composable(
+			route = Routes.PLAYER_DETAIL,
+			arguments = listOf(navArgument(Routes.ARG_PLAYER_ID) { type = NavType.StringType })
+		) {
+			PlayerDetailScreen(presenceViewModel = presenceViewModel)
 		}
 
 		composable(

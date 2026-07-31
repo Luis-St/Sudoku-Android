@@ -48,10 +48,32 @@ class PresenceViewModel @Inject constructor(
 	var onlineUserIds by mutableStateOf<Set<String>>(emptySet())
 		private set
 
+	/**
+	 * Whether the socket is up *and* has delivered an online set (friends item 6).
+	 *
+	 * Every consumer needs this to tell "nobody is online" from "this device does not know yet". Without
+	 * it an empty [onlineUserIds] is indistinguishable from a real answer, so a friends list either shows
+	 * everyone as offline while the socket is still connecting, or - the way it did - falls back to the
+	 * `online` flag from the REST list forever, which is a snapshot from load time that never goes stale
+	 * *downwards*: a player who signed out stayed lit until the screen was left and re-entered.
+	 */
+	var connected by mutableStateOf(false)
+		private set
+
+	/** This device's own user id, so [isOnline] can answer for it without waiting on the socket. */
+	private var selfUserId by mutableStateOf<String?>(null)
+
 	var incomingRequest by mutableStateOf<IncomingMatchRequest?>(null)
 		private set
 
 	init {
+		this.viewModelScope.launch {
+			this@PresenceViewModel.serverConfigStore.config
+				.map { it.userId }
+				.distinctUntilChanged()
+				.collect { this@PresenceViewModel.selfUserId = it }
+		}
+
 		this.viewModelScope.launch {
 			// Only the credentials matter here: any other settings change must not tear the socket down.
 			this@PresenceViewModel.serverConfigStore.config
@@ -60,6 +82,7 @@ class PresenceViewModel @Inject constructor(
 				.collect { (serverUrl, token) ->
 					this@PresenceViewModel.socketClient.close()
 					this@PresenceViewModel.onlineUserIds = emptySet()
+					this@PresenceViewModel.connected = false
 					if (serverUrl != null && token != null) {
 						stayConnected(serverUrl, token)
 					}
@@ -67,7 +90,16 @@ class PresenceViewModel @Inject constructor(
 		}
 	}
 
-	fun isOnline(userId: String?): Boolean = userId != null && userId in this.onlineUserIds
+	/**
+	 * Friends item 3: this device is online by definition, whatever the socket has or has not said yet.
+	 *
+	 * The server does count us - `PresenceService.register` broadcasts the set including the caller - but
+	 * only once the socket is up, and there is a real window before that (and after every mobile reconnect)
+	 * where the only player the app can be *certain* about is the one holding the phone. Showing yourself
+	 * as offline in that window is never right and is the one wrong answer a player will always notice.
+	 */
+	fun isOnline(userId: String?): Boolean =
+		userId != null && (userId == this.selfUserId || userId in this.onlineUserIds)
 
 	fun dismissRequest() {
 		this.incomingRequest = null
@@ -86,6 +118,7 @@ class PresenceViewModel @Inject constructor(
 				// but online status, so it is never surfaced as an error - only retried.
 			}
 			this.onlineUserIds = emptySet()
+			this.connected = false
 			delay(RECONNECT_DELAY_MS)
 		}
 	}
@@ -96,6 +129,7 @@ class PresenceViewModel @Inject constructor(
 			PresenceType.ONLINE -> {
 				val ids = payload["userIds"] as? JsonArray ?: return
 				this.onlineUserIds = ids.mapNotNull { (it as? JsonPrimitive)?.takeIf(JsonPrimitive::isString)?.content }.toSet()
+				this.connected = true
 			}
 
 			PresenceType.MATCH_REQUEST -> {

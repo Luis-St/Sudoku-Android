@@ -2,6 +2,7 @@ package net.luis.sudoku.domain
 
 import net.luis.sudoku.core.CellSnapshot
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -173,6 +174,25 @@ class TapResolverTest {
 
 		assertEquals(TapAction.None, action)
 		assertEquals(LockTarget.None, lock.target)
+	}
+
+	@Test
+	fun focusFollowsTap_aTapThatOnlySelectsMovesTheFocus() {
+		// TapAction.None covers locking a cell, relocking onto a digit, and releasing a lock - all of them
+		// acts of picking a subject, which is exactly what the focus is meant to follow.
+		assertTrue(focusFollowsTap(TapAction.None))
+	}
+
+	@Test
+	fun focusFollowsTap_enteringAPenDigitMovesTheFocus() {
+		assertTrue(focusFollowsTap(TapAction.EnterPen(1, 5)))
+	}
+
+	@Test
+	fun focusFollowsTap_writingAPencilMarkNeverMovesTheFocus() {
+		// Whatever the cell held: marking is annotation, and it is done in runs the focus must not follow.
+		assertFalse(focusFollowsTap(TapAction.TogglePencil(1, 5)))
+		assertFalse(focusFollowsTap(TapAction.TogglePencil(80, 1)))
 	}
 
 	@Test

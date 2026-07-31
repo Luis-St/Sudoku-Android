@@ -237,19 +237,22 @@
 	<!-- Players screen (feature-spec §9.7, UI item 9) -->
 	<string name="players_row_streak">%1$s - streak %2$d</string>
 	<string name="players_streak_label">Streak %1$d</string>
+	<string name="players_role_new">New</string>
+	<string name="players_role_new_description">Can play, nothing else.</string>
+	<string name="players_role_member">Member</string>
+	<string name="players_role_member_description">Can play and create invite codes.</string>
 	<string name="players_role_admin">Admin</string>
+	<string name="players_role_admin_description">Can play, invite, remove players and change roles.</string>
 	<string name="players_invite_to_match">Invite</string>
 	<string name="players_more_actions">More actions</string>
 	<string name="players_view_stats">View statistics</string>
-	<string name="players_promote">Make admin</string>
-	<string name="players_demote">Remove admin</string>
+	<string name="players_change_role">Change role</string>
+	<string name="players_change_role_title">Role for %1$s</string>
 	<string name="players_kick">Remove from server</string>
 	<string name="players_create_invite">Create an invite code</string>
 	<string name="players_invite_created_title">Invite code</string>
-	<string name="players_daily_leaderboard_header">Daily leaderboard</string>
-	<string name="players_leaderboard_row">%1$d. %2$s - %3$s (%4$d attempts)</string>
-	<string name="dialog_player_stats_title">Player stats</string>
-	<string name="players_stats_row">%1$d×%2$d difficulty %3$d: %4$d/%5$d</string>
+	<string name="players_detail_title">Player</string>
+	<string name="players_no_stats">This player has not finished a puzzle yet.</string>
 
 	<!-- Race screen (feature-spec §10.1) -->
 	<string name="race_lives">Lives: %1$d</string>

@@ -27,6 +27,16 @@ object Routes {
 	const val ARG_MATCH_ID = "matchId"
 	const val ARG_INVITE_TOKEN = "inviteToken"
 	const val ARG_STAKE = "stake"
+	const val ARG_PLAYER_ID = "playerId"
+
+	/**
+	 * One player's profile and statistics (friends item 2). Only the id travels in the route - the screen
+	 * re-reads everything else, so a display name (user-supplied text that would have to be escaped) never
+	 * has to be put in a URL.
+	 */
+	const val PLAYER_DETAIL = "player/{$ARG_PLAYER_ID}"
+
+	fun playerDetail(playerId: String): String = "player/$playerId"
 
 	/**
 	 * Plain `multiplayer` is the match-setup screen. The optional arguments carry a match that already

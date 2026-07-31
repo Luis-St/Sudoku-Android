@@ -20,11 +20,31 @@ data class BoardPalette(
 	val error: Color,
 	val selectedCell: Color,
 	val peerHighlight: Color,
+	/**
+	 * Game item 2: the **ink a placed digit is written in** when it is the locked value. Not a cell fill and
+	 * not a shape around the glyph - both of those mark the cell, and what the player is scanning for is
+	 * where the number is. At 12x12 and up a board of washed cells left nothing else readable at all.
+	 *
+	 * It therefore has to separate from [given] *and* [penEntry] in the same theme, since it replaces
+	 * whichever of the two the digit would otherwise use - a marked digit that lands on the colour an
+	 * unmarked one already has is not a mark.
+	 */
 	val sameValuePen: Color,
+	/** Game item 2, the notes half: the same, for the locked digit inside a pencil-mark grid. */
 	val sameValuePencil: Color,
 	val conflict: Color,
 	/** Another co-op participant's selected cell (feature-spec §10.3) - defaulted so existing palettes don't need updating. */
 	val presence: Color = Color(0xFFFFD54F),
+	/**
+	 * The cell a pending hint is offering (game item 4).
+	 *
+	 * Its own colour rather than the selection's: a hint is a one-shot "look here" that the player has to
+	 * find *before* deciding whether to spend it, and sharing the selection colour meant it read as "you
+	 * tapped this". Applied opaque, never composited onto a chaos region tint the way the selection is -
+	 * a highlight that lets the tint through is exactly what cannot be picked out of sixteen tinted
+	 * regions, and there is nothing to preserve underneath a cell that is about to be filled in.
+	 */
+	val hintCandidate: Color = Color(0xFFFFC400),
 	/** A cell the player entered a wrong digit into, on the end-of-game summary board (game item 7). */
 	val summaryMistake: Color = Color(0xFFFFB3B3),
 	/** A cell the player spent a hint on, on the end-of-game summary board (game item 7). */
@@ -66,9 +86,12 @@ object BoardThemeCatalog {
 			error = Color(0xFFBA1A1A),
 			selectedCell = Color(0xFFE4DFF7),
 			peerHighlight = Color(0xFFF1EEFB),
-			sameValuePen = Color(0xFFD0BCFF),
-			sameValuePencil = Color(0xFFEDE6FB),
+			// Teal, not the app's indigo: every ink on this board is a near-black violet, and the marked digit
+			// has to be a different *hue* to be spotted at a glance rather than a darker shade of the rest.
+			sameValuePen = Color(0xFF00767C),
+			sameValuePencil = Color(0xFF00767C),
 			conflict = Color(0xFFFFDAD6),
+			hintCandidate = Color(0xFFFFC400),
 			tintHighlight = Color(0xFF4C4ED9)
 		),
 		dark = BoardPalette(
@@ -80,9 +103,14 @@ object BoardThemeCatalog {
 			error = Color(0xFFFFB4AB),
 			selectedCell = Color(0xFF3A3646),
 			peerHighlight = Color(0xFF2B2836),
-			sameValuePen = Color(0xFF6650A4),
-			sameValuePencil = Color(0xFF433C5C),
+			// The light mode's teal, lifted for a dark board. A light indigo would sit right on top of
+			// penEntry's #D0BCFF and the mark would be invisible.
+			sameValuePen = Color(0xFF4DD9E0),
+			sameValuePencil = Color(0xFF4DD9E0),
 			conflict = Color(0xFF93000A),
+			// Deep amber, not the light mode's bright yellow: on a near-black board a full-strength yellow cell
+			// is a lamp, and the pencil marks left in the cell would have to be black to survive it.
+			hintCandidate = Color(0xFF9A6E00),
 			// Light on a dark board: the tints there are near-black, so the highlight has to lift them, not
 			// darken them further.
 			tintHighlight = Color(0xFFC1C1FF)
@@ -108,9 +136,11 @@ object BoardThemeCatalog {
 			error = Color(0xFFBA1A1A),
 			selectedCell = Color(0xFFF3D9D9),
 			peerHighlight = Color(0xFFFBEDED),
-			sameValuePen = Color(0xFFE0A8A8),
-			sameValuePencil = Color(0xFFF3D9D9),
+			// Lisa's every ink is a red, so the marked digit goes to the other side of the wheel outright.
+			sameValuePen = Color(0xFF1A6B8C),
+			sameValuePencil = Color(0xFF1A6B8C),
 			conflict = Color(0xFFFFB4AB),
+			hintCandidate = Color(0xFFFFC400),
 			tintHighlight = Color(0xFF9B2B2B)
 		),
 		dark = BoardPalette(
@@ -122,9 +152,10 @@ object BoardThemeCatalog {
 			error = Color(0xFFFFB4AB),
 			selectedCell = Color(0xFF5C1A1A),
 			peerHighlight = Color(0xFF3A1414),
-			sameValuePen = Color(0xFF8C3A3A),
-			sameValuePencil = Color(0xFF5C1A1A),
+			sameValuePen = Color(0xFF8FD3EF),
+			sameValuePencil = Color(0xFF8FD3EF),
 			conflict = Color(0xFF93000A),
+			hintCandidate = Color(0xFF9A6E00),
 			tintHighlight = Color(0xFFE0A8A8)
 		)
 	)

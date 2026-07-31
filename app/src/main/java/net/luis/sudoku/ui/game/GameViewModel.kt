@@ -40,6 +40,7 @@ import net.luis.sudoku.domain.MistakeChecker
 import net.luis.sudoku.domain.ModifierSet
 import net.luis.sudoku.domain.TapAction
 import net.luis.sudoku.domain.TimerController
+import net.luis.sudoku.domain.focusFollowsTap
 import net.luis.sudoku.domain.UndoStack
 import net.luis.sudoku.domain.resolveNumberButtonTap
 import net.luis.sudoku.domain.resolveTap
@@ -388,15 +389,22 @@ class GameViewModel @Inject constructor(
 
 	fun onCellTap(index: Int) {
 		if (this.outcome != null) return
-		this.activeIndex = index
+		val cell = this.cells[index]
 		this.hintCandidate = null
-		val (action, nextLock) = resolveTap(this.cells[index], this.lock)
+		val (action, nextLock) = resolveTap(cell, this.lock)
+		// Game item 1: writing a pencil mark is annotation, not selection - see focusFollowsTap.
+		if (focusFollowsTap(action)) this.activeIndex = index
 		val mistaken = applyAction(action)
 		this.lock = lockAfter(nextLock, mistaken)
 	}
 
 	fun onNumberTap(digit: Int, longPress: Boolean = false) {
 		if (this.outcome != null) return
+		// Game item 3: the number pad is the other half of the input model, and picking a digit there means the
+		// player has stopped working on one cell. Leaving the old cell lit kept a row and column highlighted
+		// around a cell that no longer had anything to do with what was about to be entered - and after the
+		// cell-lock path writes into it, that cell is finished with by definition.
+		this.activeIndex = null
 		this.hintCandidate = null
 		val (action, nextLock) = resolveNumberButtonTap(this.lock, digit, longPress)
 		val mistaken = applyAction(action)

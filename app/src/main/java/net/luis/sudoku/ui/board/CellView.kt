@@ -31,8 +31,10 @@ import net.luis.sudoku.ui.theme.BoardPalette
 data class CellHighlight(
 	val selected: Boolean = false,
 	val peer: Boolean = false,
-	val sameValuePen: Boolean = false,
-	val sameValuePencil: Boolean = false,
+	/** Game item 2: this cell's pen value is the locked digit - marked on the glyph, not on the cell. */
+	val markedValue: Boolean = false,
+	/** Game item 2: the locked digit, when this cell carries it as a pencil mark - that one note is marked. */
+	val markedPencilDigit: Int? = null,
 	val conflict: Boolean = false,
 	val hintCandidate: Boolean = false,
 	/** A wrong digit shown transiently, never written to the actual cell (feature-spec §6). */
@@ -76,12 +78,14 @@ fun CellView(
 		// and nothing is selectable there anyway (game item 7).
 		highlight.mistakeMade -> palette.summaryMistake
 		highlight.hintUsed -> palette.summaryHint
-		highlight.hintCandidate -> accentOrPlain(SELECTED_ON_TINT_ALPHA, palette.selectedCell)
+		// Game item 4: opaque, and deliberately *not* run through accentOrPlain. Every other highlight lets a
+		// chaos region tint show through so the region stays readable; the hint cell is the one that has to be
+		// findable at a glance on a board of sixteen tinted regions, and it is about to be overwritten anyway.
+		highlight.hintCandidate -> palette.hintCandidate
 		highlight.selected -> accentOrPlain(SELECTED_ON_TINT_ALPHA, palette.selectedCell)
 		highlight.conflict -> palette.conflict
 		highlight.presence -> palette.presence
-		highlight.sameValuePen -> over(palette.sameValuePen, SAME_VALUE_ON_TINT_ALPHA)
-		highlight.sameValuePencil -> over(palette.sameValuePencil, SAME_VALUE_ON_TINT_ALPHA)
+		// Game item 2: no same-value case here any more - marking the locked digit is the glyph's job below.
 		highlight.peer -> accentOrPlain(PEER_ON_TINT_ALPHA, palette.peerHighlight)
 		else -> tint ?: MaterialTheme.colorScheme.background
 	}
@@ -102,13 +106,22 @@ fun CellView(
 		when {
 			highlight.mistakeDigit != null -> CellValueText(highlight.mistakeDigit, palette.error, valueFontSize)
 
+			// Game item 2: the locked digit is marked by recolouring the *glyph*. Not the cell behind it, and
+			// not a shape drawn around it - both of those are marks on the cell, and what the player is looking
+			// for is where the number is.
 			snapshot.value != 0 -> CellValueText(
 				value = snapshot.value,
-				color = if (snapshot.given) palette.given else palette.penEntry,
-				fontSize = valueFontSize
+				color = when {
+					highlight.markedValue -> palette.sameValuePen
+					snapshot.given -> palette.given
+					else -> palette.penEntry
+				},
+				fontSize = valueFontSize,
+				bold = highlight.markedValue
 			)
 
-			snapshot.pencilMarks != 0 -> PencilMarkGrid(snapshot, edgeLength, palette, cellSize)
+			snapshot.pencilMarks != 0 ->
+				PencilMarkGrid(snapshot, edgeLength, palette, cellSize, highlight.markedPencilDigit)
 		}
 	}
 }
@@ -128,11 +141,8 @@ private const val SELECTED_ON_TINT_ALPHA = 0.55f
 /** The same accent for the selected row and column, weak enough that it never competes with the selection. */
 private const val PEER_ON_TINT_ALPHA = 0.24f
 
-/** Same-digit highlighting over a region tint (chaos item 8). */
-private const val SAME_VALUE_ON_TINT_ALPHA = 0.75f
-
 @Composable
-private fun CellValueText(value: Int, color: Color, fontSize: TextUnit) {
+private fun CellValueText(value: Int, color: Color, fontSize: TextUnit, bold: Boolean = false) {
 	Text(
 		text = value.toString(),
 		color = color,
@@ -140,7 +150,7 @@ private fun CellValueText(value: Int, color: Color, fontSize: TextUnit) {
 		// Line height is pinned to the glyph size: the default leading is generous enough to push a digit
 		// off-centre once the font shrinks below the style it came from.
 		lineHeight = fontSize,
-		fontWeight = FontWeight.Medium,
+		fontWeight = if (bold) FontWeight.Bold else FontWeight.Medium,
 		maxLines = 1,
 		textAlign = TextAlign.Center
 	)
@@ -158,7 +168,14 @@ private fun CellValueText(value: Int, color: Color, fontSize: TextUnit) {
  * - so a 16x16's sixteen candidates stay legible next to a 4x4's four.
  */
 @Composable
-private fun PencilMarkGrid(snapshot: CellSnapshot, edgeLength: Int, palette: BoardPalette, cellSize: Dp) {
+private fun PencilMarkGrid(
+	snapshot: CellSnapshot,
+	edgeLength: Int,
+	palette: BoardPalette,
+	cellSize: Dp,
+	/** Game item 2: this one note is the locked digit, and is the only thing in the cell that gets marked. */
+	markedDigit: Int?
+) {
 	val columns = pencilColumnsFor(edgeLength)
 	val rows = (edgeLength + columns - 1) / columns
 
@@ -188,11 +205,15 @@ private fun PencilMarkGrid(snapshot: CellSnapshot, edgeLength: Int, palette: Boa
 						// Past edgeLength the slot is padding, not a digit - it keeps the grid square, so the
 						// candidates that do exist stay in their own fixed positions.
 						if (digit <= edgeLength && snapshot.hasPencilMark(digit)) {
+							// Game item 2: a chip would swallow a note at a ninth of a cell, so the mark *is*
+							// the ink - the locked digit's note is written in the accent and a weight heavier.
+							val marked = digit == markedDigit
 							Text(
 								text = digit.toString(),
-								color = palette.pencilMark,
+								color = if (marked) palette.sameValuePencil else palette.pencilMark,
 								fontSize = fontSize,
 								lineHeight = fontSize,
+								fontWeight = if (marked) FontWeight.Bold else FontWeight.Normal,
 								maxLines = 1,
 								softWrap = false,
 								textAlign = TextAlign.Center
