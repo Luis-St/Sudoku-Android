@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -602,13 +603,23 @@ private fun RecoverySetupSection(viewModel: SettingsViewModel) {
 		)
 
 		when {
-			viewModel.emailVerified -> Text(
+			// Settings item 1: while the answer is still in flight - the initial read, or the `setEmail` that
+			// registration fires straight after signing in - this section shows that it is working rather than
+			// an address form that is about to be replaced by the code field a second later.
+			viewModel.emailState == EmailVerificationState.UNKNOWN || viewModel.busy -> Box(
+				modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+				contentAlignment = Alignment.Center
+			) {
+				CircularProgressIndicator()
+			}
+
+			viewModel.emailState == EmailVerificationState.VERIFIED -> Text(
 				text = stringResource(R.string.settings_email_verified),
 				color = MaterialTheme.colorScheme.secondary,
 				modifier = Modifier.padding(top = 8.dp)
 			)
 
-			viewModel.emailVerificationSent -> {
+			viewModel.emailState == EmailVerificationState.CODE_SENT -> {
 				Text(stringResource(R.string.settings_email_sent), modifier = Modifier.padding(top = 8.dp))
 				OutlinedTextField(
 					value = code,
@@ -623,6 +634,11 @@ private fun RecoverySetupSection(viewModel: SettingsViewModel) {
 						onClick = { viewModel.confirmEmailVerification(code.trim()) },
 						enabled = !viewModel.busy && code.isNotBlank()
 					)
+				}
+				// The way out of a persisted sent-state: a mistyped address would otherwise leave the account
+				// on this field permanently, since it now survives leaving the screen.
+				TextButton(onClick = viewModel::changeEmailAddress, modifier = Modifier.padding(top = 4.dp)) {
+					Text(stringResource(R.string.settings_email_change_address))
 				}
 			}
 

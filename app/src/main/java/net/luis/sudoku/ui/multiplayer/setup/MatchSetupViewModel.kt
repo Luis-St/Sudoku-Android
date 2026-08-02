@@ -25,6 +25,14 @@ import javax.inject.Inject
 data class ActiveMatch(val matchId: String, val mode: String, val stake: Int = 0)
 
 /**
+ * A match that exists on the server and is waiting for somebody to join (multiplayer item 4).
+ *
+ * Distinct from [ActiveMatch] on purpose: the difference is not a flag on the same thing but which screen
+ * it belongs to - a match with an [inviteToken] to hand out is a lobby, and one being played is a board.
+ */
+data class CreatedMatch(val matchId: String, val inviteToken: String, val mode: String, val stake: Int)
+
+/**
  * Match creation/joining (feature-spec §10.1). Difficulty `LISA` is never offered here - it's single-player
  * and daily only (§4.3), and the server rejects it for every mode regardless (server-spec §10.1).
  */
@@ -44,7 +52,12 @@ class MatchSetupViewModel @Inject constructor(
 	var errorCode by mutableStateOf<String?>(null)
 		private set
 
-	var inviteToken by mutableStateOf<String?>(null)
+	/**
+	 * The match this player just created, which nobody has joined yet - the lobby's input, not a match to
+	 * play. Creating one used to go straight into the board with the invite token printed underneath it,
+	 * which meant sitting on a dead puzzle waiting for an opponent (multiplayer item 4).
+	 */
+	var createdMatch by mutableStateOf<CreatedMatch?>(null)
 		private set
 
 	var activeMatch by mutableStateOf<ActiveMatch?>(null)
@@ -63,9 +76,13 @@ class MatchSetupViewModel @Inject constructor(
 				MatchConfigDto(size.n(), variant.name, difficulty.index()),
 				MatchSettingsDto(livesEnabled, stake)
 			)
-			this.inviteToken = created.inviteToken
-			this.activeMatch = ActiveMatch(created.matchId, mode, stake ?: 0)
+			this.createdMatch = CreatedMatch(created.matchId, created.inviteToken, mode, stake ?: 0)
 		}
+	}
+
+	/** Consumed by the screen once it has navigated into the lobby, so going back cannot bounce forward again. */
+	fun clearCreatedMatch() {
+		this.createdMatch = null
 	}
 
 	fun joinMatch(matchId: String, inviteToken: String) {

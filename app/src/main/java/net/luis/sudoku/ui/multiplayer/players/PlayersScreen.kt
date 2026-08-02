@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,7 +18,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,14 +40,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
 import net.luis.sudoku.R
-import net.luis.sudoku.data.remote.dto.MatchMode
 import net.luis.sudoku.data.remote.dto.PlayerResponse
-import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.ui.common.CodeShareDialog
 import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.common.friendlyErrorMessage
 import net.luis.sudoku.ui.common.SectionCard
-import net.luis.sudoku.ui.multiplayer.setup.ActiveMatch
 import net.luis.sudoku.ui.theme.OnlineGreen
 
 /**
@@ -59,34 +54,25 @@ import net.luis.sudoku.ui.theme.OnlineGreen
 private const val PLAYERS_REFRESH_MS = 10_000L
 
 /**
- * feature-spec §9.7 plus UI item 9: every player gets an avatar, a name, their role, an invite button
- * and - for admins - the administration actions.
+ * feature-spec §9.7 plus UI item 9: every player gets an avatar, a name, their role and their online
+ * status, and an admin gets the administration actions on top.
  *
- * Reached from the top bar's own button now (left of settings), not only from inside the multiplayer
- * flow. Online status is `PlayerResponse.online`, which the server derives from how recently each player's
- * app last reported itself - so this screen re-reads the list on a timer and the dots follow, rather than
+ * Reached from the top bar's own button (left of settings), not only from inside the multiplayer flow.
+ * Online status is `PlayerResponse.online`, which the server derives from how recently each player's app
+ * last reported itself - so this screen re-reads the list on a timer and the dots follow, rather than
  * merging a live socket's opinion with a stale flag from load time (friends item 6).
  *
- * A match request may only be sent to a player who is online: the server stores it for their next heartbeat
- * and expires it within the minute, so a target who is not there would never see it.
+ * **Asking somebody to play is not here** (friends item 4). It used to be a button per row that created a
+ * match with a fixed configuration behind the player's back; it now lives on the match lobby, after the
+ * creator has chosen what the match actually is - see
+ * [net.luis.sudoku.ui.multiplayer.wait.MatchWaitScreen].
  */
 @Composable
 fun PlayersScreen(
-	onMatchStarted: (ActiveMatch) -> Unit,
 	onOpenPlayer: (String) -> Unit,
 	modifier: Modifier = Modifier,
 	viewModel: PlayersViewModel = hiltViewModel()
 ) {
-	var invitee by remember { mutableStateOf<PlayerResponse?>(null) }
-
-	LaunchedEffect(viewModel.startedMatch) {
-		viewModel.startedMatch?.let { match ->
-			invitee = null
-			viewModel.clearStartedMatch()
-			onMatchStarted(match)
-		}
-	}
-
 	// Friends item 6: this list is the *only* source of online status now, so keeping it current is keeping
 	// the dots current - and it is also what makes a player who joined the server while this screen was open
 	// appear at all. Polled only while this screen is composed: nothing else on the list changes fast enough
@@ -107,7 +93,9 @@ fun PlayersScreen(
 		// Friends item 1: above the players card, not inside it. Minting an invite code is about the server,
 		// not about anyone on the list, and sitting at the top of that list it read as an action on the first
 		// player in it - and pushed the players themselves below the fold on a short screen.
-		if (viewModel.isAdmin) {
+		// Friends item 3: `CAN_INVITE`, not "is an admin" - the server grants it to MEMBER as well, so a member
+		// used to hold a permission with nothing on screen to use it with.
+		if (viewModel.canInvite) {
 			OutlinedActionButton(
 				text = stringResource(R.string.players_create_invite),
 				onClick = viewModel::createInvite,
@@ -125,22 +113,12 @@ fun PlayersScreen(
 						isSelf = player.id == viewModel.currentUserId,
 						isOnline = player.online,
 						onOpen = { onOpenPlayer(player.id) },
-						onInvite = { invitee = player },
 						onChangeRole = { role -> viewModel.changeRole(player.id, role.name) },
 						onKick = { viewModel.kick(player.id) }
 					)
 				}
 			}
 		}
-	}
-
-	invitee?.let { player ->
-		MatchRequestDialog(
-			player = player,
-			busy = viewModel.busy,
-			onDismiss = { invitee = null },
-			onSend = { mode, difficulty -> viewModel.requestMatch(player.id, mode.name, difficulty) }
-		)
 	}
 
 	// Friends item 1: a freshly minted invite code is only useful once it reaches the person being invited,
@@ -164,65 +142,6 @@ fun PlayersScreen(
 	}
 }
 
-/**
- * Picks what kind of match to ask for. Only the mode and the tier are offered: those are the two the
- * invitee actually cares about, and the full size/variant/lives/stake picker already exists on the
- * match-setup screen.
- */
-@Composable
-private fun MatchRequestDialog(
-	player: PlayerResponse,
-	busy: Boolean,
-	onDismiss: () -> Unit,
-	onSend: (MatchMode, Difficulty) -> Unit
-) {
-	var mode by remember { mutableStateOf(MatchMode.RACE) }
-	var difficulty by remember { mutableStateOf(Difficulty.THREE) }
-
-	AlertDialog(
-		onDismissRequest = onDismiss,
-		title = { Text(stringResource(R.string.players_request_match_title, player.displayName ?: player.id)) },
-		text = {
-			Column {
-				Text(stringResource(R.string.matchsetup_create_header), style = MaterialTheme.typography.labelLarge)
-				FlowRow {
-					listOf(MatchMode.RACE, MatchMode.DUEL, MatchMode.COOP).forEach { candidate ->
-						FilterChip(
-							selected = mode == candidate,
-							onClick = { mode = candidate },
-							label = { Text(candidate.name) },
-							modifier = Modifier.padding(end = 4.dp, top = 4.dp)
-						)
-					}
-				}
-				Text(
-					text = stringResource(R.string.label_difficulty),
-					style = MaterialTheme.typography.labelLarge,
-					modifier = Modifier.padding(top = 12.dp)
-				)
-				FlowRow {
-					// Lisa is single-player/daily only (feature-spec §4.3) and the server rejects it for
-					// every mode, so it is never offered.
-					Difficulty.values().filterNot { it.isLisa }.forEach { candidate ->
-						FilterChip(
-							selected = difficulty == candidate,
-							onClick = { difficulty = candidate },
-							label = { Text(candidate.index().toString()) },
-							modifier = Modifier.padding(end = 4.dp, top = 4.dp)
-						)
-					}
-				}
-			}
-		},
-		confirmButton = {
-			TextButton(onClick = { onSend(mode, difficulty) }, enabled = !busy) {
-				Text(stringResource(R.string.players_send_request))
-			}
-		},
-		dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } }
-	)
-}
-
 @Composable
 private fun PlayerRow(
 	player: PlayerResponse,
@@ -230,7 +149,6 @@ private fun PlayerRow(
 	isSelf: Boolean,
 	isOnline: Boolean,
 	onOpen: () -> Unit,
-	onInvite: () -> Unit,
 	onChangeRole: (ServerRole) -> Unit,
 	onKick: () -> Unit
 ) {
@@ -280,27 +198,18 @@ private fun PlayerRow(
 			}
 		}
 
-		// Inviting yourself is meaningless, and an offline player has no socket the request could arrive
-		// on - the server would answer PLAYER_OFFLINE - so neither gets the button.
-		if (!isSelf && isOnline) {
-			TextButton(onClick = onInvite) { Text(stringResource(R.string.players_invite_to_match)) }
-		}
-
-		Box {
-			IconButton(onClick = { menuOpen = true }) {
-				Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.players_more_actions))
-			}
-			DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-				DropdownMenuItem(
-					text = { Text(stringResource(R.string.players_view_stats)) },
-					onClick = {
-						menuOpen = false
-						onOpen()
-					}
-				)
-				// Administration is admin-only and never applies to yourself: the server refuses a
-				// self-demotion that would leave no admin, and self-kick, anyway.
-				if (isAdminViewer && !isSelf) {
+		// Friends items 2 and 4: the menu holds administration and nothing else, so it only exists for an
+		// admin looking at somebody other than themselves - the server refuses a self-demotion that would
+		// leave no admin, and a self-kick, anyway. Viewing statistics is not in it either: the row itself is
+		// the way into the profile, and a menu item for the same tap was the whole menu's only reason to
+		// appear for everyone else. Inviting somebody to a match now happens from the match lobby, where the
+		// match being invited to actually exists (multiplayer item 4).
+		if (isAdminViewer && !isSelf) {
+			Box {
+				IconButton(onClick = { menuOpen = true }) {
+					Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.players_more_actions))
+				}
+				DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
 					DropdownMenuItem(
 						text = { Text(stringResource(R.string.players_change_role)) },
 						onClick = {

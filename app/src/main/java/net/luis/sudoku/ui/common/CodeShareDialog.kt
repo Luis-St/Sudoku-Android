@@ -69,12 +69,13 @@ fun CodeShareDialog(title: String, code: String, clipLabel: String, onDismiss: (
 	)
 }
 
-private fun copyToClipboard(context: Context, label: String, code: String) {
+/** Shared with the match lobby, which shows two codes inline rather than in a dialog. */
+internal fun copyToClipboard(context: Context, label: String, code: String) {
 	val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
 	clipboard.setPrimaryClip(ClipData.newPlainText(label, code))
 }
 
-private fun shareText(context: Context, code: String) {
+internal fun shareText(context: Context, code: String) {
 	val intent = Intent(Intent.ACTION_SEND).apply {
 		type = "text/plain"
 		putExtra(Intent.EXTRA_TEXT, code)

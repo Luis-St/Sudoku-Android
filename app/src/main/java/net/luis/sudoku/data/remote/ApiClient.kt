@@ -15,6 +15,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import net.luis.sudoku.data.remote.dto.AccountResponse
 import net.luis.sudoku.data.remote.dto.ChallengeRequest
 import net.luis.sudoku.data.remote.dto.ChallengeResponse
 import net.luis.sudoku.data.remote.dto.ChangeRoleRequest
@@ -92,6 +93,15 @@ class ApiClient @Inject constructor(private val client: HttpClient) {
 				setBody(VerifyRequest(nonce, signature))
 			}
 		)
+
+	/**
+	 * This account's live role and email-verification state (server-spec §7).
+	 *
+	 * Both are things the client would otherwise only know as of sign-in: a role change made by an admin
+	 * afterwards, and whether the recovery address was ever verified, are invisible to every other endpoint.
+	 */
+	suspend fun currentAccount(baseUrl: String, token: String): AccountResponse =
+		handle(this.client.get(url(baseUrl, "users/me")) { authorized(token) })
 
 	suspend fun devices(baseUrl: String, token: String): List<DeviceResponse> =
 		handle(this.client.get(url(baseUrl, "devices")) { authorized(token) })
@@ -274,6 +284,17 @@ class ApiClient @Inject constructor(private val client: HttpClient) {
 				setBody(JoinMatchRequest(inviteToken))
 			}
 		)
+
+	/**
+	 * Calls off a match that has not started (server-spec §10.1) - the lobby's cancel button.
+	 *
+	 * Only the creator may, and only before the first opponent has actually started playing: a running match
+	 * answers `CONFLICT`, because leaving one is resigning, not cancelling. Idempotent, so a retry after an
+	 * uncertain failure is safe.
+	 */
+	suspend fun cancelMatch(baseUrl: String, token: String, matchId: String) {
+		handleUnit(this.client.delete(url(baseUrl, "matches/$matchId")) { authorized(token) })
+	}
 
 	suspend fun getMatch(baseUrl: String, token: String, matchId: String): MatchResponse =
 		handle(this.client.get(url(baseUrl, "matches/$matchId")) { authorized(token) })

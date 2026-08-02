@@ -38,18 +38,38 @@ class PresenceViewModel @Inject constructor(
 ) : ViewModel() {
 
 	/**
-	 * The request currently being offered, if any. Only one is ever shown: two banners stacked over a
-	 * running game would bury the game, and the rest stay pending server-side until this one is answered.
+	 * The request currently in the popup, if any. Only one is ever shown: two popups stacked over a running
+	 * game would bury the game, and the rest stay pending until this one is out of the way.
+	 *
+	 * Transient by design - the popup takes itself off screen after a few seconds (invite item 2). What
+	 * survives that is [pendingRequests], which is where a player who missed the popup picks the invite up.
 	 */
 	var incomingRequest by mutableStateOf<MatchRequestResponse?>(null)
 		private set
 
 	/**
+	 * Every unanswered request the server is serving, oldest first - the popup's slower half.
+	 *
+	 * The popup is a glance; this is the record. It is what puts the badge on the players button and the
+	 * join button on the requester's profile, so an invite that arrived while the player was mid-puzzle is
+	 * still reachable a minute later instead of having flashed past unrecoverably.
+	 */
+	var pendingRequests by mutableStateOf<List<MatchRequestResponse>>(emptyList())
+		private set
+
+	/**
 	 * Requests this player has already answered, so a dismissal that has not yet reached the server - or
-	 * failed to - does not make the banner reappear on the next beat. Ids only, and only for this process:
+	 * failed to - does not make the popup reappear on the next beat. Ids only, and only for this process:
 	 * the server drops the row, this is just what covers the gap until it does.
 	 */
 	private val answered = mutableSetOf<String>()
+
+	/**
+	 * Requests whose popup has already had its moment. Kept apart from [answered] because letting a popup
+	 * time out answers nothing: these stay in [pendingRequests] and stay joinable, they just do not pop a
+	 * second time. Re-popping every beat is precisely the behaviour a timed dismissal is meant to avoid.
+	 */
+	private val popped = mutableSetOf<String>()
 
 	/**
 	 * Reports this device for as long as the caller keeps this running, and collects match requests.
@@ -98,16 +118,36 @@ class PresenceViewModel @Inject constructor(
 		answer(request)
 	}
 
+	/** Declining answers the request: it stops popping *and* stops being pending. */
 	fun dismissRequest() {
 		this.incomingRequest?.let { answer(it) }
 	}
 
+	/**
+	 * The popup's few seconds are up (invite item 2). This closes the popup and nothing else - the request
+	 * is neither accepted nor declined, so it stays in [pendingRequests] and the player can still join from
+	 * the requester's profile.
+	 */
+	fun hidePopup() {
+		this.incomingRequest?.let { request ->
+			this.popped.add(request.id)
+			this.incomingRequest = null
+		}
+	}
+
+	/** The pending request from this player, if they have one waiting - the profile's join button. */
+	fun requestFrom(playerId: String): MatchRequestResponse? =
+		this.pendingRequests.firstOrNull { it.fromUserId == playerId }
+
 	/** Applies [nextRequestToOffer] to what the server just reported. */
 	private fun offer(requests: List<MatchRequestResponse>) {
-		// Retain only ids the server still reports, so this set cannot grow for the life of the process: once
-		// the row is gone the request can never be served again, and remembering it buys nothing.
-		this.answered.retainAll(requests.map(MatchRequestResponse::id).toSet())
-		this.incomingRequest = nextRequestToOffer(this.incomingRequest, requests, this.answered)
+		// Retain only ids the server still reports, so these sets cannot grow for the life of the process:
+		// once the row is gone the request can never be served again, and remembering it buys nothing.
+		val servedIds = requests.map(MatchRequestResponse::id).toSet()
+		this.answered.retainAll(servedIds)
+		this.popped.retainAll(servedIds)
+		this.pendingRequests = requests.filter { it.id !in this.answered }
+		this.incomingRequest = nextRequestToOffer(this.incomingRequest, requests, this.answered + this.popped)
 	}
 
 	private fun answer(request: MatchRequestResponse) {
@@ -115,6 +155,9 @@ class PresenceViewModel @Inject constructor(
 		if (this.incomingRequest?.id == request.id) {
 			this.incomingRequest = null
 		}
+		// Dropped here rather than on the next beat: the badge and the profile's join button have to go the
+		// moment the player answers, not up to a heartbeat interval later.
+		this.pendingRequests = this.pendingRequests.filterNot { it.id == request.id }
 		this.viewModelScope.launch {
 			val (baseUrl, token) = serverCredentials() ?: return@launch
 			try {

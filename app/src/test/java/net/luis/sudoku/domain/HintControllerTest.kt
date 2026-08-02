@@ -6,6 +6,7 @@ import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.grid.Variant
 import net.luis.sudoku.key.PuzzleKey
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -58,6 +59,37 @@ class HintControllerTest {
 
 		assertEquals(0, controller.remaining)
 		assertNull(controller.requestHint())
+	}
+
+	@Test
+	fun confirmHint_afterThePeekedCellWasFilledByHand_returnsNullWithoutConsumingAHint() {
+		val session = session()
+		val controller = HintController(session)
+
+		val candidate = controller.requestHint()!!
+		// The player peeked, then filled that very cell themselves before the second tap. shared-core's
+		// HintEngine.consume requires the board to be unchanged since the peek and throws otherwise, which
+		// used to propagate straight out of here and crash the app on the second press of the hint button.
+		session.setValue(candidate.cellIndex(), session.solutionAt(candidate.cellIndex()))
+
+		assertNull(controller.confirmHint())
+		// Nothing was revealed, so nothing was spent.
+		assertEquals(0, controller.used)
+	}
+
+	@Test
+	fun confirmHint_afterAStaleCandidate_peeksAgainstTheBoardAsItNowIs() {
+		val session = session()
+		val controller = HintController(session)
+
+		val stale = controller.requestHint()!!
+		session.setValue(stale.cellIndex(), session.solutionAt(stale.cellIndex()))
+		controller.confirmHint()
+
+		// The failed confirm has to drop the candidate, not keep it: handing the same dead one back out would
+		// point the next hint at the cell the player has already finished, forever.
+		val fresh = controller.requestHint()
+		assertNotEquals(stale.cellIndex(), fresh?.cellIndex())
 	}
 
 	@Test

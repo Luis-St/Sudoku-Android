@@ -85,6 +85,7 @@
 	<string name="settings_email_sent">An diese Adresse wurde ein Bestätigungscode gesendet.</string>
 	<string name="settings_email_code_label">Bestätigungscode</string>
 	<string name="action_verify">Bestätigen</string>
+	<string name="settings_email_change_address">Andere Adresse verwenden</string>
 	<string name="settings_email_verified">E-Mail bestätigt.</string>
 
 	<!-- Kontowiederherstellung (Einstellungen, nicht angemeldet) -->
@@ -122,7 +123,24 @@
 	<string name="matchsetup_match_id_label">Match-ID</string>
 	<string name="matchsetup_invite_token_label">Einladungstoken</string>
 	<string name="action_join_match">Match beitreten</string>
-	<string name="matchsetup_share_invite_token">Teile diesen Einladungstoken mit deinem Gegner:</string>
+	<string name="matchsetup_mode_label">Modus</string>
+	<string name="matchsetup_join_explainer">Gib die Match-ID und den Einladungstoken ein, die du bekommen hast.</string>
+
+	<!-- Multiplayer-Übersicht und Wartebereich (Multiplayer 2-4) -->
+	<string name="multiplayer_hub_header">Mit anderen spielen</string>
+	<string name="multiplayer_create_game">Spiel erstellen</string>
+	<string name="multiplayer_create_game_note">Wähle Modus und Rätsel und lade dann jemanden ein.</string>
+	<string name="multiplayer_join_game">Spiel beitreten</string>
+	<string name="multiplayer_join_game_note">Nutze eine Match-ID und einen Einladungstoken, die du bekommen hast.</string>
+	<string name="matchwait_header">Warten auf Mitspieler</string>
+	<string name="matchwait_waiting">Warte darauf, dass jemand beitritt…</string>
+	<string name="matchwait_explainer">Das Match startet, sobald ein anderer Spieler beitritt. Teile die Codes unten oder lade jemanden ein, der online ist.</string>
+	<string name="matchwait_share_both">Match teilen</string>
+	<string name="matchwait_share_text">Tritt meinem Sudoku-Match bei!\nMatch-ID: %1$s\nEinladungstoken: %2$s</string>
+	<string name="matchwait_invite_header">Online-Spieler einladen</string>
+	<string name="matchwait_nobody_online">Gerade ist niemand sonst online.</string>
+	<string name="matchwait_invited">Eingeladen</string>
+	<string name="matchwait_cancel">Match abbrechen</string>
 
 	<string name="stats_header">Deine Statistiken</string>
 	<string name="stats_games_played">Gespielte Spiele: %1$d</string>
@@ -254,7 +272,6 @@
 	<string name="players_role_admin_description">Darf spielen, einladen, Spieler entfernen und Rollen ändern.</string>
 	<string name="players_invite_to_match">Einladen</string>
 	<string name="players_more_actions">Weitere Aktionen</string>
-	<string name="players_view_stats">Statistik ansehen</string>
 	<string name="players_change_role">Rolle ändern</string>
 	<string name="players_change_role_title">Rolle für %1$s</string>
 	<string name="players_kick">Vom Server entfernen</string>

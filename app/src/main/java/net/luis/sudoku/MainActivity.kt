@@ -11,6 +11,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,13 +49,18 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.delay
 import net.luis.sudoku.ui.app.AppViewModel
 import net.luis.sudoku.ui.code.EnterCodeScreen
 import net.luis.sudoku.ui.game.GameScreen
 import net.luis.sudoku.ui.game.GameTopBarActions
 import net.luis.sudoku.ui.generator.GeneratorScreen
 import net.luis.sudoku.ui.home.HomeScreen
+import net.luis.sudoku.ui.multiplayer.MultiplayerHubScreen
 import net.luis.sudoku.ui.multiplayer.MultiplayerScreen
+import net.luis.sudoku.ui.multiplayer.setup.CreateMatchScreen
+import net.luis.sudoku.ui.multiplayer.setup.JoinMatchScreen
+import net.luis.sudoku.ui.multiplayer.wait.MatchWaitScreen
 import net.luis.sudoku.ui.multiplayer.players.PlayerDetailScreen
 import net.luis.sudoku.ui.multiplayer.players.PlayersScreen
 import net.luis.sudoku.ui.navigation.PlayMode
@@ -174,7 +181,23 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 					// server is configured and signed in (feature-spec §9.1's "no multiplayer UI anywhere").
 					if (appViewModel.serverConfig.isConfigured && appViewModel.serverConfig.isAuthenticated) {
 						IconButton(onClick = { navController.navigate(Routes.FRIENDS) }) {
-							Icon(painterResource(R.drawable.ic_multiplayer), contentDescription = stringResource(R.string.tab_friends))
+							// Invite item 2: the popup is transient, so the badge is what is left behind. It rides
+							// the players button because the players screen is the way to whoever sent the invite,
+							// and it counts rather than just dotting - two waiting invites is a different situation
+							// from one, and the count is the only place that shows.
+							val pending = presenceViewModel.pendingRequests
+							BadgedBox(
+								badge = {
+									if (pending.isNotEmpty()) {
+										Badge(
+											containerColor = MaterialTheme.colorScheme.error,
+											contentColor = MaterialTheme.colorScheme.onError
+										) { Text(pending.size.toString()) }
+									}
+								}
+							) {
+								Icon(painterResource(R.drawable.ic_multiplayer), contentDescription = stringResource(R.string.tab_friends))
+							}
 						}
 					}
 					// UI item 7: settings always top right.
@@ -186,9 +209,16 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 		}
 	) { innerPadding ->
 		Box(modifier = Modifier.padding(innerPadding)) {
-			AppNavHost(navController, appViewModel, gameTopBarActions, Modifier)
+			AppNavHost(navController, appViewModel, presenceViewModel, gameTopBarActions, Modifier)
 
 			presenceViewModel.incomingRequest?.let { request ->
+				// Invite item 2: a few seconds, then it takes itself away. Keyed on the request id so each new
+				// invite gets its own full window rather than inheriting the remainder of the previous one's,
+				// and the view model only closes the popup - the invite stays pending and stays joinable.
+				LaunchedEffect(request.id) {
+					delay(REQUEST_POPUP_MS)
+					presenceViewModel.hidePopup()
+				}
 				MatchRequestOverlay(
 					request = request,
 					onAccept = {
@@ -203,6 +233,13 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 	}
 }
 
+/**
+ * How long an incoming match request stays popped (invite item 2). Long enough to read a name and a mode
+ * and reach the buttons, short enough that it is not sitting on top of a timed puzzle - and nothing is lost
+ * when it goes, since the invite stays on the players badge and on the requester's profile.
+ */
+private const val REQUEST_POPUP_MS = 6_000L
+
 @Composable
 private fun titleFor(route: String?): String = when (route) {
 	Routes.HOME -> stringResource(R.string.app_name)
@@ -214,6 +251,10 @@ private fun titleFor(route: String?): String = when (route) {
 	Routes.FRIENDS -> stringResource(R.string.tab_friends)
 	Routes.PLAYER_DETAIL -> stringResource(R.string.players_detail_title)
 	Routes.MULTIPLAYER -> stringResource(R.string.tab_multiplayer)
+	Routes.MULTIPLAYER_HUB -> stringResource(R.string.tab_multiplayer)
+	Routes.MULTIPLAYER_CREATE -> stringResource(R.string.multiplayer_create_game)
+	Routes.MULTIPLAYER_JOIN -> stringResource(R.string.multiplayer_join_game)
+	Routes.MULTIPLAYER_WAIT -> stringResource(R.string.matchwait_header)
 	Routes.PLAY -> stringResource(R.string.tab_game)
 	else -> stringResource(R.string.app_name)
 }
@@ -222,6 +263,7 @@ private fun titleFor(route: String?): String = when (route) {
 private fun AppNavHost(
 	navController: NavHostController,
 	appViewModel: AppViewModel,
+	presenceViewModel: PresenceViewModel,
 	gameTopBarActions: GameTopBarActions,
 	modifier: Modifier
 ) {
@@ -234,9 +276,8 @@ private fun AppNavHost(
 				onOpenEnterCode = { navController.navigate(Routes.ENTER_CODE) },
 				onOpenShop = { navController.navigate(Routes.SHOP) },
 				onOpenStats = { navController.navigate(Routes.STATS) },
-				// multiplayer(), never the MULTIPLAYER pattern: navigating to the pattern itself would pass its
-				// own `{matchId}`/`{inviteToken}` placeholders through as literal argument values.
-				onOpenMultiplayer = { navController.navigate(Routes.multiplayer()) },
+				// The hub, not a match: creating and joining are separate destinations now (multiplayer item 2).
+				onOpenMultiplayer = { navController.navigate(Routes.MULTIPLAYER_HUB) },
 				onContinue = { navController.navigate(Routes.play(PlayMode.NORMAL)) }
 			)
 		}
@@ -291,23 +332,79 @@ private fun AppNavHost(
 		composable(Routes.SHOP) { ShopScreen() }
 		composable(Routes.STATS) { StatsScreen() }
 		composable(Routes.FRIENDS) {
-			PlayersScreen(
-				// The match exists and its creator is already a participant, so this goes straight into it
-				// rather than back through match setup. popUpTo(FRIENDS) keeps Back out of the finished match.
-				onMatchStarted = { match ->
-					navController.navigate(Routes.multiplayerMatch(match.matchId, match.mode, match.stake)) {
-						popUpTo(Routes.FRIENDS) { inclusive = true }
+			PlayersScreen(onOpenPlayer = { playerId -> navController.navigate(Routes.playerDetail(playerId)) })
+		}
+
+		composable(Routes.MULTIPLAYER_HUB) {
+			MultiplayerHubScreen(
+				onCreateGame = { navController.navigate(Routes.MULTIPLAYER_CREATE) },
+				onJoinGame = { navController.navigate(Routes.MULTIPLAYER_JOIN) }
+			)
+		}
+
+		composable(Routes.MULTIPLAYER_CREATE) {
+			// popUpTo(HUB) so Back from the lobby leaves multiplayer rather than returning to a form that would
+			// create a second match on top of the one already waiting.
+			CreateMatchScreen(onMatchCreated = { created ->
+				navController.navigate(Routes.multiplayerWait(created.matchId, created.inviteToken, created.mode, created.stake)) {
+					popUpTo(Routes.MULTIPLAYER_HUB)
+				}
+			})
+		}
+
+		composable(Routes.MULTIPLAYER_JOIN) {
+			JoinMatchScreen(onJoined = { match ->
+				navController.navigate(Routes.multiplayerMatch(match.matchId, match.mode, match.stake)) {
+					popUpTo(Routes.MULTIPLAYER_HUB) { inclusive = true }
+				}
+			})
+		}
+
+		composable(
+			route = Routes.MULTIPLAYER_WAIT,
+			arguments = listOf(
+				navArgument(Routes.ARG_MATCH_ID) { type = NavType.StringType },
+				navArgument(Routes.ARG_INVITE_TOKEN) { type = NavType.StringType; nullable = true; defaultValue = null },
+				navArgument(Routes.ARG_MODE) { type = NavType.StringType; nullable = true; defaultValue = null },
+				navArgument(Routes.ARG_STAKE) { type = NavType.StringType; nullable = true; defaultValue = null }
+			)
+		) { entry ->
+			val args = entry.arguments
+			val matchId = args?.getString(Routes.ARG_MATCH_ID).orEmpty()
+			val mode = args?.getString(Routes.ARG_MODE) ?: "RACE"
+			val stake = args?.getString(Routes.ARG_STAKE)?.toIntOrNull() ?: 0
+			MatchWaitScreen(
+				matchId = matchId,
+				inviteToken = args?.getString(Routes.ARG_INVITE_TOKEN).orEmpty(),
+				// Multiplayer item 4: the board is only ever reached once somebody has actually joined. The
+				// lobby leaves the back stack with it - a cancelled or finished match must not be one Back
+				// press away from a match id that no longer accepts anyone.
+				onMatchStarted = {
+					navController.navigate(Routes.multiplayerMatch(matchId, mode, stake)) {
+						popUpTo(Routes.MULTIPLAYER_HUB) { inclusive = true }
 					}
 				},
-				onOpenPlayer = { playerId -> navController.navigate(Routes.playerDetail(playerId)) }
+				onCancelled = {
+					navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } }
+				}
 			)
 		}
 
 		composable(
 			route = Routes.PLAYER_DETAIL,
 			arguments = listOf(navArgument(Routes.ARG_PLAYER_ID) { type = NavType.StringType })
-		) {
-			PlayerDetailScreen()
+		) { entry ->
+			// Invite item 2: the pending invite is read from the Activity-scoped presence view model and handed
+			// down, rather than the screen resolving it itself. Only one heartbeat runs, and it is this one -
+			// a screen-scoped view model would have no way to see what it collected.
+			val playerId = entry.arguments?.getString(Routes.ARG_PLAYER_ID).orEmpty()
+			PlayerDetailScreen(
+				invite = presenceViewModel.requestFrom(playerId),
+				onJoinInvite = { request ->
+					presenceViewModel.acceptRequest(request)
+					navController.navigate(Routes.multiplayerJoin(request.matchId, request.inviteToken))
+				}
+			)
 		}
 
 		composable(
@@ -322,6 +419,7 @@ private fun AppNavHost(
 			val args = entry.arguments
 			MultiplayerScreen(
 				config = appViewModel.serverConfig,
+				onLeave = { navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } } },
 				matchId = args?.getString(Routes.ARG_MATCH_ID),
 				inviteToken = args?.getString(Routes.ARG_INVITE_TOKEN),
 				mode = args?.getString(Routes.ARG_MODE),

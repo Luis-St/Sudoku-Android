@@ -31,12 +31,30 @@ class HintController(private val session: GameSession, maxHints: Int = 5) {
 		return candidate
 	}
 
-	/** Second tap: consumes the pending hint and reveals the digit. */
+	/**
+	 * Second tap: consumes the pending hint and reveals the digit.
+	 *
+	 * Returns `null` when there is nothing to consume - either no hint was peeked, or the one that was is no
+	 * longer valid because the board moved between the two taps. shared-core's `HintEngine.consume` requires
+	 * the board to be unchanged since the peek and throws when it is not, and "unchanged" is not something
+	 * this controller can promise: the player can fill the peeked cell themselves, or undo, in between.
+	 * Letting that throw crashed the app on the second tap, so a stale candidate is treated as no candidate.
+	 *
+	 * A stale candidate costs no hint - [used] is only incremented once a digit has actually been revealed,
+	 * which is why it is incremented *after* the call rather than before it.
+	 */
 	fun confirmHint(): HintResult? {
 		val candidate = this.pending ?: return null
+		val result = try {
+			this.session.consumeHint(candidate)
+		} catch (e: IllegalStateException) {
+			// The board changed since the peek. Drop it: the caller peeks again, against the board as it is now.
+			this.pending = null
+			return null
+		}
 		this.pending = null
 		this.used++
-		return this.session.consumeHint(candidate)
+		return result
 	}
 
 	fun cancelPending() {

@@ -16,14 +16,14 @@ class MatchRequestOfferTest {
 
 	@Test
 	fun nothingIsOfferedWhenTheServerServesNothing() {
-		assertNull(nextRequestToOffer(current = null, served = emptyList(), answered = emptySet()))
+		assertNull(nextRequestToOffer(current = null, served = emptyList(), suppressed = emptySet()))
 	}
 
 	@Test
 	fun theOldestRequestIsOffered() {
 		val served = listOf(request("first"), request("second"))
 
-		assertEquals("first", nextRequestToOffer(current = null, served = served, answered = emptySet())?.id)
+		assertEquals("first", nextRequestToOffer(current = null, served = served, suppressed = emptySet())?.id)
 	}
 
 	@Test
@@ -33,7 +33,7 @@ class MatchRequestOfferTest {
 
 		// Re-offering the oldest every beat would reset the banner under the player's finger, and swapping it
 		// for a newer one would move the buttons mid-tap.
-		assertEquals(current.id, nextRequestToOffer(current, served, answered = emptySet())?.id)
+		assertEquals(current.id, nextRequestToOffer(current, served, suppressed = emptySet())?.id)
 	}
 
 	@Test
@@ -43,7 +43,7 @@ class MatchRequestOfferTest {
 
 		// The dismissal has not reached the server yet, or failed to. Without this the banner comes straight
 		// back on the next beat and the player has to decline the same request repeatedly.
-		assertNull(nextRequestToOffer(current = null, served = served, answered = setOf("first")))
+		assertNull(nextRequestToOffer(current = null, served = served, suppressed = setOf("first")))
 	}
 
 	@Test
@@ -51,7 +51,18 @@ class MatchRequestOfferTest {
 		val current = request("first")
 		val served = listOf(request("first"), request("second"))
 
-		assertEquals("second", nextRequestToOffer(current, served, answered = setOf("first"))?.id)
+		assertEquals("second", nextRequestToOffer(current, served, suppressed = setOf("first"))?.id)
+	}
+
+	@Test
+	fun aRequestWhosePopupTimedOutDoesNotPopAgain() {
+		val timedOut = request("first")
+		val served = listOf(timedOut, request("second"))
+
+		// The popup closed itself after its few seconds (invite item 2). The server keeps serving the request -
+		// it is still pending and still joinable from the profile - but re-popping it every beat is exactly
+		// what the timed dismissal exists to stop, so the next unpopped one is offered instead.
+		assertEquals("second", nextRequestToOffer(current = null, served = served, suppressed = setOf("first"))?.id)
 	}
 
 	@Test
@@ -60,13 +71,13 @@ class MatchRequestOfferTest {
 		val served = listOf(request("fresh"))
 
 		// It expired or the match ended: the offer has to follow the server, not outlive it.
-		assertEquals("fresh", nextRequestToOffer(current, served, answered = emptySet())?.id)
+		assertEquals("fresh", nextRequestToOffer(current, served, suppressed = emptySet())?.id)
 	}
 
 	@Test
 	fun aRequestTheServerHasStoppedServingLeavesNothingBehind() {
 		val current = request("expired")
 
-		assertNull(nextRequestToOffer(current, served = emptyList(), answered = emptySet()))
+		assertNull(nextRequestToOffer(current, served = emptyList(), suppressed = emptySet()))
 	}
 }

@@ -39,9 +39,29 @@ object Routes {
 	fun playerDetail(playerId: String): String = "player/$playerId"
 
 	/**
-	 * Plain `multiplayer` is the match-setup screen. The optional arguments carry a match that already
-	 * exists - one this player just created for a specific opponent, or one they were asked to join from
-	 * the match-request overlay - so those paths skip setup entirely.
+	 * The multiplayer entry point: create a game, or join one (multiplayer item 2). Two destinations, not a
+	 * single screen with both halves stacked - creating and joining have nothing in common but the word
+	 * multiplayer, and the combined screen made the join fields look like part of the create form.
+	 */
+	const val MULTIPLAYER_HUB = "multiplayer/hub"
+	const val MULTIPLAYER_CREATE = "multiplayer/create"
+	const val MULTIPLAYER_JOIN = "multiplayer/join"
+
+	/**
+	 * The lobby of a match that exists but has nobody in it yet (multiplayer item 4). Everything it needs
+	 * travels in the route, so it survives process death without a shared view model: the token is what the
+	 * creator is there to hand out, and the mode and stake are what the running match is entered with.
+	 */
+	const val MULTIPLAYER_WAIT =
+		"multiplayer/wait/{$ARG_MATCH_ID}?$ARG_INVITE_TOKEN={$ARG_INVITE_TOKEN}&$ARG_MODE={$ARG_MODE}&$ARG_STAKE={$ARG_STAKE}"
+
+	fun multiplayerWait(matchId: String, inviteToken: String, mode: String, stake: Int): String =
+		"multiplayer/wait/$matchId?$ARG_INVITE_TOKEN=$inviteToken&$ARG_MODE=$mode&$ARG_STAKE=$stake"
+
+	/**
+	 * A match being played. The arguments carry which one: a match this player created and somebody has now
+	 * joined, or one they were asked to join from the match-request overlay - the latter still needs the
+	 * token, since it has not been joined yet.
 	 */
 	const val MULTIPLAYER = "multiplayer?$ARG_MATCH_ID={$ARG_MATCH_ID}&$ARG_INVITE_TOKEN={$ARG_INVITE_TOKEN}&$ARG_MODE={$ARG_MODE}&$ARG_STAKE={$ARG_STAKE}"
 
@@ -55,10 +75,7 @@ object Routes {
 
 	fun play(mode: PlayMode): String = "play/${mode.name}"
 
-	/** The match-setup screen, with nothing pre-selected. */
-	fun multiplayer(): String = "multiplayer"
-
-	/** A match this player created and has already asked someone to join - go straight into it. */
+	/** A match somebody has joined - go straight into it. */
 	fun multiplayerMatch(matchId: String, mode: String, stake: Int): String =
 		"multiplayer?$ARG_MATCH_ID=$matchId&$ARG_MODE=$mode&$ARG_STAKE=$stake"
 

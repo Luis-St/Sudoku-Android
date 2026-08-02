@@ -22,6 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import net.luis.sudoku.R
+import net.luis.sudoku.data.remote.dto.MatchRequestResponse
+import net.luis.sudoku.ui.common.GradientButton
 import net.luis.sudoku.ui.common.ProgressRow
 import net.luis.sudoku.ui.common.SectionCard
 import net.luis.sudoku.ui.common.friendlyErrorMessage
@@ -37,10 +39,17 @@ import net.luis.sudoku.ui.common.friendlyErrorMessage
  * Online status is the profile's own `online` flag, which the server derives from how recently this player's
  * app reported itself. It is a snapshot from when the profile was opened: unlike the list, this screen does
  * not poll, because a dot on a profile somebody is reading is not worth a request every few seconds.
+ *
+ * @param invite this player's waiting match request, if they have one (invite item 2). The popup that
+ *   announced it is gone within seconds, so the profile of whoever sent it is where it can still be taken
+ *   up - the player who missed the popup goes to the badge, then to the name, then to a join button.
+ * @param onJoinInvite hands [invite] back to be accepted and navigated into
  */
 @Composable
 fun PlayerDetailScreen(
 	modifier: Modifier = Modifier,
+	invite: MatchRequestResponse? = null,
+	onJoinInvite: (MatchRequestResponse) -> Unit = {},
 	viewModel: PlayerDetailViewModel = hiltViewModel()
 ) {
 	if (viewModel.loading && viewModel.player == null) {
@@ -93,6 +102,29 @@ fun PlayerDetailScreen(
 						)
 					}
 				}
+			}
+		}
+
+		// Directly under the identity block, above the statistics: the invite is the one thing on this screen
+		// that expires, so it goes where the eye already is rather than below a tier list of arbitrary length.
+		invite?.let { request ->
+			SectionCard(title = null, modifier = Modifier.padding(top = 12.dp)) {
+				Text(
+					text = stringResource(R.string.presence_match_request_title, name),
+					style = MaterialTheme.typography.titleMedium,
+					fontWeight = FontWeight.SemiBold
+				)
+				Text(
+					text = stringResource(R.string.presence_match_request_body, request.mode),
+					style = MaterialTheme.typography.bodyMedium,
+					color = MaterialTheme.colorScheme.onSurfaceVariant,
+					modifier = Modifier.padding(top = 4.dp)
+				)
+				GradientButton(
+					text = stringResource(R.string.action_join_match),
+					onClick = { onJoinInvite(request) },
+					modifier = Modifier.padding(top = 12.dp)
+				)
 			}
 		}
 

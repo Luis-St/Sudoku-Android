@@ -1,6 +1,8 @@
 package net.luis.sudoku.ui.multiplayer.players
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -15,6 +17,15 @@ class ServerRoleTest {
 	@Test
 	fun entries_areTheServersOwnThreeRoleNames() {
 		assertEquals(listOf("NEW", "MEMBER", "ADMIN"), ServerRole.entries.map { it.name })
+	}
+
+	@Test
+	fun canInvite_mirrorsTheServersCanInvitePermission() {
+		// server-spec §7: MEMBER exists precisely to grant CAN_INVITE without the admin actions, so gating the
+		// invite button on "is an admin" hid it from every member who had the permission (friends item 3).
+		assertFalse(ServerRole.NEW.canInvite)
+		assertTrue(ServerRole.MEMBER.canInvite)
+		assertTrue(ServerRole.ADMIN.canInvite)
 	}
 
 	@Test

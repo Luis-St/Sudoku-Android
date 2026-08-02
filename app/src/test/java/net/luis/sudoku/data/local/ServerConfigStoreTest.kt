@@ -48,6 +48,51 @@ class ServerConfigStoreTest {
 	}
 
 	@Test
+	fun setRole_replacesTheRoleTheSessionWasCreatedWith() = runBlocking {
+		// A promotion is invisible to the client otherwise: the role travels with the sign-in response and
+		// never changes again, so a member kept seeing the NEW screen (friends item 3).
+		val store = newStore()
+		store.setSession("tok", "u1", "Lisa", "NEW")
+
+		store.setRole("ADMIN")
+
+		val config = store.current()
+		assertEquals("ADMIN", config.role)
+		assertEquals("the session itself is untouched", "tok", config.sessionToken)
+	}
+
+	@Test
+	fun setEmailVerification_roundTripsBothHalves() = runBlocking {
+		val store = newStore()
+
+		store.setEmailVerification(pending = true, verified = false)
+		val sent = store.current()
+		store.setEmailVerification(pending = false, verified = true)
+		val verified = store.current()
+
+		assertTrue(sent.emailVerificationPending)
+		assertFalse(sent.emailVerified)
+		assertFalse(verified.emailVerificationPending)
+		assertTrue(verified.emailVerified)
+	}
+
+	@Test
+	fun clearSession_dropsEmailVerificationState() = runBlocking {
+		// It describes the account, not the device - the next player to sign in on this phone must not
+		// inherit "your address is verified".
+		val store = newStore()
+		store.setServerUrl("https://example.com")
+		store.setSession("tok", "u1", "Lisa", "MEMBER")
+		store.setEmailVerification(pending = false, verified = true)
+
+		store.clearSession()
+
+		val config = store.current()
+		assertFalse(config.emailVerified)
+		assertFalse(config.emailVerificationPending)
+	}
+
+	@Test
 	fun clearSession_keepsServerUrlButDropsSession() = runBlocking {
 		val store = newStore()
 		store.setServerUrl("https://example.com")

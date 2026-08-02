@@ -12,18 +12,20 @@ import net.luis.sudoku.R
  * full kick-and-change-role rights. Worse, the demote half sent `"PLAYER"`, which is not one of these
  * names: `Role.of` rejects anything it cannot parse, so removing an admin failed with a 400 every time.
  *
- * [name] is what goes on the wire, so it must stay exactly the server's enum constant.
+ * [name] is what goes on the wire, so it must stay exactly the server's enum constant, and [canInvite]
+ * mirrors `Role`'s `CAN_INVITE` mapping rather than being re-guessed as "is an admin" - which is what hid
+ * the invite-code button from members who genuinely had the permission (friends item 3).
  */
-enum class ServerRole(val labelRes: Int, val descriptionRes: Int) {
+enum class ServerRole(val labelRes: Int, val descriptionRes: Int, val canInvite: Boolean) {
 
 	/** Registered through an ordinary invite: may play, nothing else. */
-	NEW(R.string.players_role_new, R.string.players_role_new_description),
+	NEW(R.string.players_role_new, R.string.players_role_new_description, canInvite = false),
 
 	/** May additionally create invite codes. */
-	MEMBER(R.string.players_role_member, R.string.players_role_member_description),
+	MEMBER(R.string.players_role_member, R.string.players_role_member_description, canInvite = true),
 
 	/** Invite, kick, and change roles. */
-	ADMIN(R.string.players_role_admin, R.string.players_role_admin_description);
+	ADMIN(R.string.players_role_admin, R.string.players_role_admin_description, canInvite = true);
 
 	companion object {
 

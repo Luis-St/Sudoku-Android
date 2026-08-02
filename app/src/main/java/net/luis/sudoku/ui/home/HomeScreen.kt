@@ -100,6 +100,18 @@ fun HomeScreen(
 					accent = ActionAccent.SKY,
 					modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 				)
+				// Home item 1: multiplayer is a way to play, so it belongs at the end of the play section rather
+				// than filed under "more" with the shop and the statistics.
+				// feature-spec §9.1: nothing multiplayer-shaped exists until a server is configured.
+				if (serverConfig.isConfigured && serverConfig.isAuthenticated) {
+					GradientButton(
+						text = stringResource(R.string.home_multiplayer),
+						onClick = onOpenMultiplayer,
+						iconPainter = painterResource(R.drawable.ic_multiplayer),
+						accent = ActionAccent.INDIGO,
+						modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+					)
+				}
 			}
 		}
 
@@ -119,16 +131,6 @@ fun HomeScreen(
 					accent = ActionAccent.ROSE,
 					modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 				)
-				// feature-spec §9.1: nothing multiplayer-shaped exists until a server is configured.
-				if (serverConfig.isConfigured && serverConfig.isAuthenticated) {
-					GradientButton(
-						text = stringResource(R.string.home_multiplayer),
-						onClick = onOpenMultiplayer,
-						iconPainter = painterResource(R.drawable.ic_multiplayer),
-						accent = ActionAccent.INDIGO,
-						modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-					)
-				}
 			}
 		}
 	}

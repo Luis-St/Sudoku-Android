@@ -51,7 +51,9 @@ import java.util.concurrent.atomic.AtomicReference
  * `Sudoku-Server` (see its README: Postgres in Docker + `./gradlew run`) to verify this client's protocol
  * assumptions against the actual server, not just against the source read while writing A8/A9/A10.
  * `assumeTrue` skips (not fails) when no server is reachable at `LOCAL_SERVER_URL`, so this never breaks
- * a normal hermetic `testDebugUnitTest` run for anyone without a server up.
+ * a normal hermetic `testDebugUnitTest` run for anyone without a server up. It also skips when the server
+ * *is* up but this class cannot register on it - see `INVITE_ENV`, and set that variable to run against a
+ * server whose single-use bootstrap invite an earlier run already spent.
  *
  * Device identity here uses a plain JCE EC keypair (SunEC provider), not `DeviceKeyManager`'s
  * `AndroidKeyStore` - functionally identical crypto (same curve, same signature algorithm), the only
@@ -86,24 +88,52 @@ class LiveServerVerificationTest {
 	}
 
 	/**
-	 * The bootstrap invite (server-spec §9.4) is only valid "while no admin exists in persisted state" -
-	 * consumed exactly once, in `@BeforeClass` (guaranteed single, sequential execution before any `@Test`
-	 * method, unlike a lazily-cached lookup from within the methods themselves, which JUnit could run in
-	 * an order/overlap that races two methods into registering the bootstrap admin at once).
+	 * The session this class registers itself as, or a skip if it could not get one.
+	 *
+	 * `assumeTrue` rather than `error`, because failing to register is not a client defect and there is one
+	 * entirely ordinary way for it to happen: the invite has already been spent. [INVITE_ENV] explains how
+	 * to hand this run a fresh one.
 	 */
-	private fun adminSessionToken(): String = adminToken
-		?: error("adminToken not initialized - @BeforeClass didn't run (or the server wasn't reachable then)")
+	private fun adminSessionToken(): String {
+		assumeTrue(registrationSkipReason ?: "", adminToken != null)
+		return adminToken!!
+	}
 
 	private companion object {
 		private const val BASE_URL = "http://localhost:7000"
 
+		/**
+		 * Where to get an invite code when the bootstrap one is gone.
+		 *
+		 * The bootstrap invite (server-spec §9.4) is **single use** and the server deliberately never re-arms
+		 * it: `InviteRepository.ensureBootstrapInvite` inserts `DO NOTHING` precisely so that restarting the
+		 * server cannot un-consume it and re-open the admin claim. So the first run of this class against a
+		 * given database burns it, and every run after that gets `INVITE_INVALID` - which used to fail the
+		 * whole class from `@BeforeClass`, on a server that was up and working perfectly.
+		 *
+		 * Setting this environment variable to a code from `POST /api/v1/invites` (any existing admin can
+		 * mint one) makes the class re-runnable against a long-lived server. Unset, it still works exactly as
+		 * before against a fresh database.
+		 */
+		private const val INVITE_ENV = "SUDOKU_TEST_INVITE"
+
+		private const val BOOTSTRAP_INVITE = "dev-bootstrap"
+
 		@Volatile
 		var adminToken: String? = null
 
+		/** Why [adminToken] is null, phrased for whoever is looking at a skipped test wondering what to do. */
+		@Volatile
+		var registrationSkipReason: String? = null
+
 		/**
-		 * Consumes the bootstrap invite at most once for this whole test class run, before any `@Test`
-		 * method - deterministic and race-free, unlike a lazy check from inside the test methods
-		 * themselves (JUnit doesn't guarantee their order or non-overlap).
+		 * Registers this class's admin at most once for the whole run, before any `@Test` method -
+		 * deterministic and race-free, unlike a lazy check from inside the test methods themselves (JUnit
+		 * doesn't guarantee their order or non-overlap).
+		 *
+		 * Never throws: everything it can fail at is an environment condition, not something a client change
+		 * could have broken, so a failure here is recorded for [adminSessionToken] to skip on rather than
+		 * turned into a red suite.
 		 */
 		@BeforeClass
 		@JvmStatic
@@ -121,9 +151,17 @@ class LiveServerVerificationTest {
 			}
 			if (!reachable) return@runBlocking // individual @Test methods' assumeTrue will skip
 
+			val invite = System.getenv(INVITE_ENV)?.takeIf { it.isNotBlank() } ?: BOOTSTRAP_INVITE
 			val keys = KeyPairGenerator.getInstance("EC").apply { initialize(ECGenParameterSpec("secp256r1")) }.generateKeyPair()
 			val publicKey = Base64.getEncoder().encodeToString(keys.public.encoded)
-			adminToken = api.register(BASE_URL, publicKey, "ECDSA_P256", "dev-bootstrap", "Admin-${UUID.randomUUID().toString().take(8)}", "jvm-test").sessionToken
+			try {
+				adminToken = api.register(BASE_URL, publicKey, "ECDSA_P256", invite, "Admin-${UUID.randomUUID().toString().take(8)}", "jvm-test").sessionToken
+			} catch (e: Exception) {
+				registrationSkipReason = "Could not register against the live server at $BASE_URL with invite '$invite' " +
+					"(${e.message}). The bootstrap invite is single use and is not re-armed on restart, so this is " +
+					"expected on a database that has already run this class: either reset the server's database, or " +
+					"set $INVITE_ENV to a code from POST /api/v1/invites. Skipping live verification."
+			}
 		}
 	}
 

@@ -3,6 +3,7 @@ package net.luis.sudoku.ui.multiplayer
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -21,20 +22,22 @@ import net.luis.sudoku.ui.multiplayer.coop.CoopScreen
 import net.luis.sudoku.ui.multiplayer.duel.DuelScreen
 import net.luis.sudoku.ui.multiplayer.race.RaceScreen
 import net.luis.sudoku.ui.multiplayer.setup.ActiveMatch
-import net.luis.sudoku.ui.multiplayer.setup.MatchSetupScreen
 import net.luis.sudoku.ui.multiplayer.setup.MatchSetupViewModel
 
 /**
- * feature-spec §9.1: "no multiplayer UI element appears anywhere" until a server is configured **and**
- * authenticated - the caller only reaches this composable once both are true, but this screen re-checks
- * anyway so it never renders anything multiplayer-shaped otherwise.
+ * A match being played, in whichever mode it is (feature-spec §9.1: re-checked here so nothing
+ * multiplayer-shaped can render without a configured, signed-in server, even though the caller already
+ * gated on it).
  *
- * The Play/Players tab row is gone: browsing players is its own destination now, reached from the top
- * bar (UI item 9), so this screen is purely match setup and the running match.
+ * Match *setup* is not here any more - creating and joining are their own destinations, and a created
+ * match waits in its lobby until somebody joins (multiplayer items 2-4). What is left is the two ways a
+ * board is reached: a match this player was already in, and one accepted from a match-request banner,
+ * which still has to be joined with the token that came with it.
  */
 @Composable
 fun MultiplayerScreen(
 	config: ServerConfig,
+	onLeave: () -> Unit,
 	modifier: Modifier = Modifier,
 	matchId: String? = null,
 	inviteToken: String? = null,
@@ -49,10 +52,6 @@ fun MultiplayerScreen(
 		return
 	}
 
-	// A match created for a specific player (the friends screen) is already joined - its creator is a
-	// participant - so it only needs entering. One accepted from a match-request overlay still has to be
-	// joined with the token that came with it, which `MatchSetupScreen` then picks up: both composables
-	// resolve the *same* view model, since a Hilt store is per back-stack entry.
 	LaunchedEffect(matchId, inviteToken) {
 		if (matchId != null && inviteToken != null) setupViewModel.joinMatch(matchId, inviteToken)
 	}
@@ -60,17 +59,28 @@ fun MultiplayerScreen(
 	var activeMatch by remember {
 		mutableStateOf(if (matchId != null && inviteToken == null) ActiveMatch(matchId, mode ?: "RACE", stake) else null)
 	}
+	// The accepted-request path arrives here with a token and no joined match yet, so the board only exists
+	// once the join lands.
+	LaunchedEffect(setupViewModel.activeMatch) {
+		setupViewModel.activeMatch?.let { activeMatch = it }
+	}
+
 	val baseUrl = config.serverUrl!!
 	val token = config.sessionToken!!
 
-	activeMatch?.let { match ->
-		when (match.mode) {
-			"DUEL" -> DuelScreen(baseUrl, token, match.matchId, stake = match.stake, onLeave = { activeMatch = null }, modifier = modifier)
-			"COOP" -> CoopScreen(baseUrl, token, match.matchId, onLeave = { activeMatch = null }, modifier = modifier)
-			else -> RaceScreen(baseUrl, token, match.matchId, onLeave = { activeMatch = null }, modifier = modifier)
+	val match = activeMatch
+	if (match == null) {
+		Box(modifier = modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+			CircularProgressIndicator()
 		}
 		return
 	}
 
-	MatchSetupScreen(onMatchReady = { activeMatch = it }, modifier = modifier, viewModel = setupViewModel)
+	// Leaving a finished match goes back out of multiplayer entirely - there is no setup screen underneath
+	// it to fall back to any more.
+	when (match.mode) {
+		"DUEL" -> DuelScreen(baseUrl, token, match.matchId, stake = match.stake, onLeave = onLeave, modifier = modifier)
+		"COOP" -> CoopScreen(baseUrl, token, match.matchId, onLeave = onLeave, modifier = modifier)
+		else -> RaceScreen(baseUrl, token, match.matchId, onLeave = onLeave, modifier = modifier)
+	}
 }

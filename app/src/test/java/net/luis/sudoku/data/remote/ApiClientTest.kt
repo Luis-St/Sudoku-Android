@@ -365,4 +365,51 @@ class ApiClientTest {
 		assertNotNull(exception)
 		assertEquals("STREAK_RESTORE_NOT_NEEDED", exception?.code)
 	}
+
+	@Test
+	fun currentAccount_readsTheLiveRoleAndVerificationState() = runBlocking {
+		val requests = mutableListOf<HttpRequestData>()
+		val client = clientReturning(
+			HttpStatusCode.OK,
+			"""{"id":"u1","displayName":"Lisa","role":"ADMIN","email":"lisa@example.com","emailVerified":true}""",
+			requests
+		)
+
+		val account = client.currentAccount("https://example.com", "tok123")
+
+		assertEquals("ADMIN", account.role)
+		assertTrue(account.emailVerified)
+		assertEquals("/api/v1/users/me", requests.single().url.encodedPath)
+		assertEquals(HttpMethod.Get, requests.single().method)
+		assertEquals("Bearer tok123", requests.single().headers[HttpHeaders.Authorization])
+	}
+
+	@Test
+	fun cancelMatch_deletesTheMatch() = runBlocking {
+		val requests = mutableListOf<HttpRequestData>()
+		val client = clientReturning(HttpStatusCode.NoContent, "", requests)
+
+		client.cancelMatch("https://example.com", "tok123", "m1")
+
+		assertEquals("/api/v1/matches/m1", requests.single().url.encodedPath)
+		assertEquals(HttpMethod.Delete, requests.single().method)
+		assertEquals("Bearer tok123", requests.single().headers[HttpHeaders.Authorization])
+	}
+
+	@Test
+	fun cancelMatch_conflict_isThrownAsApiException() = runBlocking {
+		// The match started between opening the lobby and pressing cancel - the server refuses, and the
+		// screen has to say so rather than pretending the match is gone.
+		val client = clientReturning(HttpStatusCode.Conflict, """{"error":"CONFLICT","message":"That match has already started"}""")
+
+		val exception = try {
+			client.cancelMatch("https://example.com", "tok", "m1")
+			null
+		} catch (e: ApiException) {
+			e
+		}
+
+		assertNotNull(exception)
+		assertEquals("CONFLICT", exception?.code)
+	}
 }

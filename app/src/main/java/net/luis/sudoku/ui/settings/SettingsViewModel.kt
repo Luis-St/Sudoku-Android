@@ -54,11 +54,14 @@ class SettingsViewModel @Inject constructor(
 	var busy by mutableStateOf(false)
 		private set
 
-	/** Session-local UI feedback only - there's no "am I verified" GET to restore this from on relaunch. */
-	var emailVerificationSent by mutableStateOf(false)
-		private set
-
-	var emailVerified by mutableStateOf(false)
+	/**
+	 * Where this account is in the email round-trip, and whether we know yet (settings item 1).
+	 *
+	 * All three are read back from [ServerConfigStore] and `GET /users/me` rather than remembered in this
+	 * model: a view model dies with its destination, so leaving the screen used to rewind a player who had
+	 * already been sent a code - or had already verified - to the address form.
+	 */
+	var emailState by mutableStateOf(EmailVerificationState.UNKNOWN)
 		private set
 
 	var recoveryRequested by mutableStateOf(false)
@@ -69,8 +72,43 @@ class SettingsViewModel @Inject constructor(
 		// the server happens to be down must surface that, not crash.
 		runOrReportError {
 			this.config = this.configStore.current()
-			if (this.config.isAuthenticated) refreshDevices()
+			this.emailState = EmailVerificationState.of(this.config)
+			if (this.config.isAuthenticated) {
+				refreshAccount()
+				refreshDevices()
+			}
 		}
+	}
+
+	/**
+	 * Re-reads role and verification state from the server, which is the only place either is true.
+	 *
+	 * Failing quietly is deliberate: this runs on every entry to the screen, and a server that is down must
+	 * still let the player reach sign-out and the address field - with the state they last knew about, which
+	 * is what the store already holds.
+	 */
+	private suspend fun refreshAccount() {
+		val baseUrl = this.config.serverUrl ?: return
+		val token = this.config.sessionToken ?: return
+		val account = try {
+			this.apiClient.currentAccount(baseUrl, token)
+		} catch (e: CancellationException) {
+			throw e
+		} catch (e: Exception) {
+			// Nothing new to say; the persisted state stands.
+			if (this.emailState == EmailVerificationState.UNKNOWN) {
+				this.emailState = EmailVerificationState.NONE
+			}
+			return
+		}
+
+		this.configStore.setRole(account.role)
+		// A verification that completed on another device - or an address that was never set at all - is the
+		// server's answer to give, and it overrides whatever this device last remembered.
+		val pending = !account.emailVerified && (account.email != null || this.config.emailVerificationPending)
+		this.configStore.setEmailVerification(pending, account.emailVerified)
+		this.config = this.configStore.current()
+		this.emailState = EmailVerificationState.of(this.config)
 	}
 
 	/** `/server-info` first, unauthenticated - refuses to proceed on a `genVersion` mismatch (§9's connect-time gate). */
@@ -104,8 +142,9 @@ class SettingsViewModel @Inject constructor(
 			storeSession(session.sessionToken, session.user.id, session.user.displayName, session.user.role)
 			this.apiClient.setEmail(baseUrl, session.sessionToken, email)
 			// Straight into the "we sent you a code" state: the verification code is already in flight, and
-			// the account section is what the screen shows next.
-			this.emailVerificationSent = true
+			// the account section is what the screen shows next. Written through the store, so it survives
+			// leaving the screen - registering and then navigating away must not ask for the address again.
+			setEmailState(pending = true, verified = false)
 			syncLocalHistory(baseUrl, session.sessionToken)
 			refreshDevices()
 		}
@@ -154,7 +193,7 @@ class SettingsViewModel @Inject constructor(
 		val token = this.config.sessionToken ?: return
 		runOrReportError {
 			this.apiClient.setEmail(baseUrl, token, email)
-			this.emailVerificationSent = true
+			setEmailState(pending = true, verified = false)
 		}
 	}
 
@@ -163,9 +202,25 @@ class SettingsViewModel @Inject constructor(
 		val token = this.config.sessionToken ?: return
 		runOrReportError {
 			this.apiClient.verifyEmail(baseUrl, token, code)
-			this.emailVerified = true
-			this.emailVerificationSent = false
+			setEmailState(pending = false, verified = true)
 		}
+	}
+
+	/**
+	 * Back to the address form, for a code that never arrived or an address that was mistyped.
+	 *
+	 * Needed precisely because the sent state is persistent now: without a way out, a typo in the address
+	 * would leave the account stuck on a code field forever. Purely local - the server replaces the pending
+	 * address on the next `setEmail` anyway.
+	 */
+	fun changeEmailAddress() {
+		runOrReportError { setEmailState(pending = false, verified = false) }
+	}
+
+	private suspend fun setEmailState(pending: Boolean, verified: Boolean) {
+		this.configStore.setEmailVerification(pending, verified)
+		this.config = this.configStore.current()
+		this.emailState = EmailVerificationState.of(this.config)
 	}
 
 	/** Unauthenticated - always sets [recoveryRequested] on success, no signal either way whether the email matched. */
@@ -209,6 +264,7 @@ class SettingsViewModel @Inject constructor(
 			reportOffline()
 			this@SettingsViewModel.configStore.clearSession()
 			this@SettingsViewModel.config = this@SettingsViewModel.configStore.current()
+			this@SettingsViewModel.emailState = EmailVerificationState.UNKNOWN
 			this@SettingsViewModel.devices = emptyList()
 		}
 	}
@@ -219,6 +275,7 @@ class SettingsViewModel @Inject constructor(
 			reportOffline()
 			this@SettingsViewModel.configStore.clearAll()
 			this@SettingsViewModel.config = ServerConfig.UNCONFIGURED
+			this@SettingsViewModel.emailState = EmailVerificationState.UNKNOWN
 			this@SettingsViewModel.devices = emptyList()
 		}
 	}
@@ -256,6 +313,7 @@ class SettingsViewModel @Inject constructor(
 	private suspend fun storeSession(token: String, userId: String, displayName: String, role: String) {
 		this.configStore.setSession(token, userId, displayName, role)
 		this.config = this.configStore.current()
+		this.emailState = EmailVerificationState.of(this.config)
 		flushQueuedDailyResults()
 	}
 

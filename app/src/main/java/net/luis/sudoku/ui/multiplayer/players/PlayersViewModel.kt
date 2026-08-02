@@ -11,18 +11,16 @@ import kotlinx.coroutines.launch
 import net.luis.sudoku.data.local.ServerConfigStore
 import net.luis.sudoku.data.remote.ApiClient
 import net.luis.sudoku.data.remote.ApiException
-import net.luis.sudoku.data.remote.dto.MatchConfigDto
-import net.luis.sudoku.data.remote.dto.MatchSettingsDto
 import net.luis.sudoku.data.remote.dto.PlayerResponse
-import net.luis.sudoku.difficulty.Difficulty
-import net.luis.sudoku.grid.GridSize
-import net.luis.sudoku.grid.Variant
-import net.luis.sudoku.ui.multiplayer.setup.ActiveMatch
 import javax.inject.Inject
 
 /**
- * feature-spec §9.7: browse players on the same server (display name, streak, role, online status), invite
- * one to a match, and the administration actions UI item 9 asks for.
+ * feature-spec §9.7: browse players on the same server (display name, streak, role, online status), plus
+ * the administration actions UI item 9 asks for.
+ *
+ * Asking a specific player to play moved out too (friends item 4): it created a match with a fixed 9x9
+ * configuration as a side effect of tapping a row, which is a decision the creator should be making. The
+ * match lobby owns it now, where the match already exists and its configuration was chosen deliberately.
  *
  * The per-tier daily leaderboard used to live here too and is gone (friends item 5): it is a ranking of
  * *today's puzzle*, not a fact about the people on this list, and it pushed the players - the reason the
@@ -44,14 +42,15 @@ class PlayersViewModel @Inject constructor(
 	var isAdmin by mutableStateOf(false)
 		private set
 
-	var currentUserId by mutableStateOf<String?>(null)
+	/**
+	 * Whether this player may mint invite codes - `MEMBER` as well as `ADMIN` (server-spec §7's
+	 * `CAN_INVITE`). Inviting was gated on [isAdmin] before, which is not the server's rule: a member had
+	 * the permission and no button to use it (friends item 3).
+	 */
+	var canInvite by mutableStateOf(false)
 		private set
 
-	/**
-	 * The match this player just created for someone else, ready for the screen to navigate into. The
-	 * requester is already a participant, so there is nothing left to join.
-	 */
-	var startedMatch by mutableStateOf<ActiveMatch?>(null)
+	var currentUserId by mutableStateOf<String?>(null)
 		private set
 
 	/** A freshly minted invite code, shown once so the admin can pass it on. */
@@ -64,17 +63,48 @@ class PlayersViewModel @Inject constructor(
 	var errorCode by mutableStateOf<String?>(null)
 		private set
 
-	/** A request in flight - the send button must not fire twice and create two matches. */
+	/** A request in flight, so an action cannot be fired twice. */
 	var busy by mutableStateOf(false)
 		private set
 
 	init {
 		this.viewModelScope.launch {
 			val config = this@PlayersViewModel.serverConfigStore.current()
-			this@PlayersViewModel.isAdmin = config.role.equals("ADMIN", ignoreCase = true)
 			this@PlayersViewModel.currentUserId = config.userId
+			this@PlayersViewModel.applyRole(ServerRole.of(config.role))
+			// ...then ask the server what the role actually is now. The stored one is whatever was handed out
+			// at sign-in, so a player promoted since - the usual way anybody becomes MEMBER or ADMIN at all -
+			// would keep seeing the screen of the role they registered with (friends item 3).
+			this@PlayersViewModel.refreshRole()
 		}
 		loadPlayers()
+	}
+
+	/**
+	 * Re-reads this account's role from `GET /users/me` and remembers it, so every other screen that gates
+	 * on the role (the top bar's friends button, the home screen's multiplayer entry) agrees with this one.
+	 *
+	 * Silent on failure: the stored role is a usable answer, and the server re-checks every action anyway -
+	 * a button drawn from a stale role fails with 403 rather than doing something it should not.
+	 */
+	private suspend fun refreshRole() {
+		try {
+			val config = this.serverConfigStore.current()
+			val baseUrl = config.serverUrl ?: return
+			val token = config.sessionToken ?: return
+			val account = this.apiClient.currentAccount(baseUrl, token)
+			this.serverConfigStore.setRole(account.role)
+			applyRole(ServerRole.of(account.role))
+		} catch (e: CancellationException) {
+			throw e
+		} catch (e: Exception) {
+			// Keep whatever the stored role said.
+		}
+	}
+
+	private fun applyRole(role: ServerRole?) {
+		this.isAdmin = role == ServerRole.ADMIN
+		this.canInvite = role != null && role.canInvite
 	}
 
 	fun loadPlayers() {
@@ -85,8 +115,14 @@ class PlayersViewModel @Inject constructor(
 	}
 
 	/**
-	 * Re-reads the list without touching [busy] or [errorMessage] - the poll the screen runs every few
-	 * seconds so online status stays current (friends item 6).
+	 * Re-reads the list *and this account's own role* without touching [busy] or [errorMessage] - the poll
+	 * the screen runs every few seconds so online status stays current (friends item 6).
+	 *
+	 * The role belongs in the same poll because a promotion or a demotion is something an *admin on another
+	 * device* does: refreshing it only in [init] meant the controls a player was looking at were the ones
+	 * their role granted when the screen opened, and a demoted admin kept a full row menu and an invite
+	 * button - drawn beside their own row, which the poll had already relabelled `NEW` - until they left the
+	 * screen and came back.
 	 *
 	 * Deliberately not [loadPlayers]: on a timer that one would blink the send button disabled through every
 	 * refresh, and pop an error dialog every few seconds for as long as the server was unreachable. A poll
@@ -103,6 +139,7 @@ class PlayersViewModel @Inject constructor(
 			} catch (e: Exception) {
 				// Silent on purpose - see above.
 			}
+			this@PlayersViewModel.refreshRole()
 		}
 	}
 
@@ -115,6 +152,9 @@ class PlayersViewModel @Inject constructor(
 			val (baseUrl, token) = serverCredentials() ?: return@runOrReportError
 			this.apiClient.changeUserRole(baseUrl, token, playerId, role)
 			loadPlayers()
+			// Own role too: a role change is the one action here that can move the caller's own permissions,
+			// and waiting for the next poll to notice would leave controls on screen that already 403.
+			refreshRole()
 		}
 	}
 
@@ -124,33 +164,6 @@ class PlayersViewModel @Inject constructor(
 			this.apiClient.kickUser(baseUrl, token, playerId)
 			loadPlayers()
 		}
-	}
-
-	/**
-	 * Creates a match and asks one specific player to join it (feature-spec §9.7). Both halves are one
-	 * action deliberately: a match nobody was asked to join would just sit there, and a request cannot be
-	 * sent before its match exists.
-	 *
-	 * Config is fixed at a 9x9 classic - the mode is what the two players are actually choosing between
-	 * here, and the full picker already exists on the match-setup screen for anything else.
-	 */
-	fun requestMatch(playerId: String, mode: String, difficulty: Difficulty) {
-		runOrReportError {
-			val (baseUrl, token) = serverCredentials() ?: return@runOrReportError
-			val created = this.apiClient.createMatch(
-				baseUrl,
-				token,
-				mode,
-				MatchConfigDto(GridSize.NINE.n(), Variant.CLASSIC.name, difficulty.index()),
-				MatchSettingsDto(livesEnabled = true, stake = 0)
-			)
-			this.apiClient.requestMatch(baseUrl, token, created.matchId, playerId)
-			this.startedMatch = ActiveMatch(created.matchId, mode)
-		}
-	}
-
-	fun clearStartedMatch() {
-		this.startedMatch = null
 	}
 
 	fun createInvite() {

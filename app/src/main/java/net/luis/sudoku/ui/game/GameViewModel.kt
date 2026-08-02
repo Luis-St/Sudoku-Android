@@ -390,7 +390,7 @@ class GameViewModel @Inject constructor(
 	fun onCellTap(index: Int) {
 		if (this.outcome != null) return
 		val cell = this.cells[index]
-		this.hintCandidate = null
+		clearPendingHint()
 		val (action, nextLock) = resolveTap(cell, this.lock)
 		// Game item 1: writing a pencil mark is annotation, not selection - see focusFollowsTap.
 		if (focusFollowsTap(action)) this.activeIndex = index
@@ -405,7 +405,7 @@ class GameViewModel @Inject constructor(
 		// around a cell that no longer had anything to do with what was about to be entered - and after the
 		// cell-lock path writes into it, that cell is finished with by definition.
 		this.activeIndex = null
-		this.hintCandidate = null
+		clearPendingHint()
 		val (action, nextLock) = resolveNumberButtonTap(this.lock, digit, longPress)
 		val mistaken = applyAction(action)
 		this.lock = lockAfter(nextLock, mistaken)
@@ -459,14 +459,33 @@ class GameViewModel @Inject constructor(
 
 	fun undo() {
 		if (this.outcome != null) return
+		clearPendingHint()
 		this.undoStack.undo(this.session)
 		refresh()
 	}
 
 	fun redo() {
 		if (this.outcome != null) return
+		clearPendingHint()
 		this.undoStack.redo(this.session)
 		refresh()
+	}
+
+	/**
+	 * Forgets a peeked-but-unconfirmed hint, in **both** places it is remembered.
+	 *
+	 * The highlight is this view model's [hintCandidate]; the candidate itself is [HintController]'s
+	 * `pending`. Clearing only the first left the controller holding a candidate for a board state that no
+	 * longer existed, and it hands that same one back out of `requestHint` - so after filling the peeked cell
+	 * yourself, the next hint pointed at the cell you had just finished, and confirming it crashed on
+	 * shared-core's "the board changed since the hint was peeked".
+	 *
+	 * Called from every path that can move the board out from under a peek: entering a digit either way, and
+	 * undo/redo.
+	 */
+	private fun clearPendingHint() {
+		this.hintCandidate = null
+		this.hintController.cancelPending()
 	}
 
 	/** First tap peeks a hint cell; a second tap while one is pending consumes it (feature-spec §4.4). */
@@ -479,7 +498,13 @@ class GameViewModel @Inject constructor(
 		}
 		val index = pending.cellIndex()
 		val before = this.session.cellForUndo(index).copy()
-		this.hintController.confirmHint() ?: return
+		if (this.hintController.confirmHint() == null) {
+			// The candidate did not survive to the second tap. Peek again rather than returning to no hint at
+			// all: the player pressed the button, and a press that leaves the screen exactly as it was reads as
+			// the button being broken. Nothing was spent, so the fresh candidate is on the same hint.
+			this.hintCandidate = this.hintController.requestHint()
+			return
+		}
 		val after = this.session.cellForUndo(index).copy()
 		this.hintCandidate = null
 		this.hintsRemaining = this.hintController.remaining

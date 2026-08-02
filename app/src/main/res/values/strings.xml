@@ -164,6 +164,7 @@
 	<string name="settings_email_sent">A verification code has been sent to that address.</string>
 	<string name="settings_email_code_label">Verification code</string>
 	<string name="action_verify">Verify</string>
+	<string name="settings_email_change_address">Use a different address</string>
 	<string name="settings_email_verified">Email verified.</string>
 
 	<!-- Account recovery (settings, unauthenticated) -->
@@ -206,7 +207,24 @@
 	<string name="matchsetup_match_id_label">Match ID</string>
 	<string name="matchsetup_invite_token_label">Invite token</string>
 	<string name="action_join_match">Join match</string>
-	<string name="matchsetup_share_invite_token">Share this invite token with your opponent:</string>
+	<string name="matchsetup_mode_label">Mode</string>
+	<string name="matchsetup_join_explainer">Enter the match ID and invite token the host shared with you.</string>
+
+	<!-- Multiplayer hub and lobby (multiplayer items 2-4) -->
+	<string name="multiplayer_hub_header">Play with others</string>
+	<string name="multiplayer_create_game">Create game</string>
+	<string name="multiplayer_create_game_note">Choose the mode and the puzzle, then invite somebody.</string>
+	<string name="multiplayer_join_game">Join game</string>
+	<string name="multiplayer_join_game_note">Use a match ID and invite token you were given.</string>
+	<string name="matchwait_header">Waiting for players</string>
+	<string name="matchwait_waiting">Waiting for someone to join…</string>
+	<string name="matchwait_explainer">The match starts as soon as another player joins. Share the code below, or invite someone who is online.</string>
+	<string name="matchwait_share_both">Share match</string>
+	<string name="matchwait_share_text">Join my Sudoku match!\nMatch ID: %1$s\nInvite token: %2$s</string>
+	<string name="matchwait_invite_header">Invite an online player</string>
+	<string name="matchwait_nobody_online">Nobody else is online right now.</string>
+	<string name="matchwait_invited">Invited</string>
+	<string name="matchwait_cancel">Cancel match</string>
 
 	<!-- Stats screen (feature-spec §7/§9.7) -->
 	<string name="stats_header">Your statistics</string>
@@ -245,7 +263,6 @@
 	<string name="players_role_admin_description">Can play, invite, remove players and change roles.</string>
 	<string name="players_invite_to_match">Invite</string>
 	<string name="players_more_actions">More actions</string>
-	<string name="players_view_stats">View statistics</string>
 	<string name="players_change_role">Change role</string>
 	<string name="players_change_role_title">Role for %1$s</string>
 	<string name="players_kick">Remove from server</string>
