@@ -55,6 +55,50 @@ class TapResolverTest {
 		assertEquals(LockTarget.Cell(5), lock.target)
 	}
 
+	/**
+	 * Game item 1: "user added numbers are not focusable - either nothing happens or no number gets
+	 * highlighted".
+	 *
+	 * A cell the player had already filled used to take a *cell* lock, exactly as an empty one does. That
+	 * lock has only one use - a number button entering a digit into it - and 5.3 has no action for entering
+	 * a digit into a filled cell, so tapping your own numbers locked something nothing could act on and lit
+	 * nothing up. Every pen value on the board is correct by construction (`MistakeChecker` refuses a wrong
+	 * one before it is written), so a filled cell is finished with and behaves like a given.
+	 */
+	@Test
+	fun resolveTap_noLock_tappingACellThePlayerFilled_locksItsDigit() {
+		val (action, lock) = resolveTap(cell(4, value = 6), LockState())
+
+		assertEquals(TapAction.None, action)
+		assertEquals(LockTarget.Digit(6), lock.target)
+	}
+
+	@Test
+	fun resolveTap_cellLocked_tappingAFilledCell_locksItsDigitRatherThanRelocking() {
+		val (action, lock) = resolveTap(cell(5, value = 3), LockState(target = LockTarget.Cell(4)))
+
+		assertEquals(TapAction.None, action)
+		assertEquals(LockTarget.Digit(3), lock.target)
+	}
+
+	/** The release path is unchanged: tapping the locked cell itself still lets it go, filled or not. */
+	@Test
+	fun resolveTap_cellLocked_tappingTheSameCellReleasesItEvenOnceFilled() {
+		val (action, lock) = resolveTap(cell(4, value = 8), LockState(target = LockTarget.Cell(4)))
+
+		assertEquals(TapAction.None, action)
+		assertEquals(LockTarget.None, lock.target)
+	}
+
+	/** A cell holding only notes is still empty, so it still takes a cell lock - there is something to enter. */
+	@Test
+	fun resolveTap_noLock_tappingACellWithOnlyPencilMarks_stillLocksTheCell() {
+		val (action, lock) = resolveTap(cell(4, pencilMarks = 0b1010), LockState())
+
+		assertEquals(TapAction.None, action)
+		assertEquals(LockTarget.Cell(4), lock.target)
+	}
+
 	@Test
 	fun resolveTap_digitLocked_emptyCellPenMode_entersTheLockedDigit() {
 		val (action, lock) = resolveTap(

@@ -19,7 +19,52 @@ import javax.inject.Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class DailyDataStore
 
+/**
+ * Home item 1: what the end-of-game overview needs about a daily that is already finished.
+ *
+ * The board itself is **not** in here and does not need to be: a solved daily is the puzzle's solution, and
+ * the puzzle is the deterministic per-day derivation (feature-spec §8.2), so regenerating from the key and
+ * revealing every cell reproduces it exactly. What cannot be derived is how the player got there - which
+ * cells they went wrong in, which ones a hint filled, how long it took - so that is what is stored.
+ *
+ * Pinned to [date] because the record it describes is one day's: rolling over to a new daily must not leave
+ * yesterday's overview attached to today's button.
+ */
+data class DailySummaryRecord(
+	val date: LocalDate,
+	val elapsedMillis: Long,
+	val hintsUsed: Int,
+	val livesLost: Int,
+	val mistakeCells: Set<Int>,
+	val hintCells: Set<Int>
+)
+
 class DailyStore @Inject constructor(@DailyDataStore private val dataStore: DataStore<Preferences>) {
+
+	/** The stored overview, or `null` if no daily has been finished since this was introduced. */
+	suspend fun currentSummary(): DailySummaryRecord? {
+		val prefs = this.dataStore.data.first()
+		val date = prefs[SUMMARY_DATE]?.let(LocalDate::parse) ?: return null
+		return DailySummaryRecord(
+			date = date,
+			elapsedMillis = prefs[SUMMARY_ELAPSED] ?: 0L,
+			hintsUsed = prefs[SUMMARY_HINTS_USED] ?: 0,
+			livesLost = prefs[SUMMARY_LIVES_LOST] ?: 0,
+			mistakeCells = prefs[SUMMARY_MISTAKE_CELLS].toIndexSet(),
+			hintCells = prefs[SUMMARY_HINT_CELLS].toIndexSet()
+		)
+	}
+
+	suspend fun saveSummary(summary: DailySummaryRecord) {
+		this.dataStore.edit { prefs ->
+			prefs[SUMMARY_DATE] = summary.date.toString()
+			prefs[SUMMARY_ELAPSED] = summary.elapsedMillis
+			prefs[SUMMARY_HINTS_USED] = summary.hintsUsed
+			prefs[SUMMARY_LIVES_LOST] = summary.livesLost
+			prefs[SUMMARY_MISTAKE_CELLS] = summary.mistakeCells.joinToString(",")
+			prefs[SUMMARY_HINT_CELLS] = summary.hintCells.joinToString(",")
+		}
+	}
 
 	suspend fun current(): DailyRecord {
 		val prefs = this.dataStore.data.first()
@@ -57,5 +102,18 @@ class DailyStore @Inject constructor(@DailyDataStore private val dataStore: Data
 		val ACTIVE_DIFFICULTY = stringPreferencesKey("active_difficulty")
 		val PENDING_DIFFICULTY = stringPreferencesKey("pending_difficulty")
 		val PENDING_EFFECTIVE_DATE = stringPreferencesKey("pending_effective_date")
+
+		// Home item 1. Comma-separated indices rather than a Preferences string *set*, because a set has no
+		// order and these are read straight back into a Set anyway - the string keeps the write trivial and
+		// costs nothing at a few dozen entries.
+		val SUMMARY_DATE = stringPreferencesKey("summary_date")
+		val SUMMARY_ELAPSED = longPreferencesKey("summary_elapsed")
+		val SUMMARY_HINTS_USED = intPreferencesKey("summary_hints_used")
+		val SUMMARY_LIVES_LOST = intPreferencesKey("summary_lives_lost")
+		val SUMMARY_MISTAKE_CELLS = stringPreferencesKey("summary_mistake_cells")
+		val SUMMARY_HINT_CELLS = stringPreferencesKey("summary_hint_cells")
 	}
 }
+
+private fun String?.toIndexSet(): Set<Int> =
+	this?.split(',')?.mapNotNull(String::toIntOrNull)?.toSet() ?: emptySet()

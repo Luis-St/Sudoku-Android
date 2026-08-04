@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -233,13 +234,30 @@ fun GameScreen(
 
 			// The hint button is absent under Lisa, not merely disabled (feature-spec §4.3).
 			if (viewModel.modifiers.hintsAllowed) {
+				// Game item 3: a peeked hint is half-used, and the button is where that shows. The yellow cell
+				// alone was not enough of a signal - a player who did not already know the hint takes two
+				// presses read the marked cell as something that had happened *to* the board.
+				val hintPending = viewModel.hintCandidate != null
 				Box(modifier = Modifier.fillMaxWidth().padding(top = 10.dp), contentAlignment = Alignment.Center) {
 					OutlinedActionButton(
-						text = stringResource(R.string.action_hint_with_count, viewModel.hintsRemaining),
+						text = if (hintPending) {
+							stringResource(R.string.action_hint_reveal)
+						} else {
+							stringResource(R.string.action_hint_with_count, viewModel.hintsRemaining)
+						},
 						onClick = viewModel::onHintTap,
-						enabled = viewModel.hintsRemaining > 0 || viewModel.hintCandidate != null,
+						enabled = viewModel.hintsRemaining > 0 || hintPending,
 						iconPainter = painterResource(R.drawable.ic_hint),
 						iconIsArtwork = true
+					)
+				}
+				if (hintPending) {
+					Text(
+						text = stringResource(R.string.hint_pending_note),
+						style = MaterialTheme.typography.bodySmall,
+						color = MaterialTheme.colorScheme.onSurfaceVariant,
+						modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+						textAlign = TextAlign.Center
 					)
 				}
 			}

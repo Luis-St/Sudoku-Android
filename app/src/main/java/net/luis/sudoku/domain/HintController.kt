@@ -2,7 +2,6 @@ package net.luis.sudoku.domain
 
 import net.luis.sudoku.core.GameSession
 import net.luis.sudoku.hint.HintCandidate
-import net.luis.sudoku.hint.HintResult
 
 /**
  * Two-stage hints capped at 5 per puzzle (feature-spec §4.4). The 5-per-puzzle cap is explicitly the
@@ -34,27 +33,37 @@ class HintController(private val session: GameSession, maxHints: Int = 5) {
 	/**
 	 * Second tap: consumes the pending hint and reveals the digit.
 	 *
-	 * Returns `null` when there is nothing to consume - either no hint was peeked, or the one that was is no
-	 * longer valid because the board moved between the two taps. shared-core's `HintEngine.consume` requires
-	 * the board to be unchanged since the peek and throws when it is not, and "unchanged" is not something
-	 * this controller can promise: the player can fill the peeked cell themselves, or undo, in between.
-	 * Letting that throw crashed the app on the second tap, so a stale candidate is treated as no candidate.
+	 * Game item 3: a peek is a promise about **one cell**, and it is kept. shared-core's `HintEngine.consume`
+	 * recomputes the technique solver's next step and throws when that is no longer the peeked cell - which
+	 * any edit anywhere on the board can cause, not just one to this cell. This used to be treated as "no
+	 * candidate", so the caller peeked again and the second press pointed at a different cell than the one
+	 * the player had been watching stay marked. It falls back to [GameSession.revealSolution] on the peeked
+	 * cell instead: same digit, since the puzzle has one solution, and the cell the player pressed for.
 	 *
-	 * A stale candidate costs no hint - [used] is only incremented once a digit has actually been revealed,
-	 * which is why it is incremented *after* the call rather than before it.
+	 * The one case that still consumes nothing is the promised cell having been **filled** in the meantime -
+	 * there is no longer anything there to reveal, so it costs no hint and the caller peeks again.
+	 *
+	 * @return the digit revealed, or `null` when there was nothing pending, or nothing left to reveal
 	 */
-	fun confirmHint(): HintResult? {
+	fun confirmHint(): Int? {
 		val candidate = this.pending ?: return null
-		val result = try {
-			this.session.consumeHint(candidate)
-		} catch (e: IllegalStateException) {
-			// The board changed since the peek. Drop it: the caller peeks again, against the board as it is now.
+		val index = candidate.cellIndex()
+		if (!this.session.snapshot(index).empty) {
+			// Dropped rather than kept: handing the same dead candidate back out of requestHint would point
+			// every later hint at the cell the player has already finished, forever.
 			this.pending = null
 			return null
 		}
+		val digit = try {
+			this.session.consumeHint(candidate).digit()
+		} catch (e: IllegalStateException) {
+			this.session.revealSolution(index)
+		}
 		this.pending = null
+		// Incremented only once a digit has actually been revealed, never on the peek - a peek is free and
+		// repeatable (feature-spec §4.4).
 		this.used++
-		return result
+		return digit
 	}
 
 	fun cancelPending() {

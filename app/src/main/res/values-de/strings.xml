@@ -61,9 +61,9 @@
 	<string name="dialog_update_required_body">Dieser Server benötigt eine neuere Version der App.</string>
 	<string name="dialog_link_code_title">Verknüpfungscode</string>
 	<string name="settings_link_code_label">Verknüpfungscode</string>
-	<string name="settings_no_server_configured">Kein Server konfiguriert - keine Mehrspieler-Funktion erscheint, bis einer eingerichtet ist.</string>
+	<string name="settings_no_server_configured">Kein Server konfiguriert. Keine Mehrspieler-Funktion erscheint, bis einer eingerichtet ist.</string>
 	<string name="settings_server_address_label">Serveradresse</string>
-	<string name="settings_connected_not_signed_in">Verbunden mit %1$s - nicht angemeldet.</string>
+	<string name="settings_connected_not_signed_in">Verbunden mit %1$s, nicht angemeldet.</string>
 	<string name="action_register">Registrieren</string>
 	<string name="action_link_this_device">Dieses Gerät verknüpfen</string>
 	<string name="action_sign_in_again">Erneut anmelden</string>
@@ -71,6 +71,13 @@
 	<string name="settings_display_name_label">Anzeigename</string>
 	<string name="action_forget_server">Diesen Server vergessen</string>
 	<string name="settings_signed_in_as">Angemeldet als %1$s (%2$s)</string>
+
+	<!-- Sitzung beendet (Server-Spec §7.2) -->
+	<string name="session_removed_title">Von diesem Server entfernt</string>
+	<string name="session_removed_message">Ein Administrator hat dich von diesem Server entfernt, dieses Gerät ist damit abgemeldet. Statistiken, Serie und Rhabarber bleiben erhalten: Wirst du wieder hereingelassen, stellt eine erneute Anmeldung auf diesem Gerät alles wieder her. Einzelspieler und das tägliche Rätsel funktionieren weiterhin.</string>
+	<string name="session_ended_title">Abgemeldet</string>
+	<string name="session_ended_message">Die Sitzung dieses Geräts ist nicht mehr gültig. Melde dich in den Einstellungen erneut an.</string>
+	<string name="action_open_settings">Einstellungen öffnen</string>
 	<string name="action_link_new_device">Neues Gerät verknüpfen</string>
 	<string name="action_sign_out">Abmelden</string>
 	<string name="settings_devices_header">Geräte</string>
@@ -99,7 +106,7 @@
 	<!-- Serien-Wiederherstellung (Tagesmodus) -->
 	<string name="daily_streak_restore_button">Serie wiederherstellen</string>
 	<string name="dialog_streak_restore_title">Serie wiederherstellen</string>
-	<string name="dialog_streak_restore_body">Du hast %1$d Tag(e) verpasst - die Reparatur dieser Lücke kostet %2$d Rhabarber.</string>
+	<string name="dialog_streak_restore_body">Du hast %1$d Tag(e) verpasst. Die Reparatur dieser Lücke kostet %2$d Rhabarber.</string>
 	<string name="daily_streak_restore_points_label">Verfügbare Wiederherstellungspunkte: %1$d</string>
 	<string name="action_restore">Wiederherstellen</string>
 
@@ -117,6 +124,7 @@
 	<string name="matchsetup_variant_label">Variante</string>
 	<string name="label_difficulty">Schwierigkeit</string>
 	<string name="matchsetup_lives_label">Leben</string>
+	<string name="matchsetup_hints_label">Tipps erlaubt</string>
 	<string name="matchsetup_stake_label">Einsatz (Rhabarber, 0 = kostenlos beitreten)</string>
 	<string name="action_create_match">Match erstellen</string>
 	<string name="matchsetup_join_header">Match beitreten</string>
@@ -151,15 +159,15 @@
 	<string name="stats_by_tier_header">Nach Stufe (Server)</string>
 	<string name="stats_tier_difficulty_suffix">Schwierigkeit %1$d</string>
 	<string name="stats_tier_solved_fraction">%1$d/%2$d gelöst</string>
-	<string name="stats_tier_best_suffix"> - beste %1$s</string>
+	<string name="stats_tier_best_suffix">, beste %1$s</string>
 
 	<string name="tab_play">Spielen</string>
 	<string name="tab_players">Spieler</string>
 	<string name="multiplayer_connect_prompt">Verbinde dich und melde dich in den Einstellungen an, um mit anderen zu spielen.</string>
-	<string name="reconnect_grace_opponent">Gegner getrennt - Wiederverbindung in %1$ds oder das Match endet</string>
-	<string name="reconnect_grace_participant">Ein Teilnehmer wurde getrennt - Wiederverbindung in %1$ds oder das Match endet</string>
+	<string name="reconnect_grace_opponent">Gegner getrennt. Wiederverbindung in %1$ds, sonst endet das Match</string>
+	<string name="reconnect_grace_participant">Ein Teilnehmer wurde getrennt. Wiederverbindung in %1$ds, sonst endet das Match</string>
 
-	<string name="players_row_streak">%1$s - Serie %2$d</string>
+	<string name="players_row_streak">%1$s, Serie %2$d</string>
 
 	<string name="race_lives">Leben: %1$d</string>
 	<string name="race_opponent_progress_header">Fortschritt des Gegners</string>
@@ -170,13 +178,11 @@
 	<string name="duel_your_turn">Du bist dran</string>
 	<string name="duel_opponent_turn">Gegner ist dran</string>
 	<string name="duel_them_bank">Gegner: %1$s</string>
-	<string name="duel_stake_display">Einsatz: %1$d Rhabarber - Gewinner nimmt den Pot</string>
+	<string name="duel_stake_display">Einsatz: %1$d Rhabarber, Gewinner nimmt den Pot</string>
 	<string name="dialog_duel_over_title">Duell beendet</string>
 	<string name="duel_pot_paid_out">Der Pot von %1$d Rhabarber wurde ausgezahlt.</string>
 	<string name="duel_stakes_refunded">Einsätze an beide Spieler zurückerstattet.</string>
 
-	<string name="coop_shared_lives">Gemeinsame Leben: %1$d</string>
-	<string name="coop_other_players_active">%1$d andere(r) Spieler aktiv</string>
 	<string name="dialog_match_over_title">Match beendet</string>
 
 	<!-- App-Rahmen, Startbildschirm, Generator, Code-Eingabe, Shop (UI-Punkte 5, 6, 10) -->
@@ -216,9 +222,9 @@
 	<string name="generator_info_size_detail">Ein %1$d×%1$d-Gitter nutzt die Ziffern 1 bis %1$d auf %2$d Feldern.</string>
 	<string name="generator_info_variant">Welche zusätzlichen Regeln die Regionen neben Zeilen und Spalten befolgen.</string>
 	<string name="generator_info_variant_classic">Klassisch: Die Regionen sind die üblichen rechteckigen Blöcke.</string>
-	<string name="generator_info_variant_chaos">Chaos: Die Regionen sind unregelmäßig geformt statt rechteckig - der Block, den du gerade löst, liegt nie dort, wo du ihn erwartest.</string>
+	<string name="generator_info_variant_chaos">Chaos: Die Regionen sind unregelmäßig geformt statt rechteckig, der Block, den du gerade löst, liegt also nie dort, wo du ihn erwartest.</string>
 	<string name="generator_info_difficulty">Wie viel Kombinieren das Rätsel verlangt. Die Stufen 1 bis 5 werden zunehmend schwerer; Lisa ist ein eigener Modus.</string>
-	<string name="generator_info_difficulty_tier">Stufe %1$d von 5 - je höher die Stufe, desto fortgeschrittener die nötigen Techniken.</string>
+	<string name="generator_info_difficulty_tier">Stufe %1$d von 5: je höher die Stufe, desto fortgeschrittener die nötigen Techniken.</string>
 	<string name="generator_info_difficulty_lisa">Lisa ist die schwerste Stufe mit eigenen Regeln: weniger Leben, keine Tipps, keine Hervorhebung gleicher Ziffern und höchstens zwei Notizen pro Feld.</string>
 
 	<string name="enter_code_title">Geteiltes Rätsel spielen</string>
@@ -245,7 +251,7 @@
 	<string name="settings_board_theme_note">Im Shop gekaufte Brett-Designs kommen zusätzlich dazu und haben jeweils eine helle und eine dunkle Fassung.</string>
 	<string name="settings_recovery_header">Kontowiederherstellung</string>
 	<string name="settings_recovery_setup_explainer">Bestätige jetzt eine E-Mail-Adresse, damit du dieses Konto wiederherstellen kannst, falls du den Zugriff auf alle deine Geräte verlierst.</string>
-	<string name="settings_recovery_explainer">Gib die zuvor bestätigte E-Mail-Adresse ein - wir senden einen einmaligen Wiederherstellungscode dorthin.</string>
+	<string name="settings_recovery_explainer">Gib die zuvor bestätigte E-Mail-Adresse ein. Wir senden einen einmaligen Wiederherstellungscode dorthin.</string>
 
 	<!-- Serienwiederherstellung (UI-Punkt 11) -->
 	<string name="dialog_streak_restore_balance">Dein Guthaben: %1$d Rhabarber</string>
@@ -275,6 +281,10 @@
 	<string name="players_change_role">Rolle ändern</string>
 	<string name="players_change_role_title">Rolle für %1$s</string>
 	<string name="players_kick">Vom Server entfernen</string>
+	<string name="players_kick_confirm_title">%1$s entfernen?</string>
+	<string name="players_kick_confirm_message">Die Geräte funktionieren sofort nicht mehr und laufende Partien werden verlassen. Statistiken und Serie bleiben erhalten, und du kannst die Person später wieder hereinlassen.</string>
+	<string name="players_removed">Entfernt</string>
+	<string name="players_reinstate">Wieder hereinlassen</string>
 	<string name="players_create_invite">Einladungscode erstellen</string>
 	<string name="players_invite_created_title">Einladungscode</string>
 	<string name="players_detail_title">Spieler</string>
@@ -288,7 +298,7 @@
 	<string name="summary_legend_mistake">Falsche Eingabe</string>
 	<string name="summary_legend_hint">Tipp genutzt</string>
 	<string name="settings_device_label">Gerätename</string>
-	<string name="settings_email_required_note">Erforderlich - der einzige Weg zurück in dein Konto, wenn du alle Geräte verlierst.</string>
+	<string name="settings_email_required_note">Erforderlich: der einzige Weg zurück in dein Konto, wenn du alle Geräte verlierst.</string>
 	<string name="settings_reauth_explainer">Mit dem bereits auf diesem Gerät gespeicherten Schlüssel erneut anmelden. Nutze das, wenn eine Sitzung abgelaufen ist oder von einem anderen Gerät abgelöst wurde.</string>
 	<string name="players_online">Online</string>
 	<string name="players_offline">Offline</string>
@@ -302,4 +312,46 @@
 
 	<string name="error_network">Der Server ist nicht erreichbar. Prüfe die Adresse (samt Port) und ob der Server läuft.\n\n%1$s</string>
 	<string name="error_match_connect">Beitritt zum Match fehlgeschlagen: Der Server ist nicht erreichbar.\n\n%1$s</string>
+
+	<!-- Settings item 1: an unreachable server, said in place with a warning icon rather than in a popup. -->
+	<string name="settings_server_unreachable">Server nicht erreichbar</string>
+	<string name="settings_server_unreachable_title">Server nicht erreichbar</string>
+	<string name="settings_server_unreachable_body">Die App erreicht den Server gerade nicht. Spielerlisten, Einladungen und Mehrspieler zeigen deshalb den zuletzt bekannten Stand und können veraltet sein. Es geht nichts verloren: Beendete Spiele werden gespeichert und gesendet, sobald der Server wieder antwortet.</string>
+
+	<!-- Settings item 2: the server account workflow, on its own screen. -->
+	<string name="settings_open_account">Server und Konto</string>
+	<string name="account_step_server">Server</string>
+	<string name="account_step_sign_in">Anmelden</string>
+	<string name="account_step_account">Konto</string>
+	<string name="account_step_server_header">Mit einem Server verbinden</string>
+	<string name="account_step_sign_in_header">Auf diesen Server kommen</string>
+	<string name="account_step_account_header">Dein Konto</string>
+	<string name="account_choose_method">Was trifft auf dich zu?</string>
+	<string name="account_method_register_note">Du hast einen Einladungscode und noch kein Konto auf diesem Server.</string>
+	<string name="account_method_link_note">Du hast schon ein Konto und einen Verknüpfungscode von einem deiner anderen Geräte.</string>
+	<string name="account_method_recover_note">Du hast alle angemeldeten Geräte verloren, aber früher eine E-Mail-Adresse bestätigt.</string>
+	<string name="account_method_reauth_note">Dieses Gerät war schon angemeldet und hat seinen Schlüssel noch, nur die Sitzung ist abgelaufen.</string>
+	<string name="account_back_to_methods">Anderen Weg wählen</string>
+	<string name="account_substage">Schritt %1$d von %2$d: %3$s</string>
+	<string name="account_recover_stage_email">deine E-Mail-Adresse</string>
+	<string name="account_recover_stage_code">der zugesandte Code</string>
+	<string name="account_recover_restart">Mit einer anderen Adresse neu beginnen</string>
+	<string name="account_email_stage_address">Adresse eingeben</string>
+	<string name="account_email_stage_code">zugesandten Code eingeben</string>
+
+	<!-- Invite item 3: waiting invitations live on the players list now, not on the sender\'s profile. -->
+	<string name="players_invites_header">Wartende Einladungen</string>
+
+	<!-- Game item 3: a peeked hint is half-used until it is taken or the cell is filled. -->
+	<string name="action_hint_reveal">Zelle aufdecken</string>
+	<string name="hint_pending_note">Ein Tipp wartet auf der markierten Zelle. Nochmal drücken zum Aufdecken, oder die Zelle selbst füllen.</string>
+
+	<!-- Multiplayer game screen. -->
+	<string name="coop_disconnected">Verbindung zum Match verloren. Es wird versucht, wieder beizutreten.</string>
+
+	<!-- General item 5: leaving a board is a decision, not a back step. -->
+	<string name="action_leave_game">Spiel verlassen</string>
+	<string name="action_keep_playing">Weiterspielen</string>
+	<string name="dialog_leave_game_title">Dieses Spiel verlassen?</string>
+	<string name="dialog_leave_game_message">Dein Fortschritt wird gespeichert. Du kannst dieses Rätsel über \"Weiter\" auf dem Startbildschirm fortsetzen.</string>
 </resources>

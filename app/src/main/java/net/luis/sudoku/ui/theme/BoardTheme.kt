@@ -33,8 +33,17 @@ data class BoardPalette(
 	/** Game item 2, the notes half: the same, for the locked digit inside a pencil-mark grid. */
 	val sameValuePencil: Color,
 	val conflict: Color,
-	/** Another co-op participant's selected cell (feature-spec §10.3) - defaulted so existing palettes don't need updating. */
-	val presence: Color = Color(0xFFFFD54F),
+	/**
+	 * Another co-op participant's selected cell (feature-spec §10.3) - defaulted so existing palettes don't
+	 * need updating.
+	 *
+	 * Multiplayer-game item 4: **green, not yellow.** It was `0xFFFFD54F`, a shade off [hintCandidate]'s
+	 * `0xFFFFC400`, so a cell somebody else had selected was for practical purposes the hint colour on a
+	 * screen with no hint button - the owner's report was cells "marked yellow as hint but nothing
+	 * happened". Two different facts about a cell must not be two shades of one hue; this is the same green
+	 * that means "present" everywhere else in the app (`OnlineGreen`).
+	 */
+	val presence: Color = Color(0xFF9FE0A8),
 	/**
 	 * The cell a pending hint is offering (game item 4).
 	 *

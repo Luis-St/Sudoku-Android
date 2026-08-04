@@ -11,6 +11,8 @@ import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.serialization.kotlinx.json.json
+import net.luis.sudoku.data.remote.AuthFailureListener
+import net.luis.sudoku.data.remote.SessionGuard
 import kotlinx.serialization.json.Json
 import javax.inject.Singleton
 
@@ -30,4 +32,9 @@ object NetworkModule {
 		install(WebSockets)
 		expectSuccess = false // ApiClient reads the error body itself on non-2xx (server-spec's ErrorResponse)
 	}
+
+	/** The real listener is the session guard; the transport classes only know the interface. */
+	@Provides
+	@Singleton
+	fun provideAuthFailureListener(guard: SessionGuard): AuthFailureListener = guard
 }

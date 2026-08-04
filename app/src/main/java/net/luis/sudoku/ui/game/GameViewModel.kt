@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -15,6 +16,7 @@ import net.luis.sudoku.data.local.CurrencyState
 import net.luis.sudoku.data.local.CurrencyStore
 import net.luis.sudoku.data.local.DailyResultQueueStore
 import net.luis.sudoku.data.local.DailyStore
+import net.luis.sudoku.data.local.DailySummaryRecord
 import net.luis.sudoku.data.local.SaveSlot
 import net.luis.sudoku.data.local.SavedGameStore
 import net.luis.sudoku.data.local.PreferenceSettings
@@ -318,7 +320,10 @@ class GameViewModel @Inject constructor(
 			this@GameViewModel.dailyRecord = rolled
 			this@GameViewModel.dailyStreak = rolled.streak
 			this@GameViewModel.dailyLocked = !this@GameViewModel.dailyController.canPlay(rolled)
-			if (this@GameViewModel.dailyLocked) return@launch
+			if (this@GameViewModel.dailyLocked) {
+				showFinishedDailySummary(rolled, dailySize)
+				return@launch
+			}
 
 			val difficulty = this@GameViewModel.dailyController.effectiveDifficulty(rolled)
 			val key = this@GameViewModel.dailyController.keyFor(rolled.date!!, dailySize, difficulty)
@@ -338,6 +343,48 @@ class GameViewModel @Inject constructor(
 			}
 			this@GameViewModel.timerController.start()
 		}
+	}
+
+	/**
+	 * Home item 1: reopens the overview of a daily that is already finished, instead of the locked notice.
+	 *
+	 * The home screen's daily button reads "Review" once today's puzzle is solved, and it used to lead to a
+	 * board-shaped screen holding one line of text saying the daily was locked - which is the *reason* there
+	 * is nothing to play, not the thing the player pressed Review to see. This rebuilds the same
+	 * [GameSummary] the game itself would have shown: the solved board is regenerated from the day's key and
+	 * filled from the known solution (§8.2 makes that exact), and how the day actually went comes from
+	 * [DailySummaryRecord].
+	 *
+	 * Silent when there is no stored record for this date - a daily solved before this existed, or on
+	 * another device. The locked notice is still the honest answer then, and inventing an empty overview
+	 * (no mistakes, no hints, no time) would be worse than not offering one.
+	 */
+	private suspend fun showFinishedDailySummary(record: DailyRecord, size: GridSize) {
+		val date = record.date ?: return
+		if (!record.solved) return
+		val stored = this.dailyStore.currentSummary()?.takeIf { it.date == date } ?: return
+
+		val key = this.dailyController.keyFor(date, size, this.dailyController.effectiveDifficulty(record))
+		val finished = GameSession.generate(key)
+		for (index in 0 until finished.cellCount) {
+			if (finished.snapshot(index).empty) finished.revealSolution(index)
+		}
+
+		this.summary = GameSummary(
+			outcome = GameOutcome.WON,
+			elapsedMillis = stored.elapsedMillis,
+			cells = finished.snapshots(),
+			edgeLength = finished.edgeLength,
+			isChaos = finished.variant == Variant.CHAOS,
+			regions = List(finished.cellCount) { finished.regionOf(it) },
+			mistakeCells = stored.mistakeCells,
+			hintCells = stored.hintCells,
+			hintsUsed = stored.hintsUsed,
+			livesLost = stored.livesLost,
+			// A solved daily is locked (§8.3): there is nothing to retry and nothing to start next.
+			canRetryDaily = false,
+			isDaily = true
+		)
 	}
 
 	fun dismissError() {
@@ -390,11 +437,11 @@ class GameViewModel @Inject constructor(
 	fun onCellTap(index: Int) {
 		if (this.outcome != null) return
 		val cell = this.cells[index]
-		clearPendingHint()
 		val (action, nextLock) = resolveTap(cell, this.lock)
 		// Game item 1: writing a pencil mark is annotation, not selection - see focusFollowsTap.
 		if (focusFollowsTap(action)) this.activeIndex = index
 		val mistaken = applyAction(action)
+		dropHintIfTargetFilled()
 		this.lock = lockAfter(nextLock, mistaken)
 	}
 
@@ -405,9 +452,9 @@ class GameViewModel @Inject constructor(
 		// around a cell that no longer had anything to do with what was about to be entered - and after the
 		// cell-lock path writes into it, that cell is finished with by definition.
 		this.activeIndex = null
-		clearPendingHint()
 		val (action, nextLock) = resolveNumberButtonTap(this.lock, digit, longPress)
 		val mistaken = applyAction(action)
+		dropHintIfTargetFilled()
 		this.lock = lockAfter(nextLock, mistaken)
 	}
 
@@ -477,18 +524,25 @@ class GameViewModel @Inject constructor(
 	 * The highlight is this view model's [hintCandidate]; the candidate itself is [HintController]'s
 	 * `pending`. Clearing only the first left the controller holding a candidate for a board state that no
 	 * longer existed, and it hands that same one back out of `requestHint` - so after filling the peeked cell
-	 * yourself, the next hint pointed at the cell you had just finished, and confirming it crashed on
-	 * shared-core's "the board changed since the hint was peeked".
+	 * yourself, the next hint pointed at the cell you had just finished.
 	 *
-	 * Called from every path that can move the board out from under a peek: entering a digit either way, and
-	 * undo/redo.
+	 * Game item 3 narrowed *when* this runs. It used to fire on every tap; it is now only the two things
+	 * that genuinely end a peek - the peeked cell being filled ([dropHintIfTargetFilled]) and undo/redo,
+	 * which moves the board wholesale rather than by one deliberate entry.
 	 */
 	private fun clearPendingHint() {
 		this.hintCandidate = null
 		this.hintController.cancelPending()
 	}
 
-	/** First tap peeks a hint cell; a second tap while one is pending consumes it (feature-spec §4.4). */
+	/**
+	 * First tap peeks a hint cell; a second tap while one is pending consumes it (feature-spec §4.4).
+	 *
+	 * Game item 3: the peek is the "partially used" state, and it survives everything except its own two
+	 * exits - pressing this button again, or the peeked cell being filled by the player. It used to be
+	 * cleared by *any* tap, so the yellow cell vanished the moment the player looked anywhere else, and a
+	 * hint that had been asked for silently stopped existing.
+	 */
 	fun onHintTap() {
 		if (this.outcome != null) return
 		val pending = this.hintCandidate
@@ -498,20 +552,32 @@ class GameViewModel @Inject constructor(
 		}
 		val index = pending.cellIndex()
 		val before = this.session.cellForUndo(index).copy()
-		if (this.hintController.confirmHint() == null) {
-			// The candidate did not survive to the second tap. Peek again rather than returning to no hint at
-			// all: the player pressed the button, and a press that leaves the screen exactly as it was reads as
-			// the button being broken. Nothing was spent, so the fresh candidate is on the same hint.
-			this.hintCandidate = this.hintController.requestHint()
-			return
-		}
+		// Never null with a candidate pending - the controller now falls back to the known solution for the
+		// promised cell rather than giving up when the board moved (see HintController.confirmHint).
+		val digit = this.hintController.confirmHint() ?: return
 		val after = this.session.cellForUndo(index).copy()
 		this.hintCandidate = null
 		this.hintsRemaining = this.hintController.remaining
 		this.hintCells.add(index)
-		this.undoStack.push(Command(listOf(CellEdit(index, before, after))))
+		// Game item 2: a hint is a pen entry as far as the rest of the board is concerned, so it clears the
+		// digit out of every peer's notes exactly as typing it would - in the same Command, so one undo takes
+		// the reveal and the clean-up back together.
+		val edits = mutableListOf(CellEdit(index, before, after))
+		edits += this.editor.clearPeerCandidates(index, digit)
+		this.undoStack.push(Command(edits))
 		refresh()
 		checkForWin()
+	}
+
+	/**
+	 * The peek's other exit (game item 3): the player filled the cell it was pointing at themselves.
+	 *
+	 * Only *that* cell ends it. Entering a digit anywhere else leaves the hint pending and the cell marked,
+	 * which is the whole point - it stays promised until it is used or made pointless.
+	 */
+	private fun dropHintIfTargetFilled() {
+		val index = this.hintCandidate?.cellIndex() ?: return
+		if (!this.cells[index].empty) clearPendingHint()
 	}
 
 	private fun checkForWin() {
@@ -552,7 +618,23 @@ class GameViewModel @Inject constructor(
 				this.dailyRecord = recorded
 				this.dailyStreak = recorded.streak
 				this.dailyLocked = true
-				this.viewModelScope.launch { this@GameViewModel.dailyStore.save(recorded) }
+				// Home item 1: kept so the daily button can reopen this overview later. Snapshotted here
+				// rather than read inside the coroutine for the same reason [persist] snapshots - the next
+				// switchToNormal reassigns these the moment this returns.
+				val summaryRecord = recorded.date?.let { date ->
+					DailySummaryRecord(
+						date = date,
+						elapsedMillis = this.timerController.elapsedMillis(),
+						hintsUsed = this.hintController.used,
+						livesLost = this.livesController.maxLives - this.livesController.remaining,
+						mistakeCells = this.mistakeCells.toSet(),
+						hintCells = this.hintCells.toSet()
+					)
+				}
+				this.viewModelScope.launch {
+					this@GameViewModel.dailyStore.save(recorded)
+					summaryRecord?.let { this@GameViewModel.dailyStore.saveSummary(it) }
+				}
 			}
 			this.currencyBalance = this.currencyController.balance
 		}
@@ -587,6 +669,14 @@ class GameViewModel @Inject constructor(
 	 * now - not just on a network failure, but also when configured-but-signed-out, so it still syncs
 	 * once the player authenticates. Streak credit stays pinned to the date played (§8.3.1) since that
 	 * date travels with the request, not with whenever it happens to sync.
+	 *
+	 * Game item 4: **any** failure queues, not just an [ApiException].
+	 *
+	 * A server that is switched off or out of reach fails with an `IOException` long before there is an
+	 * `ErrorResponse` to turn into an `ApiException`, and that escaped this coroutine and took the whole app
+	 * down - so finishing a game offline crashed on the last move, after the win, with the result lost. The
+	 * catch is on `Exception` now (bar cancellation, which is not a failure), which is the same stance every
+	 * other network call in the app takes.
 	 */
 	private fun submitOrQueueDailyResult(outcome: GameOutcome) {
 		val config = this.serverConfigStore
@@ -607,7 +697,9 @@ class GameViewModel @Inject constructor(
 			val submitted = token != null && try {
 				this@GameViewModel.apiClient.submitDailyResult(baseUrl, token, request)
 				true
-			} catch (e: ApiException) {
+			} catch (e: CancellationException) {
+				throw e
+			} catch (e: Exception) {
 				false
 			}
 			if (!submitted) this@GameViewModel.dailyResultQueueStore.enqueue(request)

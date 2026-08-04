@@ -107,10 +107,24 @@ class PlayersViewModel @Inject constructor(
 		this.canInvite = role != null && role.canInvite
 	}
 
+	/**
+	 * The initial read, and the re-read every administration action ends with.
+	 *
+	 * Quiet on an unreachable server (settings item 1): this fires from `init`, so the failure belongs to
+	 * opening the screen rather than to anything the player did. An action that *itself* failed still gets
+	 * its dialog - that comes from [runOrReportError] around the action, not from here.
+	 */
 	fun loadPlayers() {
-		runOrReportError {
-			val (baseUrl, token) = serverCredentials() ?: return@runOrReportError
-			this.players = this.apiClient.listPlayers(baseUrl, token)
+		this.viewModelScope.launch {
+			try {
+				val (baseUrl, token) = serverCredentials() ?: return@launch
+				this@PlayersViewModel.players = this@PlayersViewModel.apiClient.listPlayers(baseUrl, token)
+			} catch (e: CancellationException) {
+				throw e
+			} catch (e: Exception) {
+				// Silent: the top bar's warning is the app's one report that the server is unreachable, and
+				// the stale list in front of the player is the best answer available either way.
+			}
 		}
 	}
 
@@ -158,10 +172,32 @@ class PlayersViewModel @Inject constructor(
 		}
 	}
 
+	/**
+	 * Removes a player from the server.
+	 *
+	 * Worth knowing at this call site: this revokes every device key the player owns, not just their
+	 * session, so it is not something they can reconnect out of - and it is why the screen asks first.
+	 * [reinstate] is the only way back.
+	 */
 	fun kick(playerId: String) {
 		runOrReportError {
 			val (baseUrl, token) = serverCredentials() ?: return@runOrReportError
 			this.apiClient.kickUser(baseUrl, token, playerId)
+			loadPlayers()
+		}
+	}
+
+	/**
+	 * Lets a kicked player back in, with the account they had (server-spec §7.2).
+	 *
+	 * They are not signed in by this: their device holds the key, and only it can complete the handshake.
+	 * What changes is that the handshake stops being refused - the next time their app retries, which it
+	 * does on its own, they are back.
+	 */
+	fun reinstate(playerId: String) {
+		runOrReportError {
+			val (baseUrl, token) = serverCredentials() ?: return@runOrReportError
+			this.apiClient.reinstateUser(baseUrl, token, playerId)
 			loadPlayers()
 		}
 	}
@@ -200,7 +236,8 @@ class PlayersViewModel @Inject constructor(
 			} catch (e: CancellationException) {
 				throw e
 			} catch (e: Exception) {
-				// Unreachable server: no ErrorResponse to read, but still an error to show rather than a crash.
+				// Unreachable server: no ErrorResponse to read, but still an error to show rather than a crash -
+				// the player pressed something here, and a button that silently does nothing is worse.
 				this@PlayersViewModel.errorMessage = e.message ?: ApiException.NETWORK_ERROR
 				this@PlayersViewModel.errorCode = ApiException.NETWORK_ERROR
 			} finally {

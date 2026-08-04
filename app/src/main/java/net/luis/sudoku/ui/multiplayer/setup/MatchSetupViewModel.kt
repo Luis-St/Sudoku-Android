@@ -63,7 +63,15 @@ class MatchSetupViewModel @Inject constructor(
 	var activeMatch by mutableStateOf<ActiveMatch?>(null)
 		private set
 
-	fun createMatch(mode: String, size: GridSize, variant: Variant, difficulty: Difficulty, livesEnabled: Boolean, stake: Int?) {
+	fun createMatch(
+		mode: String,
+		size: GridSize,
+		variant: Variant,
+		difficulty: Difficulty,
+		livesEnabled: Boolean,
+		hintsEnabled: Boolean,
+		stake: Int?
+	) {
 		runOrReportError {
 			val config = this.serverConfigStore.current()
 			val baseUrl = config.serverUrl ?: return@runOrReportError
@@ -74,7 +82,7 @@ class MatchSetupViewModel @Inject constructor(
 				token,
 				mode,
 				MatchConfigDto(size.n(), variant.name, difficulty.index()),
-				MatchSettingsDto(livesEnabled, stake)
+				MatchSettingsDto(livesEnabled, hintsEnabled, stake)
 			)
 			this.createdMatch = CreatedMatch(created.matchId, created.inviteToken, mode, stake ?: 0)
 		}

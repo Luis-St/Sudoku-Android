@@ -44,19 +44,31 @@ class BoardEditor(
 		val before = cell.copy()
 		cell.setValue(digit)
 		edits += CellEdit(index, before, cell.copy())
+		edits += clearPeerCandidates(index, digit)
+		this.undoStack.push(Command(edits))
+	}
 
-		if (this.autoClearPeers) {
-			for (peer in this.session.peersOf(index)) {
-				val peerCell = this.session.cellForUndo(peer)
-				if (peerCell.hasPencilMark(digit)) {
-					val peerBefore = peerCell.copy()
-					peerCell.removePencilMark(digit)
-					edits += CellEdit(peer, peerBefore, peerCell.copy())
-				}
+	/**
+	 * feature-spec §5.6's auto-clear-peers, on its own.
+	 *
+	 * Split out for the hint (game item 2): a hint writes its digit through `GameSession` rather than through
+	 * [apply], so it used to skip this entirely and left the revealed digit pencilled in as a candidate all
+	 * down its row, column and region - the notes the player was reading to decide what came next still
+	 * offered a digit that was now sitting on the board. Nothing is pushed here; the caller bundles these
+	 * edits into the same [Command] as its own write, so one undo takes the whole thing back.
+	 */
+	internal fun clearPeerCandidates(index: Int, digit: Int): List<CellEdit> {
+		if (!this.autoClearPeers) return emptyList()
+		val edits = mutableListOf<CellEdit>()
+		for (peer in this.session.peersOf(index)) {
+			val peerCell = this.session.cellForUndo(peer)
+			if (peerCell.hasPencilMark(digit)) {
+				val peerBefore = peerCell.copy()
+				peerCell.removePencilMark(digit)
+				edits += CellEdit(peer, peerBefore, peerCell.copy())
 			}
 		}
-
-		this.undoStack.push(Command(edits))
+		return edits
 	}
 
 	private fun togglePencil(index: Int, digit: Int) {

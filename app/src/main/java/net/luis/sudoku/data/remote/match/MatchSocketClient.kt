@@ -16,6 +16,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import net.luis.sudoku.data.remote.AuthFailureListener
 import net.luis.sudoku.version.GenVersion
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
@@ -27,7 +28,7 @@ import javax.inject.Inject
  * delivered via callback since `MATCH_STATE` arrives immediately on connect (server-spec §10.4), before a
  * caller could plausibly finish subscribing to a cold `Flow`.
  */
-class MatchSocketClient @Inject constructor(private val client: HttpClient) {
+class MatchSocketClient @Inject constructor(private val client: HttpClient, private val sessionGuard: AuthFailureListener) {
 
 	private var session: DefaultClientWebSocketSession? = null
 	private val seq = AtomicLong(1)
@@ -45,7 +46,13 @@ class MatchSocketClient @Inject constructor(private val client: HttpClient) {
 						onMessage(envelope)
 					}
 				}
-				onClosed(null)
+				// The reason the server gave, not just "the loop ended". A kick closes every socket with
+				// `USER_REVOKED` (server-spec §7.2), and without reading this it is indistinguishable from a
+				// dropped connection - so the reconnect logic would keep retrying a socket that can never open
+				// again, and the player would be told nothing.
+				val reason = session.closeReason.await()?.message?.takeIf { it.isNotBlank() }
+				reason?.let { this@MatchSocketClient.sessionGuard.onApiError(it) }
+				onClosed(reason)
 			} catch (e: Exception) {
 				onClosed(e.message)
 			}

@@ -11,6 +11,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import net.luis.sudoku.data.local.DailyResultQueueStore
 import net.luis.sudoku.data.local.ServerConfigStore
 import net.luis.sudoku.data.remote.ApiClient
 import net.luis.sudoku.data.remote.dto.MatchRequestResponse
@@ -34,7 +35,8 @@ import javax.inject.Inject
 @HiltViewModel
 class PresenceViewModel @Inject constructor(
 	private val apiClient: ApiClient,
-	private val serverConfigStore: ServerConfigStore
+	private val serverConfigStore: ServerConfigStore,
+	private val dailyResultQueueStore: DailyResultQueueStore
 ) : ViewModel() {
 
 	/**
@@ -51,10 +53,25 @@ class PresenceViewModel @Inject constructor(
 	 * Every unanswered request the server is serving, oldest first - the popup's slower half.
 	 *
 	 * The popup is a glance; this is the record. It is what puts the badge on the players button and the
-	 * join button on the requester's profile, so an invite that arrived while the player was mid-puzzle is
-	 * still reachable a minute later instead of having flashed past unrecoverably.
+	 * invitations at the top of the players list (invite item 3), so an invite that arrived while the player
+	 * was mid-puzzle is still reachable a minute later instead of having flashed past unrecoverably.
 	 */
 	var pendingRequests by mutableStateOf<List<MatchRequestResponse>>(emptyList())
+		private set
+
+	/**
+	 * Settings item 1: whether the last heartbeat got through.
+	 *
+	 * The heartbeat is the app's *only* continuous conversation with the server, so it is the only thing
+	 * that knows this without asking a question of its own - which is exactly what a status indicator must
+	 * not do. It drives the warning next to the players button in the top bar; nothing else reports an
+	 * unreachable server any more, because the screens that used to were popping a modal over whatever the
+	 * player had opened them for.
+	 *
+	 * Starts `true`: "not known to be down" is the honest state before the first beat, and an icon that
+	 * flashes on at every launch would mean nothing.
+	 */
+	var serverReachable by mutableStateOf(true)
 		private set
 
 	/**
@@ -100,16 +117,38 @@ class PresenceViewModel @Inject constructor(
 					// because one request was slow must not be the beat that makes this player look offline.
 					intervalMs = (response.onlineTtlSeconds * 1_000L / BEATS_PER_TTL).coerceAtLeast(MIN_INTERVAL_MS)
 					offer(response.requests)
+					this.serverReachable = true
+					// Game item 4: a beat that got through *is* the "next successful connection" feature-spec
+					// §8.3.1 promises a queued daily result. Nothing else in the app notices the server coming
+					// back - the old flush ran only when a session was first stored, so a result queued while
+					// offline sat there until the player signed in again, which they never need to do.
+					flushQueuedDailyResults(baseUrl, token)
 				} catch (e: CancellationException) {
 					throw e
 				} catch (e: Exception) {
 					// A failed beat costs nothing but online status until the next one, and on mobile it is
-					// ordinary - never surfaced as an error, only retried.
+					// ordinary - never surfaced as an error, only retried. It does move the top bar's warning,
+					// which is the one place the app says so.
+					this.serverReachable = false
 				}
 				delay(intervalMs)
 			}
 		} finally {
 			reportOffline()
+		}
+	}
+
+	/** Best-effort, and cheap when the queue is empty: one indexed read of a table that is normally empty. */
+	private suspend fun flushQueuedDailyResults(baseUrl: String, token: String) {
+		this.dailyResultQueueStore.flush { request ->
+			try {
+				this.apiClient.submitDailyResult(baseUrl, token, request)
+				true
+			} catch (e: CancellationException) {
+				throw e
+			} catch (e: Exception) {
+				false
+			}
 		}
 	}
 
@@ -134,10 +173,6 @@ class PresenceViewModel @Inject constructor(
 			this.incomingRequest = null
 		}
 	}
-
-	/** The pending request from this player, if they have one waiting - the profile's join button. */
-	fun requestFrom(playerId: String): MatchRequestResponse? =
-		this.pendingRequests.firstOrNull { it.fromUserId == playerId }
 
 	/** Applies [nextRequestToOffer] to what the server just reported. */
 	private fun offer(requests: List<MatchRequestResponse>) {

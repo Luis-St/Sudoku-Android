@@ -13,7 +13,12 @@ enum class MatchMode { RACE, DUEL, COOP }
 data class MatchConfigDto(val size: Int, val variant: String, val difficulty: Int)
 
 @Serializable
-data class MatchSettingsDto(val livesEnabled: Boolean? = null, val stake: Int? = null)
+data class MatchSettingsDto(
+	val livesEnabled: Boolean? = null,
+	/** Multiplayer-game item 1: a match setting, so every participant agrees. Omitted means enabled. */
+	val hintsEnabled: Boolean? = null,
+	val stake: Int? = null
+)
 
 @Serializable
 data class CreateMatchRequest(val mode: String, val config: MatchConfigDto, val settings: MatchSettingsDto? = null)
@@ -49,6 +54,7 @@ data class MatchResponse(
 	val state: String? = null,
 	val puzzleKey: PuzzleKeyResponse? = null,
 	val livesEnabled: Boolean = false,
+	val hintsEnabled: Boolean = true,
 	val stake: Int = 0,
 	val winnerId: String? = null,
 	val endReason: String? = null,

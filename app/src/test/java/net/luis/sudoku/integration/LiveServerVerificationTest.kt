@@ -20,6 +20,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import net.luis.sudoku.data.remote.ApiClient
+import net.luis.sudoku.data.remote.AuthFailureListener
 import net.luis.sudoku.data.remote.dto.MatchConfigDto
 import net.luis.sudoku.data.remote.dto.MatchSettingsDto
 import net.luis.sudoku.data.remote.match.MatchSocketClient
@@ -81,7 +82,7 @@ class LiveServerVerificationTest {
 	}
 
 	private fun serverReachable(): Boolean = try {
-		runBlocking { ApiClient(httpClient()).serverInfo(this@LiveServerVerificationTest.baseUrl) }
+		runBlocking { ApiClient(httpClient(), AuthFailureListener.NONE).serverInfo(this@LiveServerVerificationTest.baseUrl) }
 		true
 	} catch (e: Exception) {
 		false
@@ -142,7 +143,7 @@ class LiveServerVerificationTest {
 				install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
 				expectSuccess = false
 			}
-			val api = ApiClient(http)
+			val api = ApiClient(http, AuthFailureListener.NONE)
 			val reachable = try {
 				api.serverInfo(BASE_URL)
 				true
@@ -170,7 +171,7 @@ class LiveServerVerificationTest {
 		assumeTrue("No local Sudoku-Server reachable at $baseUrl - skipping live verification", serverReachable())
 
 		val http = httpClient()
-		val api = ApiClient(http)
+		val api = ApiClient(http, AuthFailureListener.NONE)
 
 		val info = api.serverInfo(baseUrl)
 		assertEquals(1, info.genVersion)
@@ -185,13 +186,13 @@ class LiveServerVerificationTest {
 		assertNotNull(joinerSession.sessionToken)
 
 		// --- create and join a real RACE match ---
-		val created = api.createMatch(baseUrl, creatorToken, "RACE", MatchConfigDto(GridSize.FOUR.n(), Variant.CLASSIC.name, Difficulty.ONE.index()), MatchSettingsDto(true, 0))
+		val created = api.createMatch(baseUrl, creatorToken, "RACE", MatchConfigDto(GridSize.FOUR.n(), Variant.CLASSIC.name, Difficulty.ONE.index()), MatchSettingsDto(livesEnabled = true, stake = 0))
 		val joined = api.joinMatch(baseUrl, joinerSession.sessionToken, created.matchId, created.inviteToken)
 		assertEquals("RACE", joined.mode)
 
 		// --- connect both real WebSockets and verify the actual frames this client's ViewModels parse ---
-		val creatorClient = MatchSocketClient(http)
-		val joinerClient = MatchSocketClient(http)
+		val creatorClient = MatchSocketClient(http, AuthFailureListener.NONE)
+		val joinerClient = MatchSocketClient(http, AuthFailureListener.NONE)
 
 		val creatorRunningState = CompletableDeferred<JsonObject>()
 		val entryResult = CompletableDeferred<JsonObject>()
@@ -268,18 +269,18 @@ class LiveServerVerificationTest {
 		assumeTrue("No local Sudoku-Server reachable at $baseUrl - skipping live verification", serverReachable())
 
 		val http = httpClient()
-		val api = ApiClient(http)
+		val api = ApiClient(http, AuthFailureListener.NONE)
 
 		val creatorToken = adminSessionToken()
 		val inviteCode = createInvite(http, creatorToken)
 		val joinerKeys = keyPair()
 		val joinerSession = api.register(baseUrl, publicKeyBase64(joinerKeys), "ECDSA_P256", inviteCode, "DJoiner-${UUID.randomUUID().toString().take(8)}", "jvm-test")
 
-		val created = api.createMatch(baseUrl, creatorToken, "DUEL", MatchConfigDto(GridSize.FOUR.n(), Variant.CLASSIC.name, Difficulty.ONE.index()), MatchSettingsDto(false, 0))
+		val created = api.createMatch(baseUrl, creatorToken, "DUEL", MatchConfigDto(GridSize.FOUR.n(), Variant.CLASSIC.name, Difficulty.ONE.index()), MatchSettingsDto(livesEnabled = false, stake = 0))
 		api.joinMatch(baseUrl, joinerSession.sessionToken, created.matchId, created.inviteToken)
 
-		val creatorClient = MatchSocketClient(http)
-		val joinerClient = MatchSocketClient(http)
+		val creatorClient = MatchSocketClient(http, AuthFailureListener.NONE)
+		val joinerClient = MatchSocketClient(http, AuthFailureListener.NONE)
 
 		val runningState = CompletableDeferred<JsonObject>()
 		val boardUpdate = CompletableDeferred<JsonObject>()
@@ -354,17 +355,17 @@ class LiveServerVerificationTest {
 		assumeTrue("No local Sudoku-Server reachable at $baseUrl - skipping live verification", serverReachable())
 
 		val http = httpClient()
-		val api = ApiClient(http)
+		val api = ApiClient(http, AuthFailureListener.NONE)
 		val creatorToken = adminSessionToken()
 		val inviteCode = createInvite(http, creatorToken)
 		val joinerKeys = keyPair()
 		val joinerSession = api.register(baseUrl, publicKeyBase64(joinerKeys), "ECDSA_P256", inviteCode, "CJoiner-${UUID.randomUUID().toString().take(8)}", "jvm-test")
 
-		val created = api.createMatch(baseUrl, creatorToken, "COOP", MatchConfigDto(GridSize.FOUR.n(), Variant.CLASSIC.name, Difficulty.ONE.index()), MatchSettingsDto(true, null))
+		val created = api.createMatch(baseUrl, creatorToken, "COOP", MatchConfigDto(GridSize.FOUR.n(), Variant.CLASSIC.name, Difficulty.ONE.index()), MatchSettingsDto(livesEnabled = true, stake = null))
 		api.joinMatch(baseUrl, joinerSession.sessionToken, created.matchId, created.inviteToken)
 
-		val creatorClient = MatchSocketClient(http)
-		val joinerClient = MatchSocketClient(http)
+		val creatorClient = MatchSocketClient(http, AuthFailureListener.NONE)
+		val joinerClient = MatchSocketClient(http, AuthFailureListener.NONE)
 		val runningState = CompletableDeferred<JsonObject>()
 		val boardUpdate = CompletableDeferred<JsonObject>()
 		val presence = CompletableDeferred<JsonObject>()
@@ -426,7 +427,7 @@ class LiveServerVerificationTest {
 		assumeTrue("No local Sudoku-Server reachable at $baseUrl - skipping live verification", serverReachable())
 
 		val http = httpClient()
-		val api = ApiClient(http)
+		val api = ApiClient(http, AuthFailureListener.NONE)
 		val creatorToken = adminSessionToken()
 
 		// GET /daily - the server returns the key only, the client generates the grid locally (§9).
@@ -474,7 +475,7 @@ class LiveServerVerificationTest {
 		assumeTrue("No local Sudoku-Server reachable at $baseUrl - skipping live verification", serverReachable())
 
 		val http = httpClient()
-		val api = ApiClient(http)
+		val api = ApiClient(http, AuthFailureListener.NONE)
 		val creatorToken = adminSessionToken()
 
 		val targetKeys = keyPair()
@@ -484,7 +485,7 @@ class LiveServerVerificationTest {
 		// A player who has never heartbeat is offline, and cannot be asked to play.
 		assertEquals(false, api.listPlayers(baseUrl, creatorToken).single { it.id == target.user.id }.online)
 		val match = api.createMatch(baseUrl, creatorToken, "RACE",
-			MatchConfigDto(GridSize.FOUR.n(), Variant.CLASSIC.name, Difficulty.ONE.index()), MatchSettingsDto(true, 0))
+			MatchConfigDto(GridSize.FOUR.n(), Variant.CLASSIC.name, Difficulty.ONE.index()), MatchSettingsDto(livesEnabled = true, stake = 0))
 		val offline = try {
 			api.requestMatch(baseUrl, creatorToken, match.matchId, target.user.id)
 			null

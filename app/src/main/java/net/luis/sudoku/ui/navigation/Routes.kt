@@ -17,6 +17,13 @@ object Routes {
 	const val SHOP = "shop"
 	const val STATS = "stats"
 	const val SETTINGS = "settings"
+
+	/**
+	 * Settings item 2: connecting to a server, getting onto it and managing the account, as a workflow with
+	 * named stages. Its own destination rather than a section of [SETTINGS] - it is a sequence, and a
+	 * sequence buried under the language picker had nowhere to say which stage you were in.
+	 */
+	const val ACCOUNT = "settings/account"
 	const val FRIENDS = "friends"
 
 	const val ARG_MODE = "mode"

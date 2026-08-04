@@ -40,8 +40,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
 import net.luis.sudoku.R
+import net.luis.sudoku.data.remote.dto.MatchRequestResponse
 import net.luis.sudoku.data.remote.dto.PlayerResponse
 import net.luis.sudoku.ui.common.CodeShareDialog
+import net.luis.sudoku.ui.common.GradientButton
 import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.common.friendlyErrorMessage
 import net.luis.sudoku.ui.common.SectionCard
@@ -66,11 +68,21 @@ private const val PLAYERS_REFRESH_MS = 10_000L
  * match with a fixed configuration behind the player's back; it now lives on the match lobby, after the
  * creator has chosen what the match actually is - see
  * [net.luis.sudoku.ui.multiplayer.wait.MatchWaitScreen].
+ *
+ * **Being asked to play is** (invite item 3). An invitation whose popup was swiped away or timed out used
+ * to be reachable only from the sender's *profile*, which meant guessing who had sent it and opening them
+ * one at a time. It belongs on the overview of everybody instead: the badge on the top bar leads here, and
+ * every waiting invitation is at the top of this screen with the name attached.
+ *
+ * @param invites every unanswered match request, from the Activity-scoped presence view model - only one
+ *   heartbeat runs, and a screen-scoped model would have no way to see what it collected
  */
 @Composable
 fun PlayersScreen(
 	onOpenPlayer: (String) -> Unit,
 	modifier: Modifier = Modifier,
+	invites: List<MatchRequestResponse> = emptyList(),
+	onJoinInvite: (MatchRequestResponse) -> Unit = {},
 	viewModel: PlayersViewModel = hiltViewModel()
 ) {
 	// Friends item 6: this list is the *only* source of online status now, so keeping it current is keeping
@@ -103,6 +115,22 @@ fun PlayersScreen(
 			)
 		}
 
+		// Invite item 3: above the list, because an invitation is the one thing here that expires - the
+		// players themselves will still be there in a minute, the match being offered may not.
+		if (invites.isNotEmpty()) {
+			SectionCard(
+				title = stringResource(R.string.players_invites_header),
+				modifier = Modifier.padding(bottom = 12.dp)
+			) {
+				Column {
+					invites.forEachIndexed { index, request ->
+						if (index > 0) HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+						InviteRow(request = request, onJoin = { onJoinInvite(request) })
+					}
+				}
+			}
+		}
+
 		SectionCard(title = stringResource(R.string.tab_players)) {
 			Column {
 				viewModel.players.forEachIndexed { index, player ->
@@ -114,7 +142,8 @@ fun PlayersScreen(
 						isOnline = player.online,
 						onOpen = { onOpenPlayer(player.id) },
 						onChangeRole = { role -> viewModel.changeRole(player.id, role.name) },
-						onKick = { viewModel.kick(player.id) }
+						onKick = { viewModel.kick(player.id) },
+						onReinstate = { viewModel.reinstate(player.id) }
 					)
 				}
 			}
@@ -142,6 +171,37 @@ fun PlayersScreen(
 	}
 }
 
+/**
+ * One waiting invitation (invite item 3): who, what mode, and the one thing to do about it.
+ *
+ * The avatar is here for the same reason it is on the row below - the sender is the fact that decides
+ * whether this is worth taking up, and a mode name on its own says nothing about that.
+ */
+@Composable
+private fun InviteRow(request: MatchRequestResponse, onJoin: () -> Unit) {
+	Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+		PlayerAvatar(name = request.fromDisplayName, seed = request.fromUserId, size = 36.dp)
+		Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
+			Text(
+				text = stringResource(R.string.presence_match_request_title, request.fromDisplayName),
+				style = MaterialTheme.typography.bodyLarge,
+				fontWeight = FontWeight.Medium
+			)
+			Text(
+				text = stringResource(R.string.presence_match_request_body, request.mode),
+				style = MaterialTheme.typography.bodySmall,
+				color = MaterialTheme.colorScheme.onSurfaceVariant
+			)
+		}
+		GradientButton(
+			text = stringResource(R.string.action_join_match),
+			onClick = onJoin,
+			fillWidth = false,
+			modifier = Modifier.padding(start = 8.dp)
+		)
+	}
+}
+
 @Composable
 private fun PlayerRow(
 	player: PlayerResponse,
@@ -150,10 +210,12 @@ private fun PlayerRow(
 	isOnline: Boolean,
 	onOpen: () -> Unit,
 	onChangeRole: (ServerRole) -> Unit,
-	onKick: () -> Unit
+	onKick: () -> Unit,
+	onReinstate: () -> Unit
 ) {
 	var menuOpen by remember { mutableStateOf(false) }
 	var rolePickerOpen by remember { mutableStateOf(false) }
+	var kickConfirmOpen by remember { mutableStateOf(false) }
 	val name = player.displayName ?: player.id
 	val role = ServerRole.of(player.role)
 
@@ -167,11 +229,31 @@ private fun PlayerRow(
 
 		Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
 			Row(verticalAlignment = Alignment.CenterVertically) {
-				Text(name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+				Text(
+					text = name,
+					style = MaterialTheme.typography.bodyLarge,
+					fontWeight = FontWeight.Medium,
+					// A removed player appears only in an admin's copy of this list, and only so they can be
+					// let back in - so the row reads as inert rather than as somebody to play against.
+					color = if (player.revoked) {
+						MaterialTheme.colorScheme.onSurfaceVariant
+					} else {
+						MaterialTheme.colorScheme.onSurface
+					}
+				)
+				// Labelled as removed instead of by the role they still hold on paper: the role is not what an
+				// admin needs to know about this row, and a kicked ADMIN chip reads as somebody in charge.
+				if (player.revoked) {
+					AssistChip(
+						onClick = onOpen,
+						label = { Text(stringResource(R.string.players_removed), style = MaterialTheme.typography.labelSmall) },
+						modifier = Modifier.padding(start = 8.dp)
+					)
+				}
 				// Every role is labelled now, not just ADMIN (friends item 4) - with three of them, an
 				// unlabelled row means "NEW or MEMBER, no way to tell", which is the distinction an admin is
 				// on this screen to manage.
-				if (role != null) {
+				if (role != null && !player.revoked) {
 					AssistChip(
 						onClick = onOpen,
 						label = { Text(stringResource(role.labelRes), style = MaterialTheme.typography.labelSmall) },
@@ -180,15 +262,19 @@ private fun PlayerRow(
 				}
 			}
 			Row(verticalAlignment = Alignment.CenterVertically) {
-				OnlineDot(isOnline)
-				Text(
-					text = stringResource(
-						if (isOnline) R.string.players_online else R.string.players_offline
-					),
-					style = MaterialTheme.typography.bodySmall,
-					color = MaterialTheme.colorScheme.onSurfaceVariant,
-					modifier = Modifier.padding(start = 6.dp)
-				)
+				// A removed player has no online status worth reporting - their keys are revoked, so "offline"
+				// would be stating that they are locked out, which the chip above already says better.
+				if (!player.revoked) {
+					OnlineDot(isOnline)
+					Text(
+						text = stringResource(
+							if (isOnline) R.string.players_online else R.string.players_offline
+						),
+						style = MaterialTheme.typography.bodySmall,
+						color = MaterialTheme.colorScheme.onSurfaceVariant,
+						modifier = Modifier.padding(start = 6.dp)
+					)
+				}
 				Text(
 					text = stringResource(R.string.players_streak_label, player.streak),
 					style = MaterialTheme.typography.bodySmall,
@@ -210,23 +296,61 @@ private fun PlayerRow(
 					Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.players_more_actions))
 				}
 				DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-					DropdownMenuItem(
-						text = { Text(stringResource(R.string.players_change_role)) },
-						onClick = {
-							menuOpen = false
-							rolePickerOpen = true
-						}
-					)
-					DropdownMenuItem(
-						text = { Text(stringResource(R.string.players_kick), color = MaterialTheme.colorScheme.error) },
-						onClick = {
-							menuOpen = false
-							onKick()
-						}
-					)
+					// A removed player gets exactly one action. Changing the role of somebody who cannot
+					// authenticate would be setting a permission nobody can use.
+					if (player.revoked) {
+						DropdownMenuItem(
+							text = { Text(stringResource(R.string.players_reinstate)) },
+							onClick = {
+								menuOpen = false
+								onReinstate()
+							}
+						)
+					} else {
+						DropdownMenuItem(
+							text = { Text(stringResource(R.string.players_change_role)) },
+							onClick = {
+								menuOpen = false
+								rolePickerOpen = true
+							}
+						)
+						DropdownMenuItem(
+							text = { Text(stringResource(R.string.players_kick), color = MaterialTheme.colorScheme.error) },
+							onClick = {
+								menuOpen = false
+								// Asked first, unlike every other action here: a kick revokes every key the player
+								// owns, drops them mid-game, and is undone only by a deliberate reinstatement. One
+								// stray tap on a menu item is not enough intent for that.
+								kickConfirmOpen = true
+							}
+						)
+					}
 				}
 			}
 		}
+	}
+
+	if (kickConfirmOpen) {
+		AlertDialog(
+			onDismissRequest = { kickConfirmOpen = false },
+			title = { Text(stringResource(R.string.players_kick_confirm_title, name)) },
+			// Says what actually happens, because none of it is obvious from the word "remove": their keys
+			// stop working, their history survives, and an admin can undo it.
+			text = { Text(stringResource(R.string.players_kick_confirm_message)) },
+			confirmButton = {
+				TextButton(
+					onClick = {
+						kickConfirmOpen = false
+						onKick()
+					}
+				) {
+					Text(stringResource(R.string.players_kick), color = MaterialTheme.colorScheme.error)
+				}
+			},
+			dismissButton = {
+				TextButton(onClick = { kickConfirmOpen = false }) { Text(stringResource(R.string.action_cancel)) }
+			}
+		)
 	}
 
 	if (rolePickerOpen) {

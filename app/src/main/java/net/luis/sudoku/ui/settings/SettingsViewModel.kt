@@ -68,9 +68,9 @@ class SettingsViewModel @Inject constructor(
 		private set
 
 	init {
-		// Through the error path deliberately: the device list is a network call, and opening settings while
-		// the server happens to be down must surface that, not crash.
-		runOrReportError {
+		// Quietly: the device list is a network call fired by merely opening the screen, so a server that is
+		// down is reported as the warning line rather than as a modal nobody asked for (settings item 1).
+		runQuietly {
 			this.config = this.configStore.current()
 			this.emailState = EmailVerificationState.of(this.config)
 			if (this.config.isAuthenticated) {
@@ -355,9 +355,40 @@ class SettingsViewModel @Inject constructor(
 				throw e
 			} catch (e: Exception) {
 				// A wrong address or a stopped server fails before there is any ErrorResponse to read - it is
-				// still just an error to show, never a reason to take the app down with it.
+				// still just an error to show, never a reason to take the app down with it. Reported as a
+				// dialog, unlike the automatic case below, because the player pressed something and a button
+				// that silently does nothing is worse than a message.
 				this@SettingsViewModel.errorMessage = e.message ?: ApiException.NETWORK_ERROR
 				this@SettingsViewModel.errorCode = ApiException.NETWORK_ERROR
+			} finally {
+				this@SettingsViewModel.busy = false
+			}
+		}
+	}
+
+	/**
+	 * The same, for work nobody asked for: an unreachable server is **swallowed entirely** here.
+	 *
+	 * Settings item 1. Opening this screen reads the device list, and a phone off the network made that pop
+	 * a modal over a screen that had been opened to change the language. The app reports an unreachable
+	 * server in exactly one place now - the warning next to the players button in the top bar, driven by the
+	 * presence heartbeat - and that report is a status with the message one tap behind it, not an interrupt.
+	 *
+	 * An [ApiException] still goes to the dialog: the server answered, and it answered with something
+	 * specific enough to be worth reading (a revoked session, say).
+	 */
+	private fun runQuietly(block: suspend () -> Unit) {
+		this.busy = true
+		this.viewModelScope.launch {
+			try {
+				block()
+			} catch (e: ApiException) {
+				this@SettingsViewModel.errorMessage = e.message ?: e.code
+				this@SettingsViewModel.errorCode = e.code
+			} catch (e: CancellationException) {
+				throw e
+			} catch (e: Exception) {
+				// Deliberately nothing - see above.
 			} finally {
 				this@SettingsViewModel.busy = false
 			}

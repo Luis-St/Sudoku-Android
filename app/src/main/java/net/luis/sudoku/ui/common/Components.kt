@@ -219,7 +219,16 @@ fun <T> DropdownTrigger(
 	optionLabel: @Composable (T) -> String,
 	onSelect: (T) -> Unit,
 	modifier: Modifier = Modifier,
-	accent: ActionAccent? = null
+	accent: ActionAccent? = null,
+	/**
+	 * Settings item 1: draw the trigger as an [OutlinedActionButton] rather than a [GradientButton].
+	 *
+	 * The generator's pickers *are* the screen - three gradient triggers and a start button, and the
+	 * gradient is what makes them read as the choices being made. A settings screen is a list of quiet
+	 * rows, and three saturated gradient bars in it drowned out the one button on the page that leads
+	 * somewhere ("Server and account"). Same width, height and menu either way; only the fill differs.
+	 */
+	outlined: Boolean = false
 ) {
 	var expanded by remember { mutableStateOf(false) }
 	// The menu is placed against the trigger's own measured width so it can never be narrower than the
@@ -228,13 +237,22 @@ fun <T> DropdownTrigger(
 	val density = LocalDensity.current
 
 	Box(modifier = modifier.fillMaxWidth().onSizeChanged { widthPx = it.width }) {
-		GradientButton(
-			text = selectedLabel,
-			onClick = { expanded = true },
-			icon = Icons.Filled.KeyboardArrowDown,
-			accent = accent,
-			modifier = Modifier.fillMaxWidth()
-		)
+		if (outlined) {
+			OutlinedActionButton(
+				text = selectedLabel,
+				onClick = { expanded = true },
+				icon = Icons.Filled.KeyboardArrowDown,
+				modifier = Modifier.fillMaxWidth()
+			)
+		} else {
+			GradientButton(
+				text = selectedLabel,
+				onClick = { expanded = true },
+				icon = Icons.Filled.KeyboardArrowDown,
+				accent = accent,
+				modifier = Modifier.fillMaxWidth()
+			)
+		}
 		DropdownMenu(
 			expanded = expanded,
 			onDismissRequest = { expanded = false },
@@ -306,6 +324,43 @@ fun SectionCard(
 			}
 			content()
 		}
+	}
+}
+
+/**
+ * A connection that is not answering, said in place rather than in a popup.
+ *
+ * Settings item 1's principle, applied wherever it comes up: losing a connection is the ordinary case on a
+ * phone, and a modal for it interrupts whatever the player was doing and has to be dismissed before
+ * anything else can be touched - while the screen underneath usually still works perfectly well with what
+ * it already has.
+ *
+ * The *server* being unreachable is reported once, globally, by the warning next to the players button in
+ * the top bar (`MainActivity`), driven by the presence heartbeat - the only thing that talks to the server
+ * continuously and so the only thing that can answer without asking a question of its own. This composable
+ * is for the narrower cases a screen knows about and the heartbeat does not, such as a co-op match socket
+ * dropping while the match itself is still running.
+ *
+ * `Image`, never `Icon`: the warning is full-colour artwork and `Icon` would flatten it to a silhouette
+ * (see the drawable-*dpi rasters).
+ */
+@Composable
+fun ServerUnreachableNotice(text: String, modifier: Modifier = Modifier) {
+	Row(
+		modifier = modifier.fillMaxWidth().padding(vertical = 6.dp),
+		verticalAlignment = Alignment.CenterVertically
+	) {
+		Image(
+			painter = androidx.compose.ui.res.painterResource(net.luis.sudoku.R.drawable.ic_warning),
+			contentDescription = null,
+			modifier = Modifier.size(20.dp)
+		)
+		Text(
+			text = text,
+			style = MaterialTheme.typography.bodyMedium,
+			color = MaterialTheme.colorScheme.onSurfaceVariant,
+			modifier = Modifier.padding(start = 8.dp)
+		)
 	}
 }
 

@@ -41,7 +41,14 @@ data class CellHighlight(
 	val mistakeDigit: Int? = null,
 	/** Another co-op participant has this cell selected (feature-spec §10.3). */
 	val presence: Boolean = false,
-	/** Summary board only (game item 7): a wrong digit was entered here at some point. */
+	/**
+	 * A wrong digit was entered here at some point, and the cell is still marked for it.
+	 *
+	 * The end-of-game summary (game item 7) and the co-op board (multiplayer item 2). In co-op it is live
+	 * rather than a review: the cell is still empty, the attempt cost the group a life, and leaving it
+	 * marked is what stops the next player repeating it. It outranks [presence] deliberately - a cell
+	 * somebody just got wrong must not read as the green "somebody is here".
+	 */
 	val mistakeMade: Boolean = false,
 	/** Summary board only (game item 7): a hint filled this cell. */
 	val hintUsed: Boolean = false,

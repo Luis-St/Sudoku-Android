@@ -39,7 +39,7 @@ class ApiClientTest {
 			install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
 			expectSuccess = false
 		}
-		return ApiClient(http)
+		return ApiClient(http, AuthFailureListener.NONE)
 	}
 
 	@Test
@@ -116,7 +116,7 @@ class ApiClientTest {
 		val requests = mutableListOf<HttpRequestData>()
 		val client = clientReturning(HttpStatusCode.Created, """{"matchId":"m1","inviteToken":"tok-abc"}""", requests)
 
-		val created = client.createMatch("https://example.com", "tok", "RACE", MatchConfigDto(9, "CLASSIC", 3), MatchSettingsDto(true, 0))
+		val created = client.createMatch("https://example.com", "tok", "RACE", MatchConfigDto(9, "CLASSIC", 3), MatchSettingsDto(livesEnabled = true, stake = 0))
 
 		assertEquals("m1", created.matchId)
 		assertEquals("tok-abc", created.inviteToken)
@@ -411,5 +411,90 @@ class ApiClientTest {
 
 		assertNotNull(exception)
 		assertEquals("CONFLICT", exception?.code)
+	}
+
+	@Test
+	fun listPlayers_readsTheRemovedFlag() = runBlocking {
+		// Only an admin's copy of the list contains a removed player at all; the flag is what lets the
+		// screen offer to let them back in rather than showing them as an ordinary member.
+		val client = clientReturning(
+			HttpStatusCode.OK,
+			"""[{"id":"u1","displayName":"Lisa"},{"id":"u2","displayName":"Bob","revoked":true}]"""
+		)
+
+		val players = client.listPlayers("https://example.com", "tok")
+
+		assertEquals(false, players.single { it.id == "u1" }.revoked)
+		assertTrue(players.single { it.id == "u2" }.revoked)
+	}
+
+	@Test
+	fun reinstateUser_postsToTheReinstateEndpoint() = runBlocking {
+		val requests = mutableListOf<HttpRequestData>()
+		val client = clientReturning(HttpStatusCode.OK, """{"id":"u2","displayName":"Bob","role":"MEMBER"}""", requests)
+
+		val user = client.reinstateUser("https://example.com", "tok123", "u2")
+
+		// The same id comes back, which is the point of reinstating rather than re-inviting: the account and
+		// everything hanging off it survives.
+		assertEquals("u2", user.id)
+		assertEquals("/api/v1/users/u2/reinstate", requests.single().url.encodedPath)
+		assertEquals(HttpMethod.Post, requests.single().method)
+		assertEquals("Bearer tok123", requests.single().headers[HttpHeaders.Authorization])
+	}
+
+	@Test
+	fun anyFailure_isReportedToTheAuthFailureListener() = runBlocking {
+		// Every failure passes the listener, not just authentication ones - deciding which matter is the
+		// guard's job. This is the hand-off that makes being kicked visible at all, since the caller that
+		// sees the exception almost always swallows it.
+		val seen = mutableListOf<String>()
+		val engine = MockEngine {
+			respond(
+				"""{"error":"USER_REVOKED","message":"This account has been removed"}""",
+				HttpStatusCode.Forbidden,
+				headersOf(HttpHeaders.ContentType, "application/json")
+			)
+		}
+		val http = HttpClient(engine) {
+			install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+			expectSuccess = false
+		}
+		val client = ApiClient(http) { code -> seen.add(code) }
+
+		try {
+			client.listPlayers("https://example.com", "tok")
+		} catch (e: ApiException) {
+			// Still thrown: the guard reacting does not make the call succeed.
+		}
+
+		assertEquals(listOf("USER_REVOKED"), seen)
+	}
+
+	@Test
+	fun aFailureWithoutABody_isReportedToo() = runBlocking {
+		// `handleUnit` is a second path to the same hand-off, and a kick is most likely to be discovered on
+		// one of these - the presence heartbeat and the dismissal calls have no response to parse.
+		val seen = mutableListOf<String>()
+		val engine = MockEngine {
+			respond(
+				"""{"error":"UNAUTHORIZED","message":"Unknown session token"}""",
+				HttpStatusCode.Unauthorized,
+				headersOf(HttpHeaders.ContentType, "application/json")
+			)
+		}
+		val http = HttpClient(engine) {
+			install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+			expectSuccess = false
+		}
+		val client = ApiClient(http) { code -> seen.add(code) }
+
+		try {
+			client.kickUser("https://example.com", "tok", "u2")
+		} catch (e: ApiException) {
+			// Expected.
+		}
+
+		assertEquals(listOf("UNAUTHORIZED"), seen)
 	}
 }

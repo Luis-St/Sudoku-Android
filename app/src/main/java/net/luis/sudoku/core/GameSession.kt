@@ -144,6 +144,24 @@ class GameSession private constructor(
 	fun solutionAt(index: Int): Int = this.solution[index]
 
 	/**
+	 * Writes the known solution digit into [index] and returns it - what a peeked hint falls back to once
+	 * the board has moved underneath it (game item 3).
+	 *
+	 * [consumeHint] cannot serve that case: `HintEngine.consume` recomputes the technique solver's *next*
+	 * step and refuses when it no longer lands on the peeked cell, which any edit anywhere can cause. The
+	 * cell was promised to the player and marked on the board for as long as they looked at it, so the
+	 * promise is kept from the solution instead of being quietly re-pointed somewhere else. The digit is the
+	 * same one either way - a generated puzzle has exactly one solution (feature-spec §3).
+	 *
+	 * @throws IllegalStateException if the cell is a given
+	 */
+	fun revealSolution(index: Int): Int {
+		val digit = this.solution[index]
+		this.puzzle.setValue(index, digit)
+		return digit
+	}
+
+	/**
 	 * Mistakes are checked against the known solution rather than against local constraints, so a digit
 	 * that is locally legal but globally wrong is still flagged (feature-spec 6).
 	 */

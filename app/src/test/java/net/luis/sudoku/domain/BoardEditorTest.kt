@@ -86,6 +86,45 @@ class BoardEditorTest {
 		assertEquals(0, session.snapshot(index).value)
 	}
 
+	/**
+	 * Game item 2: "when using a hint pencil marks are not removed".
+	 *
+	 * A hint writes its digit through `GameSession` rather than through [BoardEditor.apply], so it never ran
+	 * auto-clear-peers and the revealed digit stayed pencilled in all down its row, column and region. This
+	 * is the half of `enterPen` the hint path calls for itself - it returns the edits instead of pushing
+	 * them, so the caller can bundle them into the one [Command] its own write goes in.
+	 */
+	@Test
+	fun clearPeerCandidates_removesTheDigitFromPeersAndReturnsTheEditsWithoutPushing() {
+		val session = session()
+		val undoStack = UndoStack()
+		val editor = BoardEditor(session, undoStack, autoClearPeers = true)
+		val index = firstEmptyNonGiven(session)
+		val peer = session.peersOf(index).first { !session.snapshot(it).given }
+
+		editor.apply(TapAction.TogglePencil(peer, 3))
+		val pushedBefore = undoStack.canUndo
+
+		val edits = editor.clearPeerCandidates(index, 3)
+
+		assertFalse("the peer's note for the revealed digit is gone", session.snapshot(peer).hasPencilMark(3))
+		assertTrue("the edit is reported so the caller can bundle it", edits.any { it.index == peer })
+		assertEquals("nothing of its own is pushed onto the undo stack", pushedBefore, undoStack.canUndo)
+	}
+
+	@Test
+	fun clearPeerCandidates_withAutoClearPeersOff_changesNothing() {
+		val session = session()
+		val editor = BoardEditor(session, UndoStack(), autoClearPeers = false)
+		val index = firstEmptyNonGiven(session)
+		val peer = session.peersOf(index).first { !session.snapshot(it).given }
+
+		editor.apply(TapAction.TogglePencil(peer, 3))
+
+		assertTrue(editor.clearPeerCandidates(index, 3).isEmpty())
+		assertTrue(session.snapshot(peer).hasPencilMark(3))
+	}
+
 	@Test
 	fun pencilMarks_survivePenEntry_stashedUntilTheCellIsCleared() {
 		val session = session()

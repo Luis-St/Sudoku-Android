@@ -65,7 +65,7 @@ import javax.inject.Inject
  * `PuzzleKey.seed` travels as a **string** on the wire (a 64-bit seed does not survive a JSON double) -
  * noted here since this is the class that would get that wrong; no endpoint used in A8 carries one yet.
  */
-class ApiClient @Inject constructor(private val client: HttpClient) {
+class ApiClient @Inject constructor(private val client: HttpClient, private val sessionGuard: AuthFailureListener) {
 
 	suspend fun serverInfo(baseUrl: String): ServerInfoResponse =
 		handle(this.client.get(url(baseUrl, "server-info")))
@@ -177,10 +177,23 @@ class ApiClient @Inject constructor(private val client: HttpClient) {
 			}
 		)
 
-	/** Removes the user from the server entirely - 409 if it would leave no admin behind. */
+	/**
+	 * Removes the user from the server - 409 if it would leave no admin behind.
+	 *
+	 * This revokes every one of their device keys, not just their session, so it is not something they can
+	 * reconnect out of. It is reversible only by [reinstateUser].
+	 */
 	suspend fun kickUser(baseUrl: String, token: String, userId: String) {
 		handleUnit(this.client.delete(url(baseUrl, "users/$userId")) { authorized(token) })
 	}
+
+	/**
+	 * Undoes a kick (server-spec §7.2): the account returns with the same id, so its statistics, streak and
+	 * currency return with it. Registering the player again against a fresh invite would not - that builds
+	 * a different account and strands the old one's history on a row nobody can reach.
+	 */
+	suspend fun reinstateUser(baseUrl: String, token: String, userId: String): UserResponse =
+		handle(this.client.post(url(baseUrl, "users/$userId/reinstate")) { authorized(token) })
 
 	suspend fun createInvite(baseUrl: String, token: String, expiresAt: String? = null): InviteResponse =
 		handle(
@@ -336,15 +349,22 @@ class ApiClient @Inject constructor(private val client: HttpClient) {
 
 	private fun url(baseUrl: String, path: String) = "${baseUrl.trimEnd('/')}/api/v1/$path"
 
+	/**
+	 * Every failure passes through [SessionGuard] before it is thrown, which is the only place that sees
+	 * *all* of them: almost every caller catches its own errors and reports nothing (a heartbeat, a list
+	 * poll), so an authentication failure noticed per-call-site would be noticed nowhere.
+	 */
 	private suspend inline fun <reified T> handle(response: HttpResponse): T {
 		if (response.status.isSuccess()) return response.body()
 		val error = response.body<ErrorResponse>()
+		this.sessionGuard.onApiError(error.error)
 		throw ApiException(error.error, error.message)
 	}
 
 	private suspend fun handleUnit(response: HttpResponse) {
 		if (response.status.isSuccess()) return
 		val error = response.body<ErrorResponse>()
+		this.sessionGuard.onApiError(error.error)
 		throw ApiException(error.error, error.message)
 	}
 }

@@ -38,6 +38,16 @@ import net.luis.sudoku.ui.common.SectionCard
 import net.luis.sudoku.ui.common.friendlyErrorMessage
 
 /**
+ * Multiplayer item 1: the modes offered in this release.
+ *
+ * Race and duel are **hidden, not removed** - `RaceMatch`/`DuelMatch` and their screens are all still here
+ * and still tested, and a match created elsewhere in either mode still plays. What the first release does
+ * not do is *offer* them: co-op is the mode that has been played end to end, and the other two would ship
+ * as buttons leading somewhere nobody has finished a game. Putting them back is this list.
+ */
+private val OFFERED_MODES = listOf(MatchMode.COOP)
+
+/**
  * Multiplayer item 3: choosing what the match *is* (feature-spec §10.1/§10.2 - mode, size, variant,
  * difficulty, lives, and a duel's stake).
  *
@@ -58,11 +68,12 @@ fun CreateMatchScreen(
 		}
 	}
 
-	var mode by remember { mutableStateOf(MatchMode.RACE) }
+	var mode by remember { mutableStateOf(OFFERED_MODES.first()) }
 	var size by remember { mutableStateOf(GridSize.NINE) }
 	var variant by remember { mutableStateOf(Variant.CLASSIC) }
 	var difficulty by remember { mutableStateOf(Difficulty.THREE) }
 	var livesEnabled by remember { mutableStateOf(true) }
+	var hintsEnabled by remember { mutableStateOf(true) }
 	var stakeText by remember { mutableStateOf("0") }
 
 	val supportedVariants = Variant.values().filter { it.isSupportedAt(size) }
@@ -78,9 +89,13 @@ fun CreateMatchScreen(
 	) {
 		SectionCard(title = stringResource(R.string.matchsetup_create_header)) {
 			Column {
+				// Multiplayer item 1: only the modes in [OFFERED_MODES] get a button, and the row itself stays -
+				// the owner asked for the choice to remain visible with a single option rather than for the
+				// question to disappear. It still draws from a list, so putting race and duel back is one
+				// constant.
 				Text(stringResource(R.string.matchsetup_mode_label), style = MaterialTheme.typography.labelLarge)
 				FlowRow {
-					listOf(MatchMode.RACE, MatchMode.DUEL, MatchMode.COOP).forEach { candidate ->
+					OFFERED_MODES.forEach { candidate ->
 						FilterChip(
 							selected = mode == candidate,
 							onClick = { mode = candidate },
@@ -154,6 +169,19 @@ fun CreateMatchScreen(
 					Switch(checked = livesEnabled, onCheckedChange = { livesEnabled = it })
 				}
 
+				// Multiplayer-game item 1: hints belong here, next to lives, not on the board. They were a
+				// switch on the running co-op screen, which meant two players sharing one board could
+				// disagree about whether the match allowed them; the server carries the setting now and
+				// reports it in MATCH_STATE, so everyone is told the same thing.
+				Row(
+					modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+					horizontalArrangement = Arrangement.SpaceBetween,
+					verticalAlignment = Alignment.CenterVertically
+				) {
+					Text(stringResource(R.string.matchsetup_hints_label), style = MaterialTheme.typography.bodyLarge)
+					Switch(checked = hintsEnabled, onCheckedChange = { hintsEnabled = it })
+				}
+
 				if (mode == MatchMode.DUEL) {
 					OutlinedTextField(
 						value = stakeText,
@@ -168,7 +196,7 @@ fun CreateMatchScreen(
 					GradientButton(
 						text = stringResource(R.string.action_create_match),
 						onClick = {
-							viewModel.createMatch(mode.name, size, variant, difficulty, livesEnabled, stakeText.toIntOrNull() ?: 0)
+							viewModel.createMatch(mode.name, size, variant, difficulty, livesEnabled, hintsEnabled, stakeText.toIntOrNull() ?: 0)
 						},
 						enabled = !viewModel.busy,
 						modifier = Modifier.fillMaxWidth()

@@ -14,6 +14,8 @@ import net.luis.sudoku.data.local.ServerConfig
 import net.luis.sudoku.data.local.ServerConfigStore
 import net.luis.sudoku.data.local.SettingsStore
 import net.luis.sudoku.data.local.ThemeMode
+import net.luis.sudoku.data.remote.SessionEndReason
+import net.luis.sudoku.data.remote.SessionGuard
 import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.domain.DailyController
 import net.luis.sudoku.notification.DailyReminderScheduler
@@ -34,13 +36,25 @@ class AppViewModel @Inject constructor(
 	private val settingsStore: SettingsStore,
 	private val serverConfigStore: ServerConfigStore,
 	private val dailyStore: DailyStore,
-	private val reminderScheduler: DailyReminderScheduler
+	private val reminderScheduler: DailyReminderScheduler,
+	private val sessionGuard: SessionGuard
 ) : ViewModel() {
 
 	var preferences by mutableStateOf(PreferenceSettings.DEFAULT)
 		private set
 
 	var serverConfig by mutableStateOf(ServerConfig.UNCONFIGURED)
+		private set
+
+	/**
+	 * Set when the session stopped being valid, which is the app's only way of telling a player they were
+	 * kicked (server-spec §7.2).
+	 *
+	 * It lives here rather than on any one screen because being removed is not tied to where the player
+	 * happens to be - the request that discovers it is usually the presence heartbeat, which runs
+	 * everywhere, including in the middle of a timed puzzle.
+	 */
+	var sessionEnded by mutableStateOf<SessionEndReason?>(null)
 		private set
 
 	/**
@@ -67,6 +81,14 @@ class AppViewModel @Inject constructor(
 		this.viewModelScope.launch {
 			this@AppViewModel.serverConfigStore.config.collectLatest { this@AppViewModel.serverConfig = it }
 		}
+		this.viewModelScope.launch {
+			this@AppViewModel.sessionGuard.sessionEnded.collectLatest { this@AppViewModel.sessionEnded = it }
+		}
+	}
+
+	/** The player has read the message; nothing is retried, the session is already gone. */
+	fun acknowledgeSessionEnd() {
+		this.sessionGuard.acknowledge()
 	}
 
 	/**

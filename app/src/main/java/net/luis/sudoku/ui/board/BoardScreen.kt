@@ -58,7 +58,7 @@ fun BoardScreen(
 	tintRegions: Boolean = false,
 	/** Game item 1: chaos tints need the dark variants; passed in because the palette itself is mode-agnostic. */
 	darkTheme: Boolean = false,
-	/** Summary board only (game item 7). */
+	/** Cells marked as already got wrong: the summary board (game item 7), and co-op (multiplayer item 2). */
 	mistakeCells: Set<Int> = emptySet(),
 	/** Summary board only (game item 7). */
 	hintCells: Set<Int> = emptySet()

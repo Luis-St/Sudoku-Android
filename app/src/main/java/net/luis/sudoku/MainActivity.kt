@@ -8,28 +8,34 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -37,6 +43,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -50,8 +57,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
+import net.luis.sudoku.data.remote.SessionEndReason
 import net.luis.sudoku.ui.app.AppViewModel
 import net.luis.sudoku.ui.code.EnterCodeScreen
+import net.luis.sudoku.ui.common.InfoDialog
 import net.luis.sudoku.ui.game.GameScreen
 import net.luis.sudoku.ui.game.GameTopBarActions
 import net.luis.sudoku.ui.generator.GeneratorScreen
@@ -69,6 +78,7 @@ import net.luis.sudoku.ui.presence.PresenceViewModel
 import net.luis.sudoku.ui.navigation.PlayRequest
 import net.luis.sudoku.ui.navigation.Routes
 import net.luis.sudoku.ui.settings.SettingsScreen
+import net.luis.sudoku.ui.settings.account.AccountScreen
 import net.luis.sudoku.ui.shop.ShopScreen
 import net.luis.sudoku.ui.stats.StatsScreen
 import net.luis.sudoku.ui.theme.BoardThemeCatalog
@@ -152,8 +162,30 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 	val backStackEntry by navController.currentBackStackEntryAsState()
 	val route = backStackEntry?.destination?.route
 	val onHome = route == Routes.HOME
+	// General items 1-3: a top-bar button is only drawn where it leads somewhere the player is not already,
+	// and a board gets none of them at all.
+	//
+	// Every one of these was reachable from everywhere, which produced a settings icon on the settings
+	// screen, a players icon on the players screen, and a row of ways to leave a running, timed puzzle sitting
+	// permanently above the board. What survives on a board is the server warning, because that is a status
+	// rather than a way out of the game.
+	//
+	// Gated by **area, not by route**. Checking the single route was the bug: the account screen is a
+	// sub-screen of settings and the profile is a sub-screen of the players list, so both fell outside the
+	// test and got the full set of icons back one tap into the very section they belong to.
+	//
+	// Inside either area both icons are gone. Neither leads anywhere from there - one is where you already
+	// are, and the other is the peer section, which is reached from home like everything else.
+	val onGameScreen = route == Routes.PLAY || route == Routes.MULTIPLAYER
+	val inSettingsArea = route == Routes.SETTINGS || route == Routes.ACCOUNT
+	val inPlayersArea = route == Routes.FRIENDS || route == Routes.PLAYER_DETAIL
+	val showTopLevelNavigation = !onGameScreen && !inSettingsArea && !inPlayersArea
 	// Game item 3: the play screen publishes its share action here, so it renders next to settings.
 	val gameTopBarActions = remember { GameTopBarActions() }
+	// Settings item 1: the warning icon is a status; the explanation behind it is on demand only.
+	var showUnreachableMessage by remember { mutableStateOf(false) }
+	// General item 5: leaving a board is a decision, so the arrow asks before taking it.
+	var showLeaveGameConfirm by remember { mutableStateOf(false) }
 
 	Scaffold(
 		modifier = Modifier.fillMaxSize().appBackground(),
@@ -164,23 +196,47 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 				colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
 				navigationIcon = {
 					if (!onHome) {
-						IconButton(onClick = { navController.popBackStack() }) {
-							Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
+						// General item 5: on a board this is a *cancel*, not a back step. Popping one entry landed
+						// the player wherever they happened to come from - the generator, the lobby, a share code -
+						// and did it silently, mid-puzzle, on one stray tap. It asks first and then goes home.
+						IconButton(onClick = { if (onGameScreen) showLeaveGameConfirm = true else navController.popBackStack() }) {
+							Icon(
+								imageVector = if (onGameScreen) Icons.Filled.Close else Icons.Filled.ArrowBack,
+								contentDescription = stringResource(
+									if (onGameScreen) R.string.action_leave_game else R.string.action_back
+								)
+							)
 						}
 					}
 				},
 				actions = {
-					// Game item 3: only present while a shareable puzzle is on screen - the play screen sets
-					// and clears this, and no other destination has anything to share.
-					gameTopBarActions.onShare?.let { share ->
-						IconButton(onClick = share) {
-							Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.action_share))
-						}
-					}
+					// General item 3: **no share action here.** It was published by the play screen and only ever
+					// meant anything there, and a board now draws no top-bar buttons at all - so there is
+					// nowhere left to render it and the branch is gone rather than left as a condition that can
+					// never be true. `GameTopBarActions` and `GameViewModel.generateShareCode` are kept intact
+					// and still tested: dormant, not deleted, so giving sharing a home is a call site again.
 					// UI item 9: the friends button sits immediately left of settings, and only exists once a
 					// server is configured and signed in (feature-spec §9.1's "no multiplayer UI anywhere").
 					if (appViewModel.serverConfig.isConfigured && appViewModel.serverConfig.isAuthenticated) {
-						IconButton(onClick = { navController.navigate(Routes.FRIENDS) }) {
+						// Settings item 1: the whole app's report that the server is not answering, in one
+						// place, next to the button whose contents it affects.
+						//
+						// It used to be an error dialog raised by whichever screen happened to fire a request -
+						// settings and the players list both do so on open - which put a modal over a screen the
+						// player had usually come to for something else entirely. This is a *status*, so it is
+						// drawn as one and stays out of the way; the message is still there for anyone who wants
+						// it, one tap away, which is the only popup left for this.
+						if (!presenceViewModel.serverReachable) {
+							IconButton(onClick = { showUnreachableMessage = true }) {
+								// Image, not Icon: full-colour artwork, which Icon would flatten to a silhouette.
+								Image(
+									painter = painterResource(R.drawable.ic_warning),
+									contentDescription = stringResource(R.string.settings_server_unreachable),
+									modifier = Modifier.size(24.dp)
+								)
+							}
+						}
+						if (showTopLevelNavigation) IconButton(onClick = { navController.navigate(Routes.FRIENDS) }) {
 							// Invite item 2: the popup is transient, so the badge is what is left behind. It rides
 							// the players button because the players screen is the way to whoever sent the invite,
 							// and it counts rather than just dotting - two waiting invites is a different situation
@@ -200,9 +256,11 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 							}
 						}
 					}
-					// UI item 7: settings always top right.
-					IconButton(onClick = { navController.navigate(Routes.SETTINGS) }) {
-						Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.tab_settings))
+					// UI item 7: settings top right, except inside the settings or players area and on a board.
+					if (showTopLevelNavigation) {
+						IconButton(onClick = { navController.navigate(Routes.SETTINGS) }) {
+							Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.tab_settings))
+						}
 					}
 				}
 			)
@@ -226,11 +284,90 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 						navController.navigate(Routes.multiplayerJoin(request.matchId, request.inviteToken))
 					},
 					onDecline = presenceViewModel::dismissRequest,
+					// Invite item 2: swiping does what the timer does, not what Decline does - the request stays
+					// unanswered, and stays waiting on the players list.
+					onSwipeAway = presenceViewModel::hidePopup,
 					modifier = Modifier.align(Alignment.TopCenter)
+				)
+			}
+
+			// Being removed from a server has to be announced from the shell, not from a screen: the request
+			// that discovers it is whichever one happened to run - usually the presence heartbeat - and the
+			// player may be anywhere, including mid-puzzle. A dialog rather than the match request's banner
+			// because there is nothing to miss here: the session is already gone either way.
+			if (showLeaveGameConfirm) {
+				AlertDialog(
+					onDismissRequest = { showLeaveGameConfirm = false },
+					title = { Text(stringResource(R.string.dialog_leave_game_title)) },
+					text = { Text(stringResource(R.string.dialog_leave_game_message)) },
+					confirmButton = {
+						TextButton(
+							onClick = {
+								showLeaveGameConfirm = false
+								// Straight home, and the board is taken off the back stack with it: a puzzle the
+								// player has just chosen to leave must not be one Back press away.
+								navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } }
+							}
+						) {
+							Text(stringResource(R.string.action_leave_game), color = MaterialTheme.colorScheme.error)
+						}
+					},
+					dismissButton = {
+						TextButton(onClick = { showLeaveGameConfirm = false }) {
+							Text(stringResource(R.string.action_keep_playing))
+						}
+					}
+				)
+			}
+
+			if (showUnreachableMessage) {
+				InfoDialog(
+					title = stringResource(R.string.settings_server_unreachable_title),
+					body = stringResource(R.string.settings_server_unreachable_body),
+					onDismiss = { showUnreachableMessage = false }
+				)
+			}
+
+			appViewModel.sessionEnded?.let { reason ->
+				SessionEndedDialog(
+					reason = reason,
+					onDismiss = appViewModel::acknowledgeSessionEnd,
+					onOpenSettings = {
+						appViewModel.acknowledgeSessionEnd()
+						navController.navigate(Routes.SETTINGS)
+					}
 				)
 			}
 		}
 	}
+}
+
+/**
+ * What a player is told when their session stops working (server-spec §7.2).
+ *
+ * The two cases read differently on purpose. Being removed is somebody's decision and is reversible, so it
+ * says so and does not suggest re-registering - registering again would build a *new* account and leave
+ * this player's statistics, streak and currency on the old one. An ordinary expiry is nobody's decision
+ * and is fixed by signing in again, which is what settings offers.
+ */
+@Composable
+private fun SessionEndedDialog(reason: SessionEndReason, onDismiss: () -> Unit, onOpenSettings: () -> Unit) {
+	val removed = reason == SessionEndReason.REMOVED
+	AlertDialog(
+		onDismissRequest = onDismiss,
+		title = {
+			Text(stringResource(if (removed) R.string.session_removed_title else R.string.session_ended_title))
+		},
+		text = {
+			Text(stringResource(if (removed) R.string.session_removed_message else R.string.session_ended_message))
+		},
+		confirmButton = {
+			TextButton(onClick = onOpenSettings) { Text(stringResource(R.string.action_open_settings)) }
+		},
+		dismissButton = {
+			TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_ok)) }
+		}
+	)
 }
 
 /**
@@ -248,6 +385,7 @@ private fun titleFor(route: String?): String = when (route) {
 	Routes.SHOP -> stringResource(R.string.tab_shop)
 	Routes.STATS -> stringResource(R.string.tab_stats)
 	Routes.SETTINGS -> stringResource(R.string.tab_settings)
+	Routes.ACCOUNT -> stringResource(R.string.settings_open_account)
 	Routes.FRIENDS -> stringResource(R.string.tab_friends)
 	Routes.PLAYER_DETAIL -> stringResource(R.string.players_detail_title)
 	Routes.MULTIPLAYER -> stringResource(R.string.tab_multiplayer)
@@ -332,7 +470,16 @@ private fun AppNavHost(
 		composable(Routes.SHOP) { ShopScreen() }
 		composable(Routes.STATS) { StatsScreen() }
 		composable(Routes.FRIENDS) {
-			PlayersScreen(onOpenPlayer = { playerId -> navController.navigate(Routes.playerDetail(playerId)) })
+			// Invite item 3: the waiting invitations come from the Activity-scoped presence view model, since
+			// only one heartbeat runs and it is that one - a screen-scoped model would see nothing.
+			PlayersScreen(
+				onOpenPlayer = { playerId -> navController.navigate(Routes.playerDetail(playerId)) },
+				invites = presenceViewModel.pendingRequests,
+				onJoinInvite = { request ->
+					presenceViewModel.acceptRequest(request)
+					navController.navigate(Routes.multiplayerJoin(request.matchId, request.inviteToken))
+				}
+			)
 		}
 
 		composable(Routes.MULTIPLAYER_HUB) {
@@ -393,18 +540,10 @@ private fun AppNavHost(
 		composable(
 			route = Routes.PLAYER_DETAIL,
 			arguments = listOf(navArgument(Routes.ARG_PLAYER_ID) { type = NavType.StringType })
-		) { entry ->
-			// Invite item 2: the pending invite is read from the Activity-scoped presence view model and handed
-			// down, rather than the screen resolving it itself. Only one heartbeat runs, and it is this one -
-			// a screen-scoped view model would have no way to see what it collected.
-			val playerId = entry.arguments?.getString(Routes.ARG_PLAYER_ID).orEmpty()
-			PlayerDetailScreen(
-				invite = presenceViewModel.requestFrom(playerId),
-				onJoinInvite = { request ->
-					presenceViewModel.acceptRequest(request)
-					navController.navigate(Routes.multiplayerJoin(request.matchId, request.inviteToken))
-				}
-			)
+		) {
+			// Invite item 3: no invite here any more - it is on the players list, which is where somebody
+			// looking for one actually goes.
+			PlayerDetailScreen()
 		}
 
 		composable(
@@ -430,8 +569,12 @@ private fun AppNavHost(
 		composable(Routes.SETTINGS) {
 			SettingsScreen(
 				appViewModel = appViewModel,
-				onServerStateChanged = appViewModel::refreshServerConfig
+				onOpenAccount = { navController.navigate(Routes.ACCOUNT) }
 			)
+		}
+
+		composable(Routes.ACCOUNT) {
+			AccountScreen(onServerStateChanged = appViewModel::refreshServerConfig)
 		}
 	}
 }

@@ -34,13 +34,38 @@ class HintControllerTest {
 		val controller = HintController(session)
 
 		val candidate = controller.requestHint()!!
-		val result = controller.confirmHint()!!
+		val digit = controller.confirmHint()!!
 
-		assertEquals(candidate.cellIndex(), result.cellIndex())
-		assertTrue(session.isCorrect(result.cellIndex(), result.digit()))
-		assertEquals(session.snapshot(result.cellIndex()).value, result.digit())
+		assertTrue(session.isCorrect(candidate.cellIndex(), digit))
+		assertEquals(session.snapshot(candidate.cellIndex()).value, digit)
 		assertEquals(1, controller.used)
 		assertEquals(4, controller.remaining)
+	}
+
+	/**
+	 * Game item 3: a peek is a promise about one cell, and it is kept even once the board has moved.
+	 *
+	 * `HintEngine.consume` recomputes the technique solver's *next* step and refuses when that is no longer
+	 * the peeked cell - which an entry anywhere on the board can cause, not just one in this cell. That used
+	 * to be treated as "no candidate", so the second press peeked again and filled some *other* cell than the
+	 * one the player had been watching stay marked while they pressed the button for it.
+	 */
+	@Test
+	fun confirmHint_afterAnUnrelatedCellWasFilled_stillRevealsThePeekedCell() {
+		val session = session()
+		val controller = HintController(session)
+
+		val candidate = controller.requestHint()!!
+		val other = (0 until session.cellCount).first {
+			it != candidate.cellIndex() && session.snapshot(it).empty
+		}
+		session.setValue(other, session.solutionAt(other))
+
+		val digit = controller.confirmHint()!!
+
+		assertEquals(session.solutionAt(candidate.cellIndex()), digit)
+		assertEquals(digit, session.snapshot(candidate.cellIndex()).value)
+		assertEquals(1, controller.used)
 	}
 
 	@Test

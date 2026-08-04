@@ -25,12 +25,23 @@ fun resolveTap(cell: CellSnapshot, lock: LockState): Pair<TapAction, LockState> 
 
 	return when (val target = lock.target) {
 		is LockTarget.None ->
-			// No digit locked: the tap locks the cell itself; a number-button tap supplies the digit
-			// and releases this lock (resolveNumberButtonTap), per 5.4.
-			TapAction.None to lock.withTarget(LockTarget.Cell(cell.index))
+			// No digit locked: the tap locks the *cell*, and a number-button tap then supplies the digit and
+			// releases that lock (resolveNumberButtonTap), per 5.4 - but only for a cell there is still
+			// something to enter into. Game item 1: a cell the player has already filled locks its digit
+			// instead, exactly as a given does. Every pen value on the board is correct by construction
+			// (`MistakeChecker` refuses a wrong one before it is ever written), so a filled cell is finished
+			// with, and cell-locking it offered a second entry that 5.3 has no action for - which is why
+			// tapping your own digits appeared to do nothing and highlighted none of the others.
+			if (cell.empty) {
+				TapAction.None to lock.withTarget(LockTarget.Cell(cell.index))
+			} else {
+				TapAction.None to lock.withTarget(LockTarget.Digit(cell.value))
+			}
 
-		is LockTarget.Cell -> when (target.index) {
-			cell.index -> TapAction.None to lock.withTarget(LockTarget.None) // tapping it again releases it
+		is LockTarget.Cell -> when {
+			target.index == cell.index -> TapAction.None to lock.withTarget(LockTarget.None) // tapping it again releases it
+			// Same rule as above: a filled cell is a digit to look at, not a cell to write into.
+			!cell.empty -> TapAction.None to lock.withTarget(LockTarget.Digit(cell.value))
 			else -> TapAction.None to lock.withTarget(LockTarget.Cell(cell.index)) // relock to the new cell
 		}
 
