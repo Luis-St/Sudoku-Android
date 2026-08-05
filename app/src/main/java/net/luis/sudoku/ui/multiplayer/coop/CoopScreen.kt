@@ -30,30 +30,45 @@ import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.ui.board.BoardScreen
 import net.luis.sudoku.ui.common.OutlinedActionButton
-import net.luis.sudoku.ui.common.ServerUnreachableNotice
 import net.luis.sudoku.ui.common.ToggleActionButton
 import net.luis.sudoku.ui.input.NumberPad
+import net.luis.sudoku.ui.multiplayer.MatchStatusHolder
+import net.luis.sudoku.ui.multiplayer.PublishMatchStatus
 import net.luis.sudoku.ui.theme.ActionAccent
 import net.luis.sudoku.ui.theme.LocalBoardPalette
 
 /**
- * feature-spec §10.3: shared board, shared pencil marks, shared lives pool, live presence.
+ * feature-spec §10.3: shared board, shared pencil marks, shared lives pool, shared hint.
  *
  * Multiplayer-game item 1: **the single-player screen with the multiplayer parts added**, not a separate
  * cut-down one. It used to be a bare board and a number pad - no pen/pencil toggle at all, so the pencil
  * half of the input model (feature-spec §5.1) was unreachable and every long-press wrote a note nobody
  * could switch back out of; no hint control, while cells lit up in what looked like the hint colour; and no
  * sign of anything when the socket dropped. What it adds over single-player is what co-op actually is: the
- * shared lives pool, who else is here, the reconnect grace countdown, and the disconnect banner.
+ * shared lives pool and the one hint the group is deciding on. The connection states - somebody dropped,
+ * or this device did - are published to the top bar instead of drawn here (see `MatchStatusHolder`).
  *
  * There is deliberately no undo/redo. Undo is a private history of a private board, and on a board four
  * people are writing to, "take back the last edit" is not a question with one answer.
  */
 @Composable
-fun CoopScreen(baseUrl: String, token: String, matchId: String, onLeave: () -> Unit, modifier: Modifier = Modifier) {
+fun CoopScreen(
+	baseUrl: String,
+	token: String,
+	matchId: String,
+	onLeave: () -> Unit,
+	matchStatus: MatchStatusHolder? = null,
+	modifier: Modifier = Modifier
+) {
 	val viewModel: CoopViewModel = hiltViewModel<CoopViewModel, CoopViewModel.Factory>(
 		creationCallback = { factory -> factory.create(baseUrl, token, matchId) }
 	)
+
+	// Both connection states go to the top app bar rather than above the board: a pause banner pushed the
+	// grid down mid-match and rewrote itself every second, which is the opposite of what a status should do.
+	// Published before the early returns below, so a drop is reported while this screen is showing a spinner.
+	val gracePause by viewModel.gracePause
+	PublishMatchStatus(matchStatus, gracePause, viewModel.disconnected)
 
 	// The socket never opened: nothing can be played, so the only thing on offer is going back.
 	viewModel.connectionError?.let { message ->
@@ -73,7 +88,6 @@ fun CoopScreen(baseUrl: String, token: String, matchId: String, onLeave: () -> U
 
 	val palette = LocalBoardPalette.current
 	val lockedDigit = (viewModel.lock.target as? LockTarget.Digit)?.digit
-	val graceSeconds by viewModel.graceSecondsRemaining
 	val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
 	// Scrollable for the same reason the single-player screen is: board plus pad plus the hint row overflows
@@ -84,27 +98,7 @@ fun CoopScreen(baseUrl: String, token: String, matchId: String, onLeave: () -> U
 			.verticalScroll(rememberScrollState())
 			.padding(horizontal = 12.dp)
 	) {
-		// Multiplayer-game item 3: a dropped socket is stated, in the same warning line the rest of the app
-		// uses for "the server is not answering". The model is already reconnecting underneath it, and a
-		// MATCH_STATE on reconnect restores the whole board, so this is information rather than a dead end.
-		if (viewModel.disconnected) {
-			ServerUnreachableNotice(
-				text = stringResource(R.string.coop_disconnected),
-				modifier = Modifier.padding(top = 8.dp)
-			)
-		}
-
 		CoopStatusBar(viewModel)
-
-		graceSeconds?.let { seconds ->
-			// server-spec §10.4: the waiting participants' reconnect-grace countdown.
-			Text(
-				text = stringResource(R.string.reconnect_grace_participant, seconds),
-				style = MaterialTheme.typography.bodyMedium,
-				modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
-				textAlign = TextAlign.Center
-			)
-		}
 
 		// The input model's other half (feature-spec §5.1), which this screen simply did not have. Same
 		// buttons, same accent and same position as single-player's, since it is the same decision.
@@ -137,13 +131,11 @@ fun CoopScreen(baseUrl: String, token: String, matchId: String, onLeave: () -> U
 			regionOf = viewModel::regionOf,
 			palette = palette,
 			onCellTap = viewModel::onCellTap,
-			hintCandidateIndex = viewModel.hintCandidate?.cellIndex(),
+			// The match's hint, not this player's: whoever asked, every board marks the same cell yellow.
+			hintCandidateIndex = viewModel.hintCell,
 			mistake = viewModel.mistake,
-			// Multiplayer item 2: the wrong digit flashes, and then the cell stays marked. Both outrank the
-			// presence colour in CellView, so a cell somebody got wrong never falls back to reading as
-			// "somebody is here".
+			// Multiplayer item 2: the wrong digit flashes, and then the cell stays marked.
 			mistakeCells = viewModel.mistakeCells,
-			presenceCells = viewModel.presence.values.toSet(),
 			darkTheme = darkTheme
 		)
 
@@ -160,23 +152,39 @@ fun CoopScreen(baseUrl: String, token: String, matchId: String, onLeave: () -> U
 		// match is configured and arrives in MATCH_STATE, so this screen only obeys it - a toggle on a
 		// shared board let two players in one match disagree about the rules of that match.
 		if (viewModel.hintsEnabled) {
-			val hintPending = viewModel.hintCandidate != null
-			Box(modifier = Modifier.fillMaxWidth().padding(top = 10.dp), contentAlignment = Alignment.Center) {
+			// One offer per match, so there are three states here rather than two: no hint pending, mine
+			// pending (reveal or withdraw it), somebody else's pending (look at the cell, and wait).
+			val hintPending = viewModel.hintCell != null
+			val mine = viewModel.hintIsMine
+			Row(
+				modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+				horizontalArrangement = Arrangement.Center,
+				verticalAlignment = Alignment.CenterVertically
+			) {
 				OutlinedActionButton(
-					text = if (hintPending) {
+					text = if (mine) {
 						stringResource(R.string.action_hint_reveal)
 					} else {
 						stringResource(R.string.action_hint_with_count, viewModel.hintsRemaining)
 					},
 					onClick = viewModel::onHintTap,
-					enabled = viewModel.hintsRemaining > 0 || hintPending,
+					// Somebody else's offer is not this player's to spend - the cap is per player, so taking it
+					// would charge the wrong one.
+					enabled = mine || (!hintPending && viewModel.hintsRemaining > 0),
 					iconPainter = painterResource(R.drawable.ic_hint),
 					iconIsArtwork = true
 				)
+				if (mine) {
+					OutlinedActionButton(
+						text = stringResource(R.string.action_hint_withdraw),
+						onClick = viewModel::onHintCancel,
+						modifier = Modifier.padding(start = 8.dp)
+					)
+				}
 			}
 			if (hintPending) {
 				Text(
-					text = stringResource(R.string.hint_pending_note),
+					text = stringResource(if (mine) R.string.hint_pending_note else R.string.coop_hint_pending_other),
 					style = MaterialTheme.typography.bodySmall,
 					color = MaterialTheme.colorScheme.onSurfaceVariant,
 					modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp),
@@ -199,11 +207,11 @@ fun CoopScreen(baseUrl: String, token: String, matchId: String, onLeave: () -> U
 /**
  * The single-player status bar's co-op equivalent: the shared lives pool, and nothing else.
  *
- * Multiplayer item 1: no participant counter. It reported the size of the *presence* map, which is only the
- * players who have selected a cell since this client connected - so it read as a player count while being
- * something else, and sat at zero in a match with somebody in it who simply had not tapped yet. Who else is
- * here shows on the board, where their selected cell is highlighted, and that is the form of the answer
- * that is any use while playing.
+ * Multiplayer item 1: no participant counter. It reported the size of the old presence map, which was only
+ * the players who had selected a cell since this client connected - so it read as a player count while being
+ * something else, and sat at zero in a match with somebody in it who simply had not tapped yet. What the
+ * other players are doing shows on the board itself: a cell one of them got wrong, and the cell one of them
+ * is asking about.
  */
 @Composable
 private fun CoopStatusBar(viewModel: CoopViewModel) {

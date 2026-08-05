@@ -39,6 +39,8 @@ fun MultiplayerScreen(
 	config: ServerConfig,
 	onLeave: () -> Unit,
 	modifier: Modifier = Modifier,
+	/** Where the running match publishes its connection status for the top app bar; null in previews/tests. */
+	matchStatus: MatchStatusHolder? = null,
 	matchId: String? = null,
 	inviteToken: String? = null,
 	mode: String? = null,
@@ -79,8 +81,8 @@ fun MultiplayerScreen(
 	// Leaving a finished match goes back out of multiplayer entirely - there is no setup screen underneath
 	// it to fall back to any more.
 	when (match.mode) {
-		"DUEL" -> DuelScreen(baseUrl, token, match.matchId, stake = match.stake, onLeave = onLeave, modifier = modifier)
-		"COOP" -> CoopScreen(baseUrl, token, match.matchId, onLeave = onLeave, modifier = modifier)
-		else -> RaceScreen(baseUrl, token, match.matchId, onLeave = onLeave, modifier = modifier)
+		"DUEL" -> DuelScreen(baseUrl, token, match.matchId, stake = match.stake, onLeave = onLeave, matchStatus = matchStatus, modifier = modifier)
+		"COOP" -> CoopScreen(baseUrl, token, match.matchId, onLeave = onLeave, matchStatus = matchStatus, modifier = modifier)
+		else -> RaceScreen(baseUrl, token, match.matchId, onLeave = onLeave, matchStatus = matchStatus, modifier = modifier)
 	}
 }

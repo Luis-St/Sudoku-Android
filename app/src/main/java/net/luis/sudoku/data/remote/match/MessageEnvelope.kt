@@ -21,7 +21,8 @@ object MessageType {
 	const val READY = "READY"
 	const val PLACE = "PLACE"
 	const val NOTE = "NOTE"
-	const val PRESENCE = "PRESENCE"
+	/** Co-op's shared hint offer, both ways: `{cell}`/`{clear}` out, `{cell, byUser}` back. */
+	const val HINT = "HINT"
 	const val RESIGN = "RESIGN"
 	const val BACKGROUNDED = "BACKGROUNDED"
 

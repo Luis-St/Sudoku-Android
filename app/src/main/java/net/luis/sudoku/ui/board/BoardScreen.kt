@@ -53,7 +53,6 @@ fun BoardScreen(
 	hintCandidateIndex: Int? = null,
 	mistake: Pair<Int, Int>? = null,
 	sameDigitHighlightingAllowed: Boolean = true,
-	presenceCells: Set<Int> = emptySet(),
 	/** Game item 1: tint each region when the puzzle is a jigsaw, so regions read without tracing outlines. */
 	tintRegions: Boolean = false,
 	/** Game item 1: chaos tints need the dark variants; passed in because the palette itself is mode-agnostic. */
@@ -101,7 +100,6 @@ fun BoardScreen(
 										conflict = snapshot.conflicted,
 										hintCandidate = hintCandidateIndex == index,
 										mistakeDigit = mistake?.takeIf { it.first == index }?.second,
-										presence = index in presenceCells,
 										mistakeMade = index in mistakeCells,
 										hintUsed = index in hintCells,
 										regionTint = if (tintRegions) ChaosRegionColors.of(regionOf(index), darkTheme) else null

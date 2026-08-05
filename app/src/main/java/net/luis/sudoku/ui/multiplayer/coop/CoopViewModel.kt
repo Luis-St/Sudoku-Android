@@ -35,9 +35,14 @@ import net.luis.sudoku.domain.resolveTap
 import net.luis.sudoku.hint.HintCandidate
 
 /**
- * Co-operative mode (feature-spec §10.3): up to 4 participants share the pen layer, live presence (which
- * cell each other player has selected) and a shared lives pool. Structurally the simplest networked client -
- * unlike duel there is no turn or controller state at all, anyone may place at any time.
+ * Co-operative mode (feature-spec §10.3): up to 4 participants share the pen layer, the pencil marks, one
+ * lives pool and one hint offer. Structurally the simplest networked client - unlike duel there is no turn
+ * or controller state at all, anyone may place at any time.
+ *
+ * What one player sees of another is deliberately narrow, and narrower than it was: a wrong entry
+ * ([mistakeCells]) and the pending hint ([hintCell]). The selected cell used to be broadcast and drawn too,
+ * and the owner had it removed - it marked cells nothing had happened to, on a board where a mark is
+ * supposed to mean something.
  *
  * Multiplayer-game item 1 made it the *single-player screen with multiplayer added*, rather than a stripped
  * board with a lives counter over it. Two things followed from that:
@@ -82,8 +87,8 @@ class CoopViewModel @AssistedInject constructor(
 	private var mistakeFlashJob: Job? = null
 	private var alreadyFilledFlashJob: Job? = null
 
-	/** server-spec §10.4: seconds left for a disconnected participant to return, or null when not paused. */
-	val graceSecondsRemaining get() = this.graceTracker.secondsRemaining
+	/** server-spec §10.4: who dropped and how long is left for them to return, or null when not paused. */
+	val gracePause get() = this.graceTracker.pause
 
 	var ready by mutableStateOf(false)
 		private set
@@ -106,19 +111,6 @@ class CoopViewModel @AssistedInject constructor(
 	var livesLeft by mutableStateOf<Int?>(null)
 		private set
 
-	/**
-	 * userId -> selected cell for **everybody else**, so the group can avoid colliding in the first place
-	 * (feature-spec §10.3).
-	 *
-	 * Multiplayer-game item 4: this used to include the player's own id, because `CoopMatch` broadcasts
-	 * presence to every participant including the sender. Their own selected cell was therefore painted in
-	 * the presence colour - which was the same yellow as a hint cell - and looked like a hint that then did
-	 * nothing, on a screen that had no hint button at all. The colours are distinct now too
-	 * (`BoardPalette.presence`), but the real fix is not marking yourself as somebody else.
-	 */
-	var presence by mutableStateOf<Map<String, Int>>(emptyMap())
-		private set
-
 	/** A losing race for the same cell is brief, non-alarming feedback - never a mistake (§10.3). */
 	var alreadyFilledFlash by mutableStateOf<Int?>(null)
 		private set
@@ -129,9 +121,9 @@ class CoopViewModel @AssistedInject constructor(
 	/**
 	 * Every cell somebody has already got wrong, kept marked until it is filled correctly.
 	 *
-	 * Multiplayer item 2: the red used to be a flash, so a cell reverted to whatever was underneath it -
-	 * on a shared board that is usually the green "somebody is here" presence colour, which reads as the
-	 * opposite of what just happened. A wrong entry is not a moment, it is a *fact about the cell*: it is
+	 * Multiplayer item 2: the red used to be a flash, so a cell reverted to whatever was underneath it - at
+	 * the time the green "somebody is here" highlight (since removed), which reads as the opposite of what
+	 * just happened. A wrong entry is not a moment, it is a *fact about the cell*: it is
 	 * still empty, it cost the group a life, and the digit that was tried there is wrong for everybody. So
 	 * it stays marked, which also stops the next player walking into the same cell and repeating it.
 	 *
@@ -179,9 +171,23 @@ class CoopViewModel @AssistedInject constructor(
 	var hintsUsed by mutableStateOf(0)
 		private set
 
-	/** The peeked-but-not-yet-taken hint cell, same two-stage contract as single-player (feature-spec §4.4). */
-	var hintCandidate by mutableStateOf<HintCandidate?>(null)
+	/**
+	 * The peeked-but-not-yet-taken hint cell, same two-stage contract as single-player (feature-spec §4.4) -
+	 * but **the match's, not this player's**, and never written locally.
+	 *
+	 * The owner asked for the hint stage to be synced: on a shared board a hint is a question about a cell
+	 * everybody is looking at, so the offer is marked on every screen and only one can be open at a time.
+	 * Which is also why it replaced the selection highlight rather than sitting next to it - "somebody is
+	 * asking about this cell" is worth a mark, "somebody tapped this cell" was not.
+	 */
+	var hintCell by mutableStateOf<Int?>(null)
 		private set
+
+	/** Who asked. Only they can spend or withdraw the offer, so only their screen offers the reveal. */
+	var hintOwner by mutableStateOf<String?>(null)
+		private set
+
+	val hintIsMine: Boolean get() = this.hintCell != null && this.hintOwner == this.myUserId
 
 	val hintsRemaining: Int get() = MAX_HINTS - this.hintsUsed
 
@@ -241,7 +247,7 @@ class CoopViewModel @AssistedInject constructor(
 
 		// A grace-pause MATCH_STATE ({paused, graceSeconds}) is not a real state update - handle it first.
 		if (type == MessageType.MATCH_STATE && payload.booleanOrNull("paused") == true) {
-			this.graceTracker.start(payload.intOrNull("graceSeconds") ?: 60)
+			this.graceTracker.start(payload.intOrNull("graceSeconds") ?: 60, payload.stringOrNull("disconnectedName"))
 			return
 		}
 		this.graceTracker.clear() // any other traffic means the match is live again
@@ -251,7 +257,7 @@ class CoopViewModel @AssistedInject constructor(
 			MessageType.BOARD_UPDATE -> applyBoardUpdate(payload)
 			MessageType.ENTRY_RESULT -> applyEntryResult(payload)
 			MessageType.NOTE -> applyNote(payload)
-			MessageType.PRESENCE -> applyPresence(payload)
+			MessageType.HINT -> applyHint(payload)
 			MessageType.MATCH_ENDED -> {
 				this.winnerId = payload.stringOrNull("winnerId")
 				this.endReason = payload.stringOrNull("reason")
@@ -279,7 +285,10 @@ class CoopViewModel @AssistedInject constructor(
 		// Absent means enabled, matching the server's own default - an older server that does not send the
 		// field was one where nothing stopped a hint being taken.
 		this.hintsEnabled = payload["hintsEnabled"]?.toString()?.toBooleanStrictOrNull() ?: true
-		if (!this.hintsEnabled) this.hintCandidate = null
+		// A snapshot carries the pending offer too, so a player who joins or reconnects mid-decision sees the
+		// same marked cell as everybody else rather than an unexplained gap in the group's attention.
+		this.hintCell = if (this.hintsEnabled) payload.intOrNull("hintCell") else null
+		this.hintOwner = if (this.hintCell == null) null else payload.stringOrNull("hintBy")
 
 		(payload["board"] as? JsonObject)?.entries?.forEach { (cellKey, digitElement) ->
 			val cell = cellKey.toIntOrNull() ?: return@forEach
@@ -298,13 +307,6 @@ class CoopViewModel @AssistedInject constructor(
 		// A snapshot replaces the board wholesale, so any cell that came back filled is no longer a warning.
 		this.mistakeCells = this.mistakeCells.filterTo(mutableSetOf()) { this.session.snapshot(it).empty }
 
-		this.presence = buildMap {
-			(payload["presence"] as? JsonObject)?.entries?.forEach { (userId, cellElement) ->
-				if (userId == this@CoopViewModel.myUserId) return@forEach
-				cellElement.toString().toIntOrNull()?.let { put(userId, it) }
-			}
-		}
-
 		this.ready = true
 		refresh()
 	}
@@ -322,7 +324,8 @@ class CoopViewModel @AssistedInject constructor(
 		this.notes = this.notes - cell
 		// The cell is solved, so the earlier wrong attempt at it has nothing left to warn anybody about.
 		this.mistakeCells = this.mistakeCells - cell
-		dropHintIfTargetFilled(cell)
+		// A pending hint on this cell is not cleared here: the match owns it and sends its own HINT frame, so
+		// clearing it locally would only make the two disagree until the next snapshot.
 		refresh()
 	}
 
@@ -344,8 +347,9 @@ class CoopViewModel @AssistedInject constructor(
 	 * this runs for other people's mistakes too - which is the point. It used to reach only the placer, and
 	 * the two things that follow from a wrong entry in co-op are both shared: the lives pool is one pool, so
 	 * everybody's hearts have to move with it, and a cell somebody just got wrong should read as a mistake
-	 * rather than sitting in the green "somebody is here" presence colour, which was the only thing an
-	 * onlooker could see of it.
+	 * rather than sitting in the green "somebody is here" highlight, which was then the only thing an onlooker
+	 * could see of it. That highlight has since been removed, which leaves this as the whole of what one
+	 * player sees of another's play.
 	 *
 	 * `alreadyFilled` stays private and is still sent only to the loser of a race for a cell: it is feedback
 	 * about *your* entry not landing, and nothing happened to the board or the pool for anyone else to see.
@@ -372,7 +376,8 @@ class CoopViewModel @AssistedInject constructor(
 			// inside that window got only the remainder of the first one's second - measured at 0.2s against
 			// the 1s intended. That is the "it just stays green" report: now that both players' mistakes are
 			// broadcast they land in this one slot and were cutting each other short, so a mistake on the
-			// cell somebody else is sitting on barely outlived a frame before the presence colour returned.
+			// cell somebody else was sitting on barely outlived a frame before the (since removed) selection
+			// highlight returned.
 			this.mistakeCells = this.mistakeCells + cell
 			this.mistakeFlashJob?.cancel()
 			this.mistake = cell to digit
@@ -383,11 +388,11 @@ class CoopViewModel @AssistedInject constructor(
 		}
 	}
 
-	private fun applyPresence(payload: JsonObject) {
-		val userId = payload.stringOrNull("userId") ?: return
-		if (userId == this.myUserId) return // see [presence]
-		val cell = payload.intOrNull("cell") ?: return
-		this.presence = this.presence + (userId to cell)
+	/** The match's answer about the shared offer - claimed by somebody, or gone. */
+	private fun applyHint(payload: JsonObject) {
+		val cell = payload.intOrNull("cell")
+		this.hintCell = cell
+		this.hintOwner = if (cell == null) null else payload.stringOrNull("byUser")
 	}
 
 	fun onCellTap(index: Int) {
@@ -397,7 +402,10 @@ class CoopViewModel @AssistedInject constructor(
 		// uses, and the same reason. Sharing the board does not change what marking means.
 		if (focusFollowsTap(action)) this.activeIndex = index
 		sendIfEntry(action)
-		this.viewModelScope.launch { this@CoopViewModel.socketClient.presence(index) }
+		// Nothing is sent about the selection itself. It used to be broadcast and drawn on everybody's board,
+		// which marked cells that nothing had happened to; the owner had it removed. What other players see of
+		// each other now is a wrong entry ([mistakeCells]) and a pending hint ([hintCell]) - both things that
+		// happened, rather than somewhere a finger went.
 		this.lock = nextLock
 	}
 
@@ -427,22 +435,29 @@ class CoopViewModel @AssistedInject constructor(
 	 */
 	fun onHintTap() {
 		if (!this.ready || !this.hintsEnabled || this.endReason != null) return
-		val pending = this.hintCandidate
+		val pending = this.hintCell
 		if (pending == null) {
 			if (this.hintsRemaining <= 0) return
-			this.hintCandidate = this.session.peekHint()
+			// The cell is chosen here - shared-core's hint engine is local, and every client has the same
+			// puzzle - but it is *offered* rather than shown: the match owns the pending hint, so this waits
+			// for the broadcast exactly as a placement or a note does. Nothing is applied locally.
+			val candidate: HintCandidate = this.session.peekHint() ?: return
+			this.viewModelScope.launch { this@CoopViewModel.socketClient.hint(candidate.cellIndex()) }
 			return
 		}
-		val index = pending.cellIndex()
-		val digit = this.session.solutionAt(index)
-		this.hintCandidate = null
+		// Only the player who asked may spend it; everybody else is looking at the same cell but their button
+		// is not an offer to take it (the cap is per player, so taking it would spend somebody else's).
+		if (!this.hintIsMine) return
+		val digit = this.session.solutionAt(pending)
 		this.hintsUsed++
-		this.viewModelScope.launch { this@CoopViewModel.socketClient.place(index, digit) }
+		// The placement clears the offer server-side, since a filled cell has nothing left to point at.
+		this.viewModelScope.launch { this@CoopViewModel.socketClient.place(pending, digit) }
 	}
 
-	/** The peek's other exit: somebody - anybody - filled the cell it pointed at. */
-	private fun dropHintIfTargetFilled(cell: Int) {
-		if (this.hintCandidate?.cellIndex() == cell) this.hintCandidate = null
+	/** Withdraws this player's own offer without spending it. */
+	fun onHintCancel() {
+		if (!this.hintIsMine) return
+		this.viewModelScope.launch { this@CoopViewModel.socketClient.clearHint() }
 	}
 
 	/**

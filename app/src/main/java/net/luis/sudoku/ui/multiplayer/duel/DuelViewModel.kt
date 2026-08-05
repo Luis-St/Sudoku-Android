@@ -60,8 +60,8 @@ class DuelViewModel @AssistedInject constructor(
 	private var myUserId: String = ""
 	private val graceTracker = ReconnectGraceTracker(this.viewModelScope)
 
-	/** server-spec §10.4: seconds left for a disconnected opponent to return, or null when not paused. */
-	val graceSecondsRemaining get() = this.graceTracker.secondsRemaining
+	/** server-spec §10.4: who dropped and how long is left for them to return, or null when not paused. */
+	val gracePause get() = this.graceTracker.pause
 
 	/** Bank values as of the last `BANK_UPDATE`, and when that update arrived - the interpolation base. */
 	private var lastBankMs: MutableMap<String, Long> = mutableMapOf()
@@ -109,24 +109,59 @@ class DuelViewModel @AssistedInject constructor(
 	var connectionError by mutableStateOf<String?>(null)
 		private set
 
+	/**
+	 * The socket closed under a match that had not ended, and this model is reopening it.
+	 *
+	 * `onClosed` used to be `{}` here, so a duel that lost its connection went quiet and stayed quiet: no
+	 * message, no retry, and a board that simply stopped answering while the clocks it could not see kept
+	 * their own counsel. The top bar reports it now, and a `MATCH_STATE` on reconnect resynchronises the
+	 * board and both banks.
+	 */
+	var disconnected by mutableStateOf(false)
+		private set
+
+	/** Set once the player leaves deliberately, so the reconnect loop does not fight the teardown. */
+	private var leaving = false
+
 	init {
 		this.viewModelScope.launch {
-			try {
-				this@DuelViewModel.myUserId = this@DuelViewModel.serverConfigStore.current().userId ?: ""
-				this@DuelViewModel.socketClient.connect(
-					url = matchSocketUrl(this@DuelViewModel.baseUrl, this@DuelViewModel.matchId, this@DuelViewModel.token),
-					onMessage = { envelope -> handleMessage(envelope.type, envelope.payload.jsonObjectOrEmpty()) },
-					onClosed = {}
-				)
-				this@DuelViewModel.socketClient.ready()
-				startBankInterpolationTicker()
-			} catch (e: CancellationException) {
-				throw e
-			} catch (e: Exception) {
-				// Failing the upgrade is an ordinary outcome (server down, address without a port) - reported
-				// on the screen, since an uncaught throw here takes the whole app down.
-				this@DuelViewModel.connectionError = e.message ?: e.javaClass.simpleName
-			}
+			this@DuelViewModel.myUserId = this@DuelViewModel.serverConfigStore.current().userId ?: ""
+			openSocket(initial = true)
+		}
+	}
+
+	private suspend fun openSocket(initial: Boolean) {
+		try {
+			this.socketClient.connect(
+				url = matchSocketUrl(this.baseUrl, this.matchId, this.token),
+				onMessage = { envelope -> handleMessage(envelope.type, envelope.payload.jsonObjectOrEmpty()) },
+				onClosed = { onSocketClosed() }
+			)
+			this.socketClient.ready()
+			this.disconnected = false
+			if (initial) startBankInterpolationTicker()
+		} catch (e: CancellationException) {
+			throw e
+		} catch (e: Exception) {
+			// Failing the upgrade is an ordinary outcome (server down, address without a port) - reported
+			// on the screen, since an uncaught throw here takes the whole app down.
+			if (initial) this.connectionError = e.message ?: e.javaClass.simpleName else scheduleReconnect()
+		}
+	}
+
+	private fun onSocketClosed() {
+		// A match that ended closes its own sockets, and a player who left closed this one. Neither is a
+		// disconnection, and reconnecting into either would be reopening something already finished.
+		if (this.leaving || this.endReason != null) return
+		this.disconnected = true
+		scheduleReconnect()
+	}
+
+	private fun scheduleReconnect() {
+		this.viewModelScope.launch {
+			delay(RECONNECT_DELAY_MS)
+			if (this@DuelViewModel.leaving || this@DuelViewModel.endReason != null) return@launch
+			openSocket(initial = false)
 		}
 	}
 
@@ -150,7 +185,7 @@ class DuelViewModel @AssistedInject constructor(
 	private fun handleMessage(type: String, payload: JsonObject) {
 		// A grace-pause MATCH_STATE ({paused, graceSeconds}) is not a real state update - handle it first.
 		if (type == MessageType.MATCH_STATE && payload.booleanOrNull("paused") == true) {
-			this.graceTracker.start(payload.intOrNull("graceSeconds") ?: 60)
+			this.graceTracker.start(payload.intOrNull("graceSeconds") ?: 60, payload.stringOrNull("disconnectedName"))
 			return
 		}
 		this.graceTracker.clear() // any other traffic means the match is live again
@@ -271,7 +306,17 @@ class DuelViewModel @AssistedInject constructor(
 
 	override fun onCleared() {
 		super.onCleared()
+		this.leaving = true
 		this.viewModelScope.launch { this@DuelViewModel.socketClient.close() }
+	}
+
+	private companion object {
+
+		/**
+		 * How long to wait before reopening a dropped socket. Short, because the server's own reconnect grace
+		 * is what this is racing (server-spec §10.4) - a slower retry would spend the window it exists to use.
+		 */
+		const val RECONNECT_DELAY_MS = 2_000L
 	}
 }
 

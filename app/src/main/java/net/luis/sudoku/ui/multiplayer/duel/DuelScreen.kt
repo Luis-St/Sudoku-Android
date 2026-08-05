@@ -26,6 +26,8 @@ import net.luis.sudoku.R
 import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.ui.board.BoardScreen
 import net.luis.sudoku.ui.input.NumberPad
+import net.luis.sudoku.ui.multiplayer.MatchStatusHolder
+import net.luis.sudoku.ui.multiplayer.PublishMatchStatus
 import net.luis.sudoku.ui.theme.BoardThemeCatalog
 
 /**
@@ -34,7 +36,15 @@ import net.luis.sudoku.ui.theme.BoardThemeCatalog
  * why this uses its own lifecycle observer rather than reusing `GameScreen`'s.
  */
 @Composable
-fun DuelScreen(baseUrl: String, token: String, matchId: String, stake: Int = 0, onLeave: () -> Unit, modifier: Modifier = Modifier) {
+fun DuelScreen(
+	baseUrl: String,
+	token: String,
+	matchId: String,
+	stake: Int = 0,
+	onLeave: () -> Unit,
+	matchStatus: MatchStatusHolder? = null,
+	modifier: Modifier = Modifier
+) {
 	val viewModel: DuelViewModel = hiltViewModel<DuelViewModel, DuelViewModel.Factory>(
 		creationCallback = { factory -> factory.create(baseUrl, token, matchId) }
 	)
@@ -47,6 +57,11 @@ fun DuelScreen(baseUrl: String, token: String, matchId: String, stake: Int = 0, 
 		lifecycleOwner.lifecycle.addObserver(observer)
 		onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
 	}
+
+	// Connection status goes to the top app bar, not over the board - see MatchStatusHolder. Published
+	// before the early returns below, so a drop is reported while this screen is showing a spinner.
+	val gracePause by viewModel.gracePause
+	PublishMatchStatus(matchStatus, gracePause, viewModel.disconnected)
 
 	// The socket never opened: nothing can be played, so the only thing on offer is going back.
 	viewModel.connectionError?.let { message ->
@@ -66,7 +81,6 @@ fun DuelScreen(baseUrl: String, token: String, matchId: String, stake: Int = 0, 
 
 	val palette = BoardThemeCatalog.CLASSIC.light
 	val lockedDigit = (viewModel.lock.target as? LockTarget.Digit)?.digit
-	val graceSeconds by viewModel.graceSecondsRemaining
 
 	Column(modifier = modifier.fillMaxSize().padding(12.dp)) {
 		Row(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -78,12 +92,6 @@ fun DuelScreen(baseUrl: String, token: String, matchId: String, stake: Int = 0, 
 		// Stakes are duel-only (feature-spec §10.2) - escrowed server-side, winner takes the whole pot.
 		if (stake > 0) {
 			Text(stringResource(R.string.duel_stake_display, stake), modifier = Modifier.padding(bottom = 8.dp))
-		}
-
-		graceSeconds?.let { seconds ->
-			// server-spec §10.4: the waiting participant's reconnect-grace countdown, while duel clocks
-			// are stopped server-side.
-			Text(stringResource(R.string.reconnect_grace_opponent, seconds), modifier = Modifier.padding(bottom = 8.dp))
 		}
 
 		BoardScreen(

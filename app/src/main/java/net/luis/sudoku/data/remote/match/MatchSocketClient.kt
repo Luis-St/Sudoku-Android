@@ -52,19 +52,38 @@ class MatchSocketClient @Inject constructor(private val client: HttpClient, priv
 				// again, and the player would be told nothing.
 				val reason = session.closeReason.await()?.message?.takeIf { it.isNotBlank() }
 				reason?.let { this@MatchSocketClient.sessionGuard.onApiError(it) }
-				onClosed(reason)
+				this@MatchSocketClient.reportClosed(session, reason, onClosed)
 			} catch (e: Exception) {
-				onClosed(e.message)
+				this@MatchSocketClient.reportClosed(session, e.message, onClosed)
 			}
 		}
 		send(MessageType.HELLO, buildJsonObject { put("clientGenVersion", GenVersion.CURRENT) })
+	}
+
+	/**
+	 * Reports a close only if [closed] is still the connection this client is using.
+	 *
+	 * A socket's read loop can finish well after its replacement is up - the drop is noticed lazily, and
+	 * [connect] does not wait for the old loop to unwind. Reporting it then would tell the caller it is
+	 * disconnected while it is not, and the caller answers a disconnect by reconnecting: the good socket
+	 * gets replaced, the server sees another drop, and the pair can keep trading places until the match hits
+	 * the reconnect cap.
+	 */
+	private fun reportClosed(closed: DefaultClientWebSocketSession, reason: String?, onClosed: (String?) -> Unit) {
+		if (this.session !== closed) return
+		this.session = null
+		onClosed(reason)
 	}
 
 	suspend fun ready() = send(MessageType.READY)
 	suspend fun place(cell: Int, digit: Int) = send(MessageType.PLACE, buildJsonObject { put("cell", cell); put("digit", digit) })
 	suspend fun note(cell: Int, digit: Int, add: Boolean) =
 		send(MessageType.NOTE, buildJsonObject { put("cell", cell); put("digit", digit); put("add", add) })
-	suspend fun presence(cell: Int) = send(MessageType.PRESENCE, buildJsonObject { put("cell", cell) })
+	/** Co-op only: offers [cell] to the whole group as the pending hint. */
+	suspend fun hint(cell: Int) = send(MessageType.HINT, buildJsonObject { put("cell", cell) })
+
+	/** Withdraws this player's own pending hint offer. */
+	suspend fun clearHint() = send(MessageType.HINT, buildJsonObject { put("clear", true) })
 	suspend fun resign() = send(MessageType.RESIGN)
 
 	/** Duel only (feature-spec §10.2) - sent from `ON_STOP`, while the socket is still alive. */

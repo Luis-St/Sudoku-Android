@@ -22,14 +22,28 @@ import net.luis.sudoku.R
 import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.ui.board.BoardScreen
 import net.luis.sudoku.ui.input.NumberPad
+import net.luis.sudoku.ui.multiplayer.MatchStatusHolder
+import net.luis.sudoku.ui.multiplayer.PublishMatchStatus
 import net.luis.sudoku.ui.theme.BoardThemeCatalog
 
 /** feature-spec §10.1: same puzzle, independent boards - progress shown as a percentage, never content. */
 @Composable
-fun RaceScreen(baseUrl: String, token: String, matchId: String, onLeave: () -> Unit, modifier: Modifier = Modifier) {
+fun RaceScreen(
+	baseUrl: String,
+	token: String,
+	matchId: String,
+	onLeave: () -> Unit,
+	matchStatus: MatchStatusHolder? = null,
+	modifier: Modifier = Modifier
+) {
 	val viewModel: RaceViewModel = hiltViewModel<RaceViewModel, RaceViewModel.Factory>(
 		creationCallback = { factory -> factory.create(baseUrl, token, matchId) }
 	)
+
+	// Connection status goes to the top app bar, not over the board - see MatchStatusHolder. Published
+	// before the early returns below, so a drop is reported while this screen is showing a spinner.
+	val gracePause by viewModel.gracePause
+	PublishMatchStatus(matchStatus, gracePause, viewModel.disconnected)
 
 	// The socket never opened: nothing can be played, so the only thing on offer is going back.
 	viewModel.connectionError?.let { message ->
@@ -49,15 +63,9 @@ fun RaceScreen(baseUrl: String, token: String, matchId: String, onLeave: () -> U
 
 	val palette = BoardThemeCatalog.CLASSIC.light
 	val lockedDigit = (viewModel.lock.target as? LockTarget.Digit)?.digit
-	val graceSeconds by viewModel.graceSecondsRemaining
 
 	Column(modifier = modifier.fillMaxSize().padding(12.dp)) {
 		viewModel.livesLeft?.let { Text(stringResource(R.string.race_lives, it)) }
-
-		graceSeconds?.let { seconds ->
-			// server-spec §10.4: the waiting participant's reconnect-grace countdown.
-			Text(stringResource(R.string.reconnect_grace_opponent, seconds))
-		}
 
 		Text(stringResource(R.string.race_opponent_progress_header), modifier = Modifier.padding(top = 8.dp))
 		viewModel.opponentProgress.forEach { (userId, percent) ->

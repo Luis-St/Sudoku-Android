@@ -36,18 +36,19 @@ data class CellHighlight(
 	/** Game item 2: the locked digit, when this cell carries it as a pencil mark - that one note is marked. */
 	val markedPencilDigit: Int? = null,
 	val conflict: Boolean = false,
+	/**
+	 * The cell a pending hint is offering. In co-op this is the *match's* offer, so it is on every
+	 * participant's board at once, not just the asker's.
+	 */
 	val hintCandidate: Boolean = false,
 	/** A wrong digit shown transiently, never written to the actual cell (feature-spec §6). */
 	val mistakeDigit: Int? = null,
-	/** Another co-op participant has this cell selected (feature-spec §10.3). */
-	val presence: Boolean = false,
 	/**
 	 * A wrong digit was entered here at some point, and the cell is still marked for it.
 	 *
 	 * The end-of-game summary (game item 7) and the co-op board (multiplayer item 2). In co-op it is live
 	 * rather than a review: the cell is still empty, the attempt cost the group a life, and leaving it
-	 * marked is what stops the next player repeating it. It outranks [presence] deliberately - a cell
-	 * somebody just got wrong must not read as the green "somebody is here".
+	 * marked is what stops the next player repeating it.
 	 */
 	val mistakeMade: Boolean = false,
 	/** Summary board only (game item 7): a hint filled this cell. */
@@ -81,17 +82,20 @@ fun CellView(
 
 	val background = when {
 		highlight.mistakeDigit != null -> palette.conflict
-		// The summary's own marks outrank every play-time highlight: on that board they are the whole point,
-		// and nothing is selectable there anyway (game item 7).
-		highlight.mistakeMade -> palette.summaryMistake
-		highlight.hintUsed -> palette.summaryHint
 		// Game item 4: opaque, and deliberately *not* run through accentOrPlain. Every other highlight lets a
 		// chaos region tint show through so the region stays readable; the hint cell is the one that has to be
 		// findable at a glance on a board of sixteen tinted regions, and it is about to be overwritten anyway.
+		//
+		// Above the mistake mark, unlike every other play-time highlight: in co-op the offer is the *group's*
+		// current question, and the cell it points at is often exactly one somebody already got wrong - which
+		// is why they are asking. A hint nobody can see is not a shared hint.
 		highlight.hintCandidate -> palette.hintCandidate
+		// The summary's own marks outrank the rest: on that board they are the whole point, and nothing is
+		// selectable there anyway (game item 7).
+		highlight.mistakeMade -> palette.summaryMistake
+		highlight.hintUsed -> palette.summaryHint
 		highlight.selected -> accentOrPlain(SELECTED_ON_TINT_ALPHA, palette.selectedCell)
 		highlight.conflict -> palette.conflict
-		highlight.presence -> palette.presence
 		// Game item 2: no same-value case here any more - marking the locked digit is the glyph's job below.
 		highlight.peer -> accentOrPlain(PEER_ON_TINT_ALPHA, palette.peerHighlight)
 		else -> tint ?: MaterialTheme.colorScheme.background

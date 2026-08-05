@@ -63,6 +63,8 @@ import net.luis.sudoku.ui.code.EnterCodeScreen
 import net.luis.sudoku.ui.common.InfoDialog
 import net.luis.sudoku.ui.game.GameScreen
 import net.luis.sudoku.ui.game.GameTopBarActions
+import net.luis.sudoku.ui.multiplayer.MatchStatusAction
+import net.luis.sudoku.ui.multiplayer.MatchStatusHolder
 import net.luis.sudoku.ui.generator.GeneratorScreen
 import net.luis.sudoku.ui.home.HomeScreen
 import net.luis.sudoku.ui.multiplayer.MultiplayerHubScreen
@@ -182,6 +184,9 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 	val showTopLevelNavigation = !onGameScreen && !inSettingsArea && !inPlayersArea
 	// Game item 3: the play screen publishes its share action here, so it renders next to settings.
 	val gameTopBarActions = remember { GameTopBarActions() }
+	// The same idea for a running match's connection status, and the same reason it is up here rather than
+	// over the board: it is a status, not an event (see MatchStatusHolder).
+	val matchStatus = remember { MatchStatusHolder() }
 	// Settings item 1: the warning icon is a status; the explanation behind it is on demand only.
 	var showUnreachableMessage by remember { mutableStateOf(false) }
 	// General item 5: leaving a board is a decision, so the arrow asks before taking it.
@@ -210,6 +215,9 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 					}
 				},
 				actions = {
+					// A running match's connection status, left of everything else and drawn on a board where
+					// the navigation icons are not - it is the same class of thing as the server warning below.
+					MatchStatusAction(matchStatus)
 					// General item 3: **no share action here.** It was published by the play screen and only ever
 					// meant anything there, and a board now draws no top-bar buttons at all - so there is
 					// nowhere left to render it and the branch is gone rather than left as a condition that can
@@ -267,7 +275,7 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 		}
 	) { innerPadding ->
 		Box(modifier = Modifier.padding(innerPadding)) {
-			AppNavHost(navController, appViewModel, presenceViewModel, gameTopBarActions, Modifier)
+			AppNavHost(navController, appViewModel, presenceViewModel, gameTopBarActions, matchStatus, Modifier)
 
 			presenceViewModel.incomingRequest?.let { request ->
 				// Invite item 2: a few seconds, then it takes itself away. Keyed on the request id so each new
@@ -403,6 +411,7 @@ private fun AppNavHost(
 	appViewModel: AppViewModel,
 	presenceViewModel: PresenceViewModel,
 	gameTopBarActions: GameTopBarActions,
+	matchStatus: MatchStatusHolder,
 	modifier: Modifier
 ) {
 	NavHost(navController = navController, startDestination = Routes.HOME, modifier = modifier) {
@@ -558,6 +567,7 @@ private fun AppNavHost(
 			val args = entry.arguments
 			MultiplayerScreen(
 				config = appViewModel.serverConfig,
+				matchStatus = matchStatus,
 				onLeave = { navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } } },
 				matchId = args?.getString(Routes.ARG_MATCH_ID),
 				inviteToken = args?.getString(Routes.ARG_INVITE_TOKEN),

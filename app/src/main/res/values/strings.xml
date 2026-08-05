@@ -257,8 +257,24 @@
 	<string name="tab_play">Play</string>
 	<string name="tab_players">Players</string>
 	<string name="multiplayer_connect_prompt">Connect and sign in from Settings to play with others.</string>
-	<string name="reconnect_grace_opponent">Opponent disconnected. Reconnecting in %1$ds, or the match ends</string>
-	<string name="reconnect_grace_participant">A participant disconnected. Reconnecting in %1$ds, or the match ends</string>
+	<!--
+		The pause message the *waiting* players get. It names who dropped, because "a participant" left them
+		deciding whether a minute of sitting still is worth it without saying who or how much of the group is
+		gone. "Reconnecting in 54s" also read as though this device were about to reconnect, when what the
+		number counts is how long the match survives without the other player.
+	-->
+	<string name="reconnect_grace_player">%1$s lost the connection. Waiting for them to come back — the match ends in %2$ds.</string>
+	<!-- Same message when the server did not send a name. -->
+	<string name="reconnect_grace_unnamed">A player lost the connection. Waiting for them to come back — the match ends in %1$ds.</string>
+	<!--
+		Both connection messages moved into the top bar as a warning icon plus, when there is one, the number
+		of seconds left; the sentences below are what the icon opens. A status does not belong over the board -
+		as banners these pushed the grid down mid-match, and one of them rewrote itself every second.
+	-->
+	<string name="match_status_icon_description">Connection status</string>
+	<string name="match_status_title">Connection</string>
+	<string name="match_status_seconds">%1$ds</string>
+	<string name="match_reconnecting_message">You lost the connection to the match. The app is getting back in — the match is waiting for you, and your board comes back with it.</string>
 
 	<!-- Players screen (feature-spec §9.7, UI item 9) -->
 	<string name="players_row_streak">%1$s, streak %2$d</string>
@@ -358,9 +374,11 @@
 	<!-- Game item 3: a peeked hint is half-used until it is taken or the cell is filled. -->
 	<string name="action_hint_reveal">Reveal this cell</string>
 	<string name="hint_pending_note">A hint is waiting on the marked cell. Press again to reveal it, or fill the cell yourself.</string>
+	<!-- Co-op: one hint offer per match, so the other players see the same marked cell without being able to spend it. -->
+	<string name="action_hint_withdraw">Withdraw</string>
+	<string name="coop_hint_pending_other">Another player is asking about the marked cell.</string>
 
 	<!-- Multiplayer game screen. -->
-	<string name="coop_disconnected">Lost the connection to the match. Trying to get back in.</string>
 
 	<!-- General item 5: leaving a board is a decision, not a back step. -->
 	<string name="action_leave_game">Leave game</string>

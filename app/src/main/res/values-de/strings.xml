@@ -164,8 +164,12 @@
 	<string name="tab_play">Spielen</string>
 	<string name="tab_players">Spieler</string>
 	<string name="multiplayer_connect_prompt">Verbinde dich und melde dich in den Einstellungen an, um mit anderen zu spielen.</string>
-	<string name="reconnect_grace_opponent">Gegner getrennt. Wiederverbindung in %1$ds, sonst endet das Match</string>
-	<string name="reconnect_grace_participant">Ein Teilnehmer wurde getrennt. Wiederverbindung in %1$ds, sonst endet das Match</string>
+	<string name="reconnect_grace_player">%1$s hat die Verbindung verloren. Wir warten auf die Rückkehr — das Match endet in %2$d s.</string>
+	<string name="reconnect_grace_unnamed">Ein Spieler hat die Verbindung verloren. Wir warten auf die Rückkehr — das Match endet in %1$d s.</string>
+	<string name="match_status_icon_description">Verbindungsstatus</string>
+	<string name="match_status_title">Verbindung</string>
+	<string name="match_status_seconds">%1$d s</string>
+	<string name="match_reconnecting_message">Du hast die Verbindung zum Match verloren. Die App verbindet sich neu — das Match wartet auf dich, und dein Brett kommt damit zurück.</string>
 
 	<string name="players_row_streak">%1$s, Serie %2$d</string>
 
@@ -345,9 +349,11 @@
 	<!-- Game item 3: a peeked hint is half-used until it is taken or the cell is filled. -->
 	<string name="action_hint_reveal">Zelle aufdecken</string>
 	<string name="hint_pending_note">Ein Tipp wartet auf der markierten Zelle. Nochmal drücken zum Aufdecken, oder die Zelle selbst füllen.</string>
+	<!-- Co-op: one hint offer per match, so the other players see the same marked cell without being able to spend it. -->
+	<string name="action_hint_withdraw">Zurückziehen</string>
+	<string name="coop_hint_pending_other">Ein anderer Spieler fragt nach der markierten Zelle.</string>
 
 	<!-- Multiplayer game screen. -->
-	<string name="coop_disconnected">Verbindung zum Match verloren. Es wird versucht, wieder beizutreten.</string>
 
 	<!-- General item 5: leaving a board is a decision, not a back step. -->
 	<string name="action_leave_game">Spiel verlassen</string>

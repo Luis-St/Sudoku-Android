@@ -34,18 +34,13 @@ data class BoardPalette(
 	val sameValuePencil: Color,
 	val conflict: Color,
 	/**
-	 * Another co-op participant's selected cell (feature-spec §10.3) - defaulted so existing palettes don't
-	 * need updating.
+	 * The cell a pending hint is offering (game item 4), and in co-op the one cell the whole group is being
+	 * asked to look at.
 	 *
-	 * Multiplayer-game item 4: **green, not yellow.** It was `0xFFFFD54F`, a shade off [hintCandidate]'s
-	 * `0xFFFFC400`, so a cell somebody else had selected was for practical purposes the hint colour on a
-	 * screen with no hint button - the owner's report was cells "marked yellow as hint but nothing
-	 * happened". Two different facts about a cell must not be two shades of one hue; this is the same green
-	 * that means "present" everywhere else in the app (`OnlineGreen`).
-	 */
-	val presence: Color = Color(0xFF9FE0A8),
-	/**
-	 * The cell a pending hint is offering (game item 4).
+	 * There used to be a second, green highlight next to this one for another participant's *selected* cell.
+	 * It is gone at the owner's request: a mark on every tap marked cells nothing had happened to, and it had
+	 * already been confused for this one once (it was `0xFFFFD54F`, a shade off this yellow, and read as "a
+	 * hint that does nothing"). The lesson survives the feature - one hue, one meaning.
 	 *
 	 * Its own colour rather than the selection's: a hint is a one-shot "look here" that the player has to
 	 * find *before* deciding whether to spend it, and sharing the selection colour meant it read as "you

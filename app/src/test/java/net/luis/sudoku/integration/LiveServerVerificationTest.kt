@@ -368,7 +368,7 @@ class LiveServerVerificationTest {
 		val joinerClient = MatchSocketClient(http, AuthFailureListener.NONE)
 		val runningState = CompletableDeferred<JsonObject>()
 		val boardUpdate = CompletableDeferred<JsonObject>()
-		val presence = CompletableDeferred<JsonObject>()
+		val hint = CompletableDeferred<JsonObject>()
 
 		creatorClient.connect(
 			url = "ws://localhost:7000/ws/v1/matches/${created.matchId}?token=$creatorToken",
@@ -377,7 +377,7 @@ class LiveServerVerificationTest {
 				when (envelope.type) {
 					MessageType.MATCH_STATE -> if (payload.stringOrNull("state") == "RUNNING") runningState.complete(payload)
 					MessageType.BOARD_UPDATE -> boardUpdate.complete(payload)
-					MessageType.PRESENCE -> if (!presence.isCompleted) presence.complete(payload)
+					MessageType.HINT -> if (!hint.isCompleted) hint.complete(payload)
 					else -> Unit
 				}
 			},
@@ -394,7 +394,7 @@ class LiveServerVerificationTest {
 
 		val state = withTimeout(10_000) { runningState.await() }
 		assertTrue(state.containsKey("board"))
-		assertTrue(state.containsKey("presence"))
+		assertTrue(state.containsKey("hintCell"))
 		assertNotNull(state.booleanOrNull("livesEnabled"))
 
 		val puzzleKeyJson = state["puzzleKey"]!!.jsonObject
@@ -408,9 +408,11 @@ class LiveServerVerificationTest {
 		val emptyCell = (0 until generated.puzzle().size().cellCount()).first { !generated.puzzle().cell(it).isGiven }
 		val correctDigit = generated.solution()[emptyCell]
 
-		creatorClient.presence(emptyCell)
-		val presencePayload = withTimeout(10_000) { presence.await() }
-		assertEquals(emptyCell, presencePayload.intOrNull("cell"))
+		// The shared hint offer: claimed by one player, broadcast to the group with its owner attached.
+		creatorClient.hint(emptyCell)
+		val hintPayload = withTimeout(10_000) { hint.await() }
+		assertEquals(emptyCell, hintPayload.intOrNull("cell"))
+		assertNotNull(hintPayload.stringOrNull("byUser"))
 
 		creatorClient.place(emptyCell, correctDigit)
 		val update = withTimeout(10_000) { boardUpdate.await() }
