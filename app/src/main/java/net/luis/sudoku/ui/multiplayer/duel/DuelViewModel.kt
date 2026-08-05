@@ -103,6 +103,16 @@ class DuelViewModel @AssistedInject constructor(
 	var winnerId by mutableStateOf<String?>(null)
 		private set
 
+	/**
+	 * Whether this player is the winner, or null when the duel ended without one.
+	 *
+	 * The over dialog used to treat *any* winner as this player having won, so the loser was told the pot had
+	 * been paid out without being told to whom. Null is a real answer: a stalemate can be tied, and a server
+	 * restart refunds both stakes.
+	 */
+	val iWon: Boolean?
+		get() = this.winnerId?.let { it == this.myUserId }
+
 	var endReason by mutableStateOf<String?>(null)
 		private set
 

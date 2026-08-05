@@ -36,7 +36,7 @@
 	<string name="outcome_out_of_lives">Keine Leben mehr</string>
 	<string name="action_new_puzzle">Neues Rätsel</string>
 	<string name="action_try_again">Erneut versuchen</string>
-	<string name="dialog_daily_difficulty_title">Tages-Schwierigkeit</string>
+	<string name="dialog_daily_difficulty_title">Schwierigkeit des Tagesrätsels</string>
 	<string name="dialog_daily_difficulty_body">Gilt erst ab dem Tagesrätsel von morgen.</string>
 	<string name="action_set">Festlegen</string>
 
@@ -54,7 +54,23 @@
 	<string name="action_continue">Weiter</string>
 	<string name="action_close">Schließen</string>
 	<string name="action_leave">Verlassen</string>
-	<string name="match_end_reason">Grund: %1$s</string>
+	<!--
+		Warum ein Match zu Ende ist, ein Satz pro EndReason des Servers. Vorher stand hier "Grund: %1$s" mit
+		dem Enum-Namen selbst, also etwa RECONNECT_LIMIT.
+	-->
+	<string name="match_end_completed">Das Rätsel wurde gelöst.</string>
+	<string name="match_end_lives_exhausted">Die Leben sind aufgebraucht.</string>
+	<string name="match_end_resigned">Ein Spieler hat das Match verlassen.</string>
+	<string name="match_end_forfeit_backgrounded">Ein Spieler hat die App geschlossen, das gilt als Aufgabe.</string>
+	<string name="match_end_disconnected">Ein Spieler hat die Verbindung verloren und kam nicht rechtzeitig zurück.</string>
+	<string name="match_end_reconnect_limit">Ein Spieler hat die Verbindung zu oft verloren, deshalb wurde das Match beendet.</string>
+	<string name="match_end_stalemate">Keiner konnte fertig werden, deshalb entschieden die richtigen Felder.</string>
+	<string name="match_end_server_restart">Der Server wurde neu gestartet, deshalb wurde das Match abgebrochen.</string>
+	<string name="match_end_cancelled">Das Match wurde abgesagt, bevor es begonnen hat.</string>
+	<!-- Ein Grund, den dieser Build nicht kennt: trotzdem ein Satz, niemals der rohe Code. -->
+	<string name="match_end_unknown">Das Match ist zu Ende.</string>
+	<string name="match_end_you_won">Du hast gewonnen.</string>
+	<string name="match_end_you_lost">Ein anderer Spieler hat gewonnen.</string>
 
 	<string name="settings_header_server">Server</string>
 	<string name="dialog_update_required_title">Update erforderlich</string>
@@ -106,7 +122,7 @@
 	<!-- Serien-Wiederherstellung (Tagesmodus) -->
 	<string name="daily_streak_restore_button">Serie wiederherstellen</string>
 	<string name="dialog_streak_restore_title">Serie wiederherstellen</string>
-	<string name="dialog_streak_restore_body">Du hast %1$d Tag(e) verpasst. Die Reparatur dieser Lücke kostet %2$d Rhabarber.</string>
+	<string name="dialog_streak_restore_body">Verpasste Tage: %1$d. Die Reparatur dieser Lücke kostet %2$d Rhabarber.</string>
 	<string name="daily_streak_restore_points_label">Verfügbare Wiederherstellungspunkte: %1$d</string>
 	<string name="action_restore">Wiederherstellen</string>
 
@@ -153,23 +169,23 @@
 	<string name="stats_header">Deine Statistiken</string>
 	<string name="stats_games_played">Gespielte Spiele: %1$d</string>
 	<string name="stats_games_won">Gewonnene Spiele: %1$d</string>
-	<string name="stats_win_rate">Gewinnrate: %1$s%%</string>
+	<string name="stats_win_rate">Gewinnquote: %1$s%%</string>
 	<string name="stats_hints_used">Verwendete Tipps: %1$d</string>
 	<string name="stats_lives_lost">Verlorene Leben: %1$d</string>
 	<string name="stats_by_tier_header">Nach Stufe (Server)</string>
 	<string name="stats_tier_difficulty_suffix">Schwierigkeit %1$d</string>
 	<string name="stats_tier_solved_fraction">%1$d/%2$d gelöst</string>
-	<string name="stats_tier_best_suffix">, beste %1$s</string>
+	<string name="stats_tier_best_suffix">, Bestzeit %1$s</string>
 
 	<string name="tab_play">Spielen</string>
 	<string name="tab_players">Spieler</string>
 	<string name="multiplayer_connect_prompt">Verbinde dich und melde dich in den Einstellungen an, um mit anderen zu spielen.</string>
-	<string name="reconnect_grace_player">%1$s hat die Verbindung verloren. Wir warten auf die Rückkehr — das Match endet in %2$d s.</string>
-	<string name="reconnect_grace_unnamed">Ein Spieler hat die Verbindung verloren. Wir warten auf die Rückkehr — das Match endet in %1$d s.</string>
+	<string name="reconnect_grace_player">%1$s hat die Verbindung verloren. Wir warten auf die Rückkehr: das Match endet in %2$d s.</string>
+	<string name="reconnect_grace_unnamed">Ein Spieler hat die Verbindung verloren. Wir warten auf die Rückkehr: das Match endet in %1$d s.</string>
 	<string name="match_status_icon_description">Verbindungsstatus</string>
 	<string name="match_status_title">Verbindung</string>
 	<string name="match_status_seconds">%1$d s</string>
-	<string name="match_reconnecting_message">Du hast die Verbindung zum Match verloren. Die App verbindet sich neu — das Match wartet auf dich, und dein Brett kommt damit zurück.</string>
+	<string name="match_reconnecting_message">Du hast die Verbindung zum Match verloren. Die App verbindet sich neu, das Match wartet auf dich, und dein Brett kommt damit zurück.</string>
 
 	<string name="players_row_streak">%1$s, Serie %2$d</string>
 
@@ -184,7 +200,8 @@
 	<string name="duel_them_bank">Gegner: %1$s</string>
 	<string name="duel_stake_display">Einsatz: %1$d Rhabarber, Gewinner nimmt den Pot</string>
 	<string name="dialog_duel_over_title">Duell beendet</string>
-	<string name="duel_pot_paid_out">Der Pot von %1$d Rhabarber wurde ausgezahlt.</string>
+	<string name="duel_pot_won">Du bekommst den Pot: %1$d Rhabarber.</string>
+	<string name="duel_pot_lost">Dein Gegner bekommt den Pot: %1$d Rhabarber.</string>
 	<string name="duel_stakes_refunded">Einsätze an beide Spieler zurückerstattet.</string>
 
 	<string name="dialog_match_over_title">Match beendet</string>
@@ -240,9 +257,9 @@
 
 	<!-- Einstellungen: Darstellung und Spiel (UI-Punkte 2 und 7) -->
 	<string name="settings_header_appearance">Darstellung</string>
-	<string name="settings_header_daily">Tägliches Rätsel</string>
-	<string name="settings_daily_difficulty_label">Schwierigkeit des täglichen Rätsels</string>
-	<string name="settings_daily_difficulty_note">Gilt ab dem morgigen täglichen Rätsel.</string>
+	<string name="settings_header_daily">Tagesrätsel</string>
+	<string name="settings_daily_difficulty_label">Schwierigkeit des Tagesrätsels</string>
+	<string name="settings_daily_difficulty_note">Gilt ab dem Tagesrätsel von morgen.</string>
 	<string name="settings_header_gameplay">Spiel</string>
 	<string name="settings_language_label">Sprache</string>
 	<string name="settings_language_system">Systemsprache</string>
@@ -312,7 +329,7 @@
 	<string name="presence_match_request_body">Spielmodus: %1$s</string>
 	<string name="action_accept">Annehmen</string>
 	<string name="action_decline">Ablehnen</string>
-	<string name="error_player_offline">Dieser Spieler ist gerade offline gegangen. Frag erneut, sobald er zurück ist.</string>
+	<string name="error_player_offline">Dieser Spieler ist gerade offline gegangen. Frag noch einmal, sobald die Person zurück ist.</string>
 
 	<string name="error_network">Der Server ist nicht erreichbar. Prüfe die Adresse (samt Port) und ob der Server läuft.\n\n%1$s</string>
 	<string name="error_match_connect">Beitritt zum Match fehlgeschlagen: Der Server ist nicht erreichbar.\n\n%1$s</string>

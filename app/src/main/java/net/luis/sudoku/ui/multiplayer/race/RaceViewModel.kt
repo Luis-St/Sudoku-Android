@@ -17,6 +17,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import net.luis.sudoku.core.CellSnapshot
 import net.luis.sudoku.core.GameSession
+import net.luis.sudoku.data.local.ServerConfigStore
 import net.luis.sudoku.data.remote.match.MatchSocketClient
 import net.luis.sudoku.data.remote.match.MessageType
 import net.luis.sudoku.data.remote.match.ReconnectGraceTracker
@@ -41,7 +42,8 @@ class RaceViewModel @AssistedInject constructor(
 	@Assisted("baseUrl") private val baseUrl: String,
 	@Assisted("token") private val token: String,
 	@Assisted("matchId") private val matchId: String,
-	private val socketClient: MatchSocketClient
+	private val socketClient: MatchSocketClient,
+	private val serverConfigStore: ServerConfigStore
 ) : ViewModel() {
 
 	@AssistedFactory
@@ -54,6 +56,8 @@ class RaceViewModel @AssistedInject constructor(
 	}
 
 	private lateinit var session: GameSession
+	/** Only used to read the result off `winnerId`, which the server reports as a user id. */
+	private var myUserId: String = ""
 	private val graceTracker = ReconnectGraceTracker(this.viewModelScope)
 
 	/** server-spec §10.4: who dropped and how long is left for them to return, or null when not paused. */
@@ -90,6 +94,16 @@ class RaceViewModel @AssistedInject constructor(
 	var winnerId by mutableStateOf<String?>(null)
 		private set
 
+	/**
+	 * Whether this player is the winner, or null when the match ended without one.
+	 *
+	 * The race-over dialog used to say only why the match stopped, so a player who was beaten to the last
+	 * cell and one who ran the board out of lives read the same sentence. Null is a real answer here: the
+	 * lives running out or the server restarting leaves nobody to have won.
+	 */
+	val iWon: Boolean?
+		get() = this.winnerId?.let { it == this.myUserId }
+
 	var endReason by mutableStateOf<String?>(null)
 		private set
 
@@ -112,7 +126,10 @@ class RaceViewModel @AssistedInject constructor(
 	private var leaving = false
 
 	init {
-		this.viewModelScope.launch { openSocket(initial = true) }
+		this.viewModelScope.launch {
+			this@RaceViewModel.myUserId = this@RaceViewModel.serverConfigStore.current().userId ?: ""
+			openSocket(initial = true)
+		}
 	}
 
 	private suspend fun openSocket(initial: Boolean) {

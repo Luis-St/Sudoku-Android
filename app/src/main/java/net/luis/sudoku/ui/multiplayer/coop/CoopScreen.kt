@@ -29,6 +29,7 @@ import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.ui.board.BoardScreen
 import net.luis.sudoku.ui.common.OutlinedActionButton
+import net.luis.sudoku.ui.common.matchEndReasonText
 import net.luis.sudoku.ui.common.ToggleActionButton
 import net.luis.sudoku.ui.input.NumberPad
 import net.luis.sudoku.ui.multiplayer.MatchStatusHolder
@@ -185,11 +186,12 @@ fun CoopScreen(
 		}
 	}
 
-	viewModel.endReason?.let {
+	viewModel.endReason?.let { reason ->
 		AlertDialog(
 			onDismissRequest = {},
 			title = { Text(stringResource(R.string.dialog_match_over_title)) },
-			text = { Text(stringResource(R.string.match_end_reason, it)) },
+			// No winner line: co-op has no winner by design, everybody finishes together or nobody does.
+			text = { Text(matchEndReasonText(reason)) },
 			confirmButton = { TextButton(onClick = { viewModel.leave(); onLeave() }) { Text(stringResource(R.string.action_leave)) } }
 		)
 	}

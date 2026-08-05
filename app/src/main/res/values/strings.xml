@@ -115,7 +115,25 @@
 	<string name="action_continue">Continue</string>
 	<string name="action_close">Close</string>
 	<string name="action_leave">Leave</string>
-	<string name="match_end_reason">Reason: %1$s</string>
+
+	<!--
+		Why a match ended, one sentence per server EndReason (net.luis.sudoku.ui.common.matchEndReasonText).
+		These replaced "Reason: %1$s", which printed the enum name itself: a player whose match had just
+		stopped was told RECONNECT_LIMIT and left to work out the rest.
+	-->
+	<string name="match_end_completed">The puzzle was solved.</string>
+	<string name="match_end_lives_exhausted">The lives ran out.</string>
+	<string name="match_end_resigned">A player left the match.</string>
+	<string name="match_end_forfeit_backgrounded">A player closed the app, which forfeits the match.</string>
+	<string name="match_end_disconnected">A player lost the connection and did not come back in time.</string>
+	<string name="match_end_reconnect_limit">A player lost the connection too often, so the match was stopped.</string>
+	<string name="match_end_stalemate">Neither player could finish, so the match was decided on correct cells.</string>
+	<string name="match_end_server_restart">The server restarted, so the match was abandoned.</string>
+	<string name="match_end_cancelled">The match was called off before it started.</string>
+	<!-- A reason this build does not know: still worth a sentence, never worth the raw code. -->
+	<string name="match_end_unknown">The match ended.</string>
+	<string name="match_end_you_won">You won.</string>
+	<string name="match_end_you_lost">Another player won.</string>
 
 	<!-- Settings screen (feature-spec §9.1, UI items 2 and 7) -->
 	<string name="settings_header_appearance">Appearance</string>
@@ -185,7 +203,7 @@
 	<!-- Streak restore (daily mode) -->
 	<string name="daily_streak_restore_button">Restore streak</string>
 	<string name="dialog_streak_restore_title">Restore streak</string>
-	<string name="dialog_streak_restore_body">You missed %1$d day(s). Repairing this gap costs %2$d Rhubarb.</string>
+	<string name="dialog_streak_restore_body">Missed days: %1$d. Repairing this gap costs %2$d Rhubarb.</string>
 	<string name="daily_streak_restore_points_label">Restore points available: %1$d</string>
 	<string name="dialog_streak_restore_balance">Your balance: %1$d Rhubarb</string>
 	<string name="dialog_streak_restore_nothing_to_restore">Your streak has no gap to restore.</string>
@@ -244,7 +262,7 @@
 	<string name="stats_by_tier_header">By tier (server)</string>
 	<string name="stats_tier_difficulty_suffix">difficulty %1$d</string>
 	<string name="stats_tier_solved_fraction">%1$d/%2$d solved</string>
-	<string name="stats_tier_best_suffix">, best %1$s</string>
+	<string name="stats_tier_best_suffix">, best time %1$s</string>
 	<string name="stats_tier_best">Best time %1$s</string>
 	<string name="stats_tile_played">Played</string>
 	<string name="stats_tile_won">Won</string>
@@ -263,9 +281,9 @@
 		gone. "Reconnecting in 54s" also read as though this device were about to reconnect, when what the
 		number counts is how long the match survives without the other player.
 	-->
-	<string name="reconnect_grace_player">%1$s lost the connection. Waiting for them to come back — the match ends in %2$ds.</string>
+	<string name="reconnect_grace_player">%1$s lost the connection. Waiting for them to come back: the match ends in %2$ds.</string>
 	<!-- Same message when the server did not send a name. -->
-	<string name="reconnect_grace_unnamed">A player lost the connection. Waiting for them to come back — the match ends in %1$ds.</string>
+	<string name="reconnect_grace_unnamed">A player lost the connection. Waiting for them to come back: the match ends in %1$ds.</string>
 	<!--
 		Both connection messages moved into the top bar as a warning icon plus, when there is one, the number
 		of seconds left; the sentences below are what the icon opens. A status does not belong over the board -
@@ -274,7 +292,7 @@
 	<string name="match_status_icon_description">Connection status</string>
 	<string name="match_status_title">Connection</string>
 	<string name="match_status_seconds">%1$ds</string>
-	<string name="match_reconnecting_message">You lost the connection to the match. The app is getting back in — the match is waiting for you, and your board comes back with it.</string>
+	<string name="match_reconnecting_message">You lost the connection to the match. The app is getting back in, the match is waiting for you, and your board comes back with it.</string>
 
 	<!-- Players screen (feature-spec §9.7, UI item 9) -->
 	<string name="players_row_streak">%1$s, streak %2$d</string>
@@ -312,7 +330,8 @@
 	<string name="duel_them_bank">Them: %1$s</string>
 	<string name="duel_stake_display">Stake: %1$d Rhubarb, winner takes the pot</string>
 	<string name="dialog_duel_over_title">Duel over</string>
-	<string name="duel_pot_paid_out">The pot of %1$d Rhubarb has been paid out.</string>
+	<string name="duel_pot_won">You took the pot: %1$d Rhubarb.</string>
+	<string name="duel_pot_lost">Your opponent took the pot: %1$d Rhubarb.</string>
 	<string name="duel_stakes_refunded">Stakes refunded to both players.</string>
 
 	<!-- Co-op screen (feature-spec §10.3) -->

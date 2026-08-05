@@ -25,6 +25,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import net.luis.sudoku.R
 import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.ui.board.BoardScreen
+import net.luis.sudoku.ui.common.matchEndReasonText
+import net.luis.sudoku.ui.common.matchWinnerText
 import net.luis.sudoku.ui.input.NumberPad
 import net.luis.sudoku.ui.multiplayer.MatchStatusHolder
 import net.luis.sudoku.ui.multiplayer.PublishMatchStatus
@@ -122,10 +124,19 @@ fun DuelScreen(
 			title = { Text(stringResource(R.string.dialog_duel_over_title)) },
 			text = {
 				Column {
-					Text(stringResource(R.string.match_end_reason, reason))
+					// Result, then why, then what happened to the stake: the three things a duel ends with.
+					viewModel.iWon?.let { Text(matchWinnerText(it)) }
+					Text(matchEndReasonText(reason))
 					if (stake > 0) {
-						val won = viewModel.winnerId != null
-						Text(if (won) stringResource(R.string.duel_pot_paid_out, stake) else stringResource(R.string.duel_stakes_refunded))
+						Text(
+							when (viewModel.iWon) {
+								true -> stringResource(R.string.duel_pot_won, stake)
+								false -> stringResource(R.string.duel_pot_lost, stake)
+								// Nobody won it, so nobody was paid: a tied stalemate, or a match the server
+								// abandoned. Saying "paid out" here was the old dialog's other wrong half.
+								null -> stringResource(R.string.duel_stakes_refunded)
+							}
+						)
 					}
 				}
 			},
