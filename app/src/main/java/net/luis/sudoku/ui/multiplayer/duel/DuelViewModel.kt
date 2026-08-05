@@ -3,6 +3,7 @@ package net.luis.sudoku.ui.multiplayer.duel
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.assisted.Assisted
@@ -134,7 +135,11 @@ class DuelViewModel @AssistedInject constructor(
 		try {
 			this.socketClient.connect(
 				url = matchSocketUrl(this.baseUrl, this.matchId, this.token),
-				onMessage = { envelope -> handleMessage(envelope.type, envelope.payload.jsonObjectOrEmpty()) },
+				// One frame, one atomic state change - the socket delivers on Dispatchers.Default, so a
+				// composition on the main thread must not be able to read a half-applied update.
+				onMessage = { envelope ->
+					Snapshot.withMutableSnapshot { handleMessage(envelope.type, envelope.payload.jsonObjectOrEmpty()) }
+				},
 				onClosed = { onSocketClosed() }
 			)
 			this.socketClient.ready()
@@ -229,8 +234,9 @@ class DuelViewModel @AssistedInject constructor(
 		}
 		this.lastBankAtMs = System.currentTimeMillis()
 
-		this.ready = true
+		// Cells first: `ready` is what lets the board compose, so it must never be true over an empty board.
 		refresh()
+		this.ready = true
 	}
 
 	private fun applyBoardUpdate(payload: JsonObject) {

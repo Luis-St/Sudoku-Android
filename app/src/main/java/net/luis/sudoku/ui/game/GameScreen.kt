@@ -29,7 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -238,7 +237,11 @@ fun GameScreen(
 				// alone was not enough of a signal - a player who did not already know the hint takes two
 				// presses read the marked cell as something that had happened *to* the board.
 				val hintPending = viewModel.hintCandidate != null
-				Box(modifier = Modifier.fillMaxWidth().padding(top = 10.dp), contentAlignment = Alignment.Center) {
+				Row(
+					modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+					horizontalArrangement = Arrangement.Center,
+					verticalAlignment = Alignment.CenterVertically
+				) {
 					OutlinedActionButton(
 						text = if (hintPending) {
 							stringResource(R.string.action_hint_reveal)
@@ -250,15 +253,15 @@ fun GameScreen(
 						iconPainter = painterResource(R.drawable.ic_hint),
 						iconIsArtwork = true
 					)
-				}
-				if (hintPending) {
-					Text(
-						text = stringResource(R.string.hint_pending_note),
-						style = MaterialTheme.typography.bodySmall,
-						color = MaterialTheme.colorScheme.onSurfaceVariant,
-						modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-						textAlign = TextAlign.Center
-					)
+					// The peek's third exit, alongside revealing it and filling the cell: nothing has been spent
+					// yet, so a player who changed their mind can hand it straight back.
+					if (hintPending) {
+						OutlinedActionButton(
+							text = stringResource(R.string.action_hint_withdraw),
+							onClick = viewModel::onHintCancel,
+							modifier = Modifier.padding(start = 8.dp)
+						)
+					}
 				}
 			}
 		}

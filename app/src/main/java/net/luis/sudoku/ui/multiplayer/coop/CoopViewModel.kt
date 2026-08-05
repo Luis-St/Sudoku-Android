@@ -3,6 +3,7 @@ package net.luis.sudoku.ui.multiplayer.coop
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.assisted.Assisted
@@ -17,7 +18,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import net.luis.sudoku.core.CellSnapshot
 import net.luis.sudoku.core.GameSession
-import net.luis.sudoku.data.local.ServerConfigStore
 import net.luis.sudoku.data.remote.dto.PuzzleKeyResponse
 import net.luis.sudoku.data.remote.match.MatchSocketClient
 import net.luis.sudoku.data.remote.match.MessageType
@@ -58,8 +58,7 @@ class CoopViewModel @AssistedInject constructor(
 	@Assisted("baseUrl") private val baseUrl: String,
 	@Assisted("token") private val token: String,
 	@Assisted("matchId") private val matchId: String,
-	private val socketClient: MatchSocketClient,
-	private val serverConfigStore: ServerConfigStore
+	private val socketClient: MatchSocketClient
 ) : ViewModel() {
 
 	@AssistedFactory
@@ -72,7 +71,6 @@ class CoopViewModel @AssistedInject constructor(
 	}
 
 	private lateinit var session: GameSession
-	private var myUserId: String = ""
 	/** cell index -> bitmask of noted digits, exactly as the match reports it. Never written locally. */
 	private var notes: Map<Int, Int> = emptyMap()
 	private val graceTracker = ReconnectGraceTracker(this.viewModelScope)
@@ -179,23 +177,17 @@ class CoopViewModel @AssistedInject constructor(
 	 * everybody is looking at, so the offer is marked on every screen and only one can be open at a time.
 	 * Which is also why it replaced the selection highlight rather than sitting next to it - "somebody is
 	 * asking about this cell" is worth a mark, "somebody tapped this cell" was not.
+	 *
+	 * The offer belongs to the group, not to whoever asked: any player may reveal it or withdraw it. It used
+	 * to be the asker's alone, which left everybody else with a marked cell and a button that did nothing.
 	 */
 	var hintCell by mutableStateOf<Int?>(null)
 		private set
 
-	/** Who asked. Only they can spend or withdraw the offer, so only their screen offers the reveal. */
-	var hintOwner by mutableStateOf<String?>(null)
-		private set
-
-	val hintIsMine: Boolean get() = this.hintCell != null && this.hintOwner == this.myUserId
-
 	val hintsRemaining: Int get() = MAX_HINTS - this.hintsUsed
 
 	init {
-		this.viewModelScope.launch {
-			this@CoopViewModel.myUserId = this@CoopViewModel.serverConfigStore.current().userId ?: ""
-			openSocket(initial = true)
-		}
+		this.viewModelScope.launch { openSocket(initial = true) }
 	}
 
 	/**
@@ -210,7 +202,12 @@ class CoopViewModel @AssistedInject constructor(
 		try {
 			this.socketClient.connect(
 				url = matchSocketUrl(this.baseUrl, this.matchId, this.token),
-				onMessage = { envelope -> handleMessage(envelope.type, envelope.payload.jsonObjectOrEmpty()) },
+				// One frame, one atomic state change. The socket delivers on Dispatchers.Default, so without
+				// this the composition can read half a snapshot: `ready` true while `cells` is still the empty
+				// list it started as, which crashed the board with an index-out-of-bounds on cell 0.
+				onMessage = { envelope ->
+					Snapshot.withMutableSnapshot { handleMessage(envelope.type, envelope.payload.jsonObjectOrEmpty()) }
+				},
 				onClosed = { onSocketClosed() }
 			)
 			this.socketClient.ready()
@@ -288,7 +285,6 @@ class CoopViewModel @AssistedInject constructor(
 		// A snapshot carries the pending offer too, so a player who joins or reconnects mid-decision sees the
 		// same marked cell as everybody else rather than an unexplained gap in the group's attention.
 		this.hintCell = if (this.hintsEnabled) payload.intOrNull("hintCell") else null
-		this.hintOwner = if (this.hintCell == null) null else payload.stringOrNull("hintBy")
 
 		(payload["board"] as? JsonObject)?.entries?.forEach { (cellKey, digitElement) ->
 			val cell = cellKey.toIntOrNull() ?: return@forEach
@@ -307,8 +303,9 @@ class CoopViewModel @AssistedInject constructor(
 		// A snapshot replaces the board wholesale, so any cell that came back filled is no longer a warning.
 		this.mistakeCells = this.mistakeCells.filterTo(mutableSetOf()) { this.session.snapshot(it).empty }
 
-		this.ready = true
+		// Cells first: `ready` is what lets the board compose, so it must never be true over an empty board.
 		refresh()
+		this.ready = true
 	}
 
 	private fun applyBoardUpdate(payload: JsonObject) {
@@ -390,9 +387,7 @@ class CoopViewModel @AssistedInject constructor(
 
 	/** The match's answer about the shared offer - claimed by somebody, or gone. */
 	private fun applyHint(payload: JsonObject) {
-		val cell = payload.intOrNull("cell")
-		this.hintCell = cell
-		this.hintOwner = if (cell == null) null else payload.stringOrNull("byUser")
+		this.hintCell = payload.intOrNull("cell")
 	}
 
 	fun onCellTap(index: Int) {
@@ -445,18 +440,19 @@ class CoopViewModel @AssistedInject constructor(
 			this.viewModelScope.launch { this@CoopViewModel.socketClient.hint(candidate.cellIndex()) }
 			return
 		}
-		// Only the player who asked may spend it; everybody else is looking at the same cell but their button
-		// is not an offer to take it (the cap is per player, so taking it would spend somebody else's).
-		if (!this.hintIsMine) return
+		// Anybody may spend the pending offer, not just whoever asked - it is one question about one shared
+		// board. The cap stays per player by charging whoever actually presses reveal, which is also why a
+		// player with none left cannot take it.
+		if (this.hintsRemaining <= 0) return
 		val digit = this.session.solutionAt(pending)
 		this.hintsUsed++
 		// The placement clears the offer server-side, since a filled cell has nothing left to point at.
 		this.viewModelScope.launch { this@CoopViewModel.socketClient.place(pending, digit) }
 	}
 
-	/** Withdraws this player's own offer without spending it. */
+	/** Drops the pending offer without spending it. Any player may, since any player may spend it. */
 	fun onHintCancel() {
-		if (!this.hintIsMine) return
+		if (this.hintCell == null) return
 		this.viewModelScope.launch { this@CoopViewModel.socketClient.clearHint() }
 	}
 

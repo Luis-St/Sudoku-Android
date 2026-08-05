@@ -22,7 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import net.luis.sudoku.R
@@ -152,44 +151,35 @@ fun CoopScreen(
 		// match is configured and arrives in MATCH_STATE, so this screen only obeys it - a toggle on a
 		// shared board let two players in one match disagree about the rules of that match.
 		if (viewModel.hintsEnabled) {
-			// One offer per match, so there are three states here rather than two: no hint pending, mine
-			// pending (reveal or withdraw it), somebody else's pending (look at the cell, and wait).
+			// One offer per match, but it is the group's: every screen shows the same two buttons on it, no
+			// matter who asked. The asker-only version left the others with a marked cell they could neither
+			// take nor clear.
 			val hintPending = viewModel.hintCell != null
-			val mine = viewModel.hintIsMine
 			Row(
-				modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+				modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 8.dp),
 				horizontalArrangement = Arrangement.Center,
 				verticalAlignment = Alignment.CenterVertically
 			) {
 				OutlinedActionButton(
-					text = if (mine) {
+					text = if (hintPending) {
 						stringResource(R.string.action_hint_reveal)
 					} else {
 						stringResource(R.string.action_hint_with_count, viewModel.hintsRemaining)
 					},
 					onClick = viewModel::onHintTap,
-					// Somebody else's offer is not this player's to spend - the cap is per player, so taking it
-					// would charge the wrong one.
-					enabled = mine || (!hintPending && viewModel.hintsRemaining > 0),
+					// The cap is per player and the reveal charges whoever presses it, so an empty cap stops
+					// this player taking the offer even though somebody else could.
+					enabled = viewModel.hintsRemaining > 0,
 					iconPainter = painterResource(R.drawable.ic_hint),
 					iconIsArtwork = true
 				)
-				if (mine) {
+				if (hintPending) {
 					OutlinedActionButton(
 						text = stringResource(R.string.action_hint_withdraw),
 						onClick = viewModel::onHintCancel,
 						modifier = Modifier.padding(start = 8.dp)
 					)
 				}
-			}
-			if (hintPending) {
-				Text(
-					text = stringResource(if (mine) R.string.hint_pending_note else R.string.coop_hint_pending_other),
-					style = MaterialTheme.typography.bodySmall,
-					color = MaterialTheme.colorScheme.onSurfaceVariant,
-					modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp),
-					textAlign = TextAlign.Center
-				)
 			}
 		}
 	}

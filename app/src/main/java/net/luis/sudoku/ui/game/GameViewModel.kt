@@ -570,6 +570,19 @@ class GameViewModel @Inject constructor(
 	}
 
 	/**
+	 * Withdraws a peeked hint, giving it back unspent - the same button the co-op board has.
+	 *
+	 * A peek costs nothing until it is confirmed, so this is a plain retraction: the mark goes, the count is
+	 * untouched, and the next request is free to pick a different cell. Without it the only way out of a peek
+	 * the player did not want was to fill that exact cell.
+	 */
+	fun onHintCancel() {
+		if (this.outcome != null || this.hintCandidate == null) return
+		clearPendingHint()
+		refresh()
+	}
+
+	/**
 	 * The peek's other exit (game item 3): the player filled the cell it was pointing at themselves.
 	 *
 	 * Only *that* cell ends it. Entering a digit anywhere else leaves the hint pending and the cell marked,

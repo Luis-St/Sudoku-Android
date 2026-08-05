@@ -62,6 +62,12 @@ fun BoardScreen(
 	/** Summary board only (game item 7). */
 	hintCells: Set<Int> = emptySet()
 ) {
+	// A board narrower than its own edge length is always a half-applied update, never a state to draw: the
+	// multiplayer models write `cells` and `edgeLength` from the socket thread, so a composition can land
+	// between the two. Drawing nothing for that one frame beats indexing off the end of the list, which took
+	// the whole app down.
+	if (cells.size < edgeLength * edgeLength) return
+
 	// Lisa removes same-digit highlighting entirely (feature-spec §4.3) - locking still governs input,
 	// it just stops drawing attention to where the digit already is.
 	val lockedDigit = (lock.target as? LockTarget.Digit)?.digit.takeIf { sameDigitHighlightingAllowed }

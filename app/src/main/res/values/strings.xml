@@ -371,12 +371,10 @@
 	<!-- Invite item 3: waiting invitations live on the players list now, not on the sender\'s profile. -->
 	<string name="players_invites_header">Waiting invitations</string>
 
-	<!-- Game item 3: a peeked hint is half-used until it is taken or the cell is filled. -->
+	<!-- Game item 3: a peeked hint is half-used until it is taken, withdrawn, or the cell is filled. Both
+	     buttons appear on the single-player and the co-op board, and in co-op on every player's. -->
 	<string name="action_hint_reveal">Reveal this cell</string>
-	<string name="hint_pending_note">A hint is waiting on the marked cell. Press again to reveal it, or fill the cell yourself.</string>
-	<!-- Co-op: one hint offer per match, so the other players see the same marked cell without being able to spend it. -->
 	<string name="action_hint_withdraw">Withdraw</string>
-	<string name="coop_hint_pending_other">Another player is asking about the marked cell.</string>
 
 	<!-- Multiplayer game screen. -->
 

@@ -346,12 +346,10 @@
 	<!-- Invite item 3: waiting invitations live on the players list now, not on the sender\'s profile. -->
 	<string name="players_invites_header">Wartende Einladungen</string>
 
-	<!-- Game item 3: a peeked hint is half-used until it is taken or the cell is filled. -->
+	<!-- Game item 3: a peeked hint is half-used until it is taken, withdrawn, or the cell is filled. Both
+	     buttons appear on the single-player and the co-op board, and in co-op on every player's. -->
 	<string name="action_hint_reveal">Zelle aufdecken</string>
-	<string name="hint_pending_note">Ein Tipp wartet auf der markierten Zelle. Nochmal drücken zum Aufdecken, oder die Zelle selbst füllen.</string>
-	<!-- Co-op: one hint offer per match, so the other players see the same marked cell without being able to spend it. -->
 	<string name="action_hint_withdraw">Zurückziehen</string>
-	<string name="coop_hint_pending_other">Ein anderer Spieler fragt nach der markierten Zelle.</string>
 
 	<!-- Multiplayer game screen. -->
 
