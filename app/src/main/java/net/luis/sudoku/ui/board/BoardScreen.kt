@@ -51,7 +51,15 @@ fun BoardScreen(
 	onCellTap: (Int) -> Unit,
 	modifier: Modifier = Modifier,
 	hintCandidateIndex: Int? = null,
-	mistake: Pair<Int, Int>? = null,
+	/**
+	 * Cell index -> the wrong digit to show in it, never written to the cell itself (feature-spec §6).
+	 *
+	 * A map rather than the single `cell to digit` slot it used to be: co-op marks every mistake still on the
+	 * board and shows each one's digit for as long as its mark lasts, so more than one can be up at a time.
+	 * The single-player, duel and race boards pass at most one entry, which is the same thing with a shorter
+	 * life.
+	 */
+	mistakeDigits: Map<Int, Int> = emptyMap(),
 	sameDigitHighlightingAllowed: Boolean = true,
 	/** Game item 1: tint each region when the puzzle is a jigsaw, so regions read without tracing outlines. */
 	tintRegions: Boolean = false,
@@ -105,7 +113,7 @@ fun BoardScreen(
 										markedPencilDigit = lockedDigit?.takeIf { snapshot.empty && snapshot.hasPencilMark(it) },
 										conflict = snapshot.conflicted,
 										hintCandidate = hintCandidateIndex == index,
-										mistakeDigit = mistake?.takeIf { it.first == index }?.second,
+										mistakeDigit = mistakeDigits[index],
 										mistakeMade = index in mistakeCells,
 										hintUsed = index in hintCells,
 										regionTint = if (tintRegions) ChaosRegionColors.of(regionOf(index), darkTheme) else null

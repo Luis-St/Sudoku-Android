@@ -132,9 +132,10 @@ fun CoopScreen(
 			onCellTap = viewModel::onCellTap,
 			// The match's hint, not this player's: whoever asked, every board marks the same cell yellow.
 			hintCandidateIndex = viewModel.hintCell,
-			mistake = viewModel.mistake,
-			// Multiplayer item 2: the wrong digit flashes, and then the cell stays marked.
-			mistakeCells = viewModel.mistakeCells,
+			// Multiplayer item 2: the digit and the mark are the same fact, so they arrive together and leave
+			// together - the number stays readable for exactly as long as the cell is red.
+			mistakeDigits = viewModel.mistakes,
+			mistakeCells = viewModel.mistakes.keys,
 			darkTheme = darkTheme
 		)
 

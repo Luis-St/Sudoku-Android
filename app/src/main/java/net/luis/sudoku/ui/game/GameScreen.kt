@@ -214,7 +214,8 @@ fun GameScreen(
 				palette = palette,
 				onCellTap = viewModel::onCellTap,
 				hintCandidateIndex = viewModel.hintCandidate?.cellIndex(),
-				mistake = viewModel.mistake,
+				// Single-player keeps the timed flash (feature-spec §6): at most one wrong digit, briefly.
+				mistakeDigits = viewModel.mistake?.let { mapOf(it) }.orEmpty(),
 				sameDigitHighlightingAllowed = viewModel.modifiers.sameDigitHighlightingAllowed,
 				tintRegions = viewModel.isChaos,
 				darkTheme = darkTheme

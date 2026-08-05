@@ -84,7 +84,7 @@ fun RaceScreen(
 			regionOf = viewModel::regionOf,
 			palette = palette,
 			onCellTap = viewModel::onCellTap,
-			mistake = viewModel.mistake,
+			mistakeDigits = viewModel.mistake?.let { mapOf(it) }.orEmpty(),
 			modifier = Modifier.padding(top = 8.dp)
 		)
 

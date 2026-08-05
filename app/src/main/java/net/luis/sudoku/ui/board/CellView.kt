@@ -41,14 +41,19 @@ data class CellHighlight(
 	 * participant's board at once, not just the asker's.
 	 */
 	val hintCandidate: Boolean = false,
-	/** A wrong digit shown transiently, never written to the actual cell (feature-spec §6). */
+	/**
+	 * A wrong digit shown in the cell, never written to the actual cell (feature-spec §6).
+	 *
+	 * Transient on the single-player, duel and race boards. In co-op it lasts exactly as long as
+	 * [mistakeMade] does, so the two are always set together there.
+	 */
 	val mistakeDigit: Int? = null,
 	/**
 	 * A wrong digit was entered here at some point, and the cell is still marked for it.
 	 *
 	 * The end-of-game summary (game item 7) and the co-op board (multiplayer item 2). In co-op it is live
 	 * rather than a review: the cell is still empty, the attempt cost the group a life, and leaving it
-	 * marked is what stops the next player repeating it.
+	 * marked with the digit that was tried is what stops the next player repeating it.
 	 */
 	val mistakeMade: Boolean = false,
 	/** Summary board only (game item 7): a hint filled this cell. */
@@ -81,7 +86,10 @@ fun CellView(
 		if (tint != null) over(palette.tintHighlight, onTint) else plain
 
 	val background = when {
-		highlight.mistakeDigit != null -> palette.conflict
+		// The single-player flash, which has no lasting mark under it. A co-op mistake carries its digit *and*
+		// stays marked, and keeps the stronger `summaryMistake` red below rather than dropping to this one -
+		// the number changes what the cell says, not how loudly it says it.
+		highlight.mistakeDigit != null && !highlight.mistakeMade -> palette.conflict
 		// Game item 4: opaque, and deliberately *not* run through accentOrPlain. Every other highlight lets a
 		// chaos region tint show through so the region stays readable; the hint cell is the one that has to be
 		// findable at a glance on a board of sixteen tinted regions, and it is about to be overwritten anyway.

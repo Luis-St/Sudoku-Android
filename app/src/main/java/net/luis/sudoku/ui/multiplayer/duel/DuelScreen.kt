@@ -103,7 +103,7 @@ fun DuelScreen(
 			regionOf = viewModel::regionOf,
 			palette = palette,
 			onCellTap = viewModel::onCellTap,
-			mistake = viewModel.mistake
+			mistakeDigits = viewModel.mistake?.let { mapOf(it) }.orEmpty()
 		)
 
 		NumberPad(

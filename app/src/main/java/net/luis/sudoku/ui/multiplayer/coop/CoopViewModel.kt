@@ -40,7 +40,7 @@ import net.luis.sudoku.hint.HintCandidate
  * or controller state at all, anyone may place at any time.
  *
  * What one player sees of another is deliberately narrow, and narrower than it was: a wrong entry
- * ([mistakeCells]) and the pending hint ([hintCell]). The selected cell used to be broadcast and drawn too,
+ * ([mistakes]) and the pending hint ([hintCell]). The selected cell used to be broadcast and drawn too,
  * and the owner had it removed - it marked cells nothing had happened to, on a board where a mark is
  * supposed to mean something.
  *
@@ -77,12 +77,12 @@ class CoopViewModel @AssistedInject constructor(
 	/** Set once the player leaves deliberately, so the reconnect loop does not fight the teardown. */
 	private var leaving = false
 	/**
-	 * The timers that end the two transient cell flashes, held so each can be cancelled by the next flash.
+	 * The timer that ends the losing-a-race flash, held so it can be cancelled by the next one.
 	 *
-	 * One slot each, which is why they have to be cancelled rather than left to expire: the slot holds the
-	 * *latest* flash, so a timer started for an older one must never be the thing that clears it.
+	 * One slot, which is why it has to be cancelled rather than left to expire: the slot holds the *latest*
+	 * flash, so a timer started for an older one must never be the thing that clears it. Mistakes used to
+	 * work the same way and no longer do - see [mistakes], which has no clock at all.
 	 */
-	private var mistakeFlashJob: Job? = null
 	private var alreadyFilledFlashJob: Job? = null
 
 	/** server-spec §10.4: who dropped and how long is left for them to return, or null when not paused. */
@@ -113,23 +113,31 @@ class CoopViewModel @AssistedInject constructor(
 	var alreadyFilledFlash by mutableStateOf<Int?>(null)
 		private set
 
-	var mistake by mutableStateOf<Pair<Int, Int>?>(null)
-		private set
-
 	/**
-	 * Every cell somebody has already got wrong, kept marked until it is filled correctly.
+	 * Cell index -> the wrong digit somebody tried there, for every mistake still on the board.
 	 *
 	 * Multiplayer item 2: the red used to be a flash, so a cell reverted to whatever was underneath it - at
 	 * the time the green "somebody is here" highlight (since removed), which reads as the opposite of what
-	 * just happened. A wrong entry is not a moment, it is a *fact about the cell*: it is
-	 * still empty, it cost the group a life, and the digit that was tried there is wrong for everybody. So
-	 * it stays marked, which also stops the next player walking into the same cell and repeating it.
+	 * just happened. A wrong entry is not a moment, it is a *fact about the cell*: it is still empty, it cost
+	 * the group a life, and the digit that was tried there is wrong for everybody. So it stays marked, which
+	 * also stops the next player walking into the same cell and repeating it.
 	 *
-	 * Cleared when the cell is filled ([applyBoardUpdate]) - once it holds a digit there is nothing left to
-	 * warn about. Not carried by the server, so a reconnect forgets these; that is honest rather than
-	 * unfortunate, since the match itself never claimed to track them.
+	 * The **digit and the mark are one thing** and are held together here, at the owner's request. They used
+	 * to be two states on two clocks - a `cell to digit` slot cleared after 1.5s, and a separate set of marked
+	 * cells - so the mark outlived the number by minutes and said only that *something* had been wrong here.
+	 * The number is the useful half: it is what stops the next player trying it again.
+	 *
+	 * Three things end a mark, and none of them is a timer:
+	 *
+	 * - the cell being filled correctly ([applyBoardUpdate]), since a filled cell has nothing to warn about;
+	 * - a snapshot that shows it filled ([applyMatchState]);
+	 * - **this player's next move on the board** ([clearMistakes]) - the warning has been seen by the only
+	 *   person it can be dismissed by, and a stale mark is worse than none.
+	 *
+	 * Not carried by the server, so a reconnect forgets these; that is honest rather than unfortunate, since
+	 * the match itself never claimed to track them.
 	 */
-	var mistakeCells by mutableStateOf<Set<Int>>(emptySet())
+	var mistakes by mutableStateOf<Map<Int, Int>>(emptyMap())
 		private set
 
 	var winnerId by mutableStateOf<String?>(null)
@@ -301,7 +309,7 @@ class CoopViewModel @AssistedInject constructor(
 		}
 
 		// A snapshot replaces the board wholesale, so any cell that came back filled is no longer a warning.
-		this.mistakeCells = this.mistakeCells.filterTo(mutableSetOf()) { this.session.snapshot(it).empty }
+		this.mistakes = this.mistakes.filterKeys { this.session.snapshot(it).empty }
 
 		// Cells first: `ready` is what lets the board compose, so it must never be true over an empty board.
 		refresh()
@@ -320,7 +328,7 @@ class CoopViewModel @AssistedInject constructor(
 		// snapshots rather than waiting for the next one.
 		this.notes = this.notes - cell
 		// The cell is solved, so the earlier wrong attempt at it has nothing left to warn anybody about.
-		this.mistakeCells = this.mistakeCells - cell
+		this.mistakes = this.mistakes - cell
 		// A pending hint on this cell is not cleared here: the match owns it and sends its own HINT frame, so
 		// clearing it locally would only make the two disagree until the next snapshot.
 		refresh()
@@ -368,20 +376,10 @@ class CoopViewModel @AssistedInject constructor(
 		}
 		if (!correct) {
 			val digit = payload.intOrNull("digit") ?: return
-			// Cancel the outgoing timer before starting a new one. Without this the *previous* mistake's
-			// `delay` kept running and cleared whatever was in the slot when it expired, so a second mistake
-			// inside that window got only the remainder of the first one's second - measured at 0.2s against
-			// the 1s intended. That is the "it just stays green" report: now that both players' mistakes are
-			// broadcast they land in this one slot and were cutting each other short, so a mistake on the
-			// cell somebody else was sitting on barely outlived a frame before the (since removed) selection
-			// highlight returned.
-			this.mistakeCells = this.mistakeCells + cell
-			this.mistakeFlashJob?.cancel()
-			this.mistake = cell to digit
-			this.mistakeFlashJob = this.viewModelScope.launch {
-				delay(MISTAKE_FLASH_MS)
-				this@CoopViewModel.mistake = null
-			}
+			// No timer, and one entry per cell: mistakes accumulate instead of sharing a single slot, so two
+			// players getting two cells wrong at once no longer cut each other's warning short. Each mark
+			// carries its own digit and lasts until [clearMistakes] or the cell being filled.
+			this.mistakes = this.mistakes + (cell to digit)
 		}
 	}
 
@@ -390,8 +388,21 @@ class CoopViewModel @AssistedInject constructor(
 		this.hintCell = payload.intOrNull("cell")
 	}
 
+	/**
+	 * Drops every mistake mark, because this player has just moved on the board.
+	 *
+	 * The owner's rule: a mark is a warning, and a warning that outlives the moment it is read becomes part
+	 * of the furniture. Selecting a cell, placing a digit or writing a note all say the same thing - the
+	 * player has looked at the board since, so the red has done its work. Whatever this move itself gets
+	 * wrong comes back as its own `ENTRY_RESULT`, after this.
+	 */
+	private fun clearMistakes() {
+		if (this.mistakes.isNotEmpty()) this.mistakes = emptyMap()
+	}
+
 	fun onCellTap(index: Int) {
 		if (!this.ready || this.endReason != null) return
+		clearMistakes()
 		val (action, nextLock) = resolveTap(this.cells[index], this.lock)
 		// Game item 1: a pencil mark is annotation, not selection - the same rule the single-player screen
 		// uses, and the same reason. Sharing the board does not change what marking means.
@@ -399,13 +410,14 @@ class CoopViewModel @AssistedInject constructor(
 		sendIfEntry(action)
 		// Nothing is sent about the selection itself. It used to be broadcast and drawn on everybody's board,
 		// which marked cells that nothing had happened to; the owner had it removed. What other players see of
-		// each other now is a wrong entry ([mistakeCells]) and a pending hint ([hintCell]) - both things that
+		// each other now is a wrong entry ([mistakes]) and a pending hint ([hintCell]) - both things that
 		// happened, rather than somewhere a finger went.
 		this.lock = nextLock
 	}
 
 	fun onNumberTap(digit: Int, longPress: Boolean = false) {
 		if (!this.ready || this.endReason != null) return
+		clearMistakes()
 		this.activeIndex = null
 		val (action, nextLock) = resolveNumberButtonTap(this.lock, digit, longPress)
 		sendIfEntry(action)
@@ -503,15 +515,7 @@ class CoopViewModel @AssistedInject constructor(
 		/** Same per-puzzle cap as single-player (feature-spec §4.4), counted per player rather than per match. */
 		const val MAX_HINTS = 5
 
-		/**
-		 * How long a wrong digit stays on the board, matching single-player's own mistake flash.
-		 *
-		 * It has to survive being glanced at: on a shared board most mistakes are somebody else's, and the
-		 * player has no reason to be looking at that cell when it happens.
-		 */
-		const val MISTAKE_FLASH_MS = 1_500L
-
-		/** Shorter, because losing a race for a cell is meant to be brief and non-alarming (§10.3). */
+		/** Brief, because losing a race for a cell is meant to be non-alarming (§10.3) - unlike a mistake. */
 		const val ALREADY_FILLED_FLASH_MS = 600L
 
 		/**
