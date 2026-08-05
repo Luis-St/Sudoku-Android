@@ -21,8 +21,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import net.luis.sudoku.R
 import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.ui.board.BoardScreen
-import net.luis.sudoku.ui.common.matchEndReasonText
-import net.luis.sudoku.ui.common.matchWinnerText
+import net.luis.sudoku.ui.common.LeaveWhenAlreadyOver
+import net.luis.sudoku.ui.common.MatchOverDialog
 import net.luis.sudoku.ui.input.NumberPad
 import net.luis.sudoku.ui.multiplayer.MatchStatusHolder
 import net.luis.sudoku.ui.multiplayer.PublishMatchStatus
@@ -57,6 +57,9 @@ fun RaceScreen(
 		)
 		return
 	}
+
+	// Already over when this screen opened it: no board is coming, so there is nothing here to stay for.
+	LeaveWhenAlreadyOver(ended = viewModel.endReason != null, started = viewModel.ready, onLeave = onLeave)
 
 	if (!viewModel.ready) {
 		Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -101,18 +104,13 @@ fun RaceScreen(
 	}
 
 	viewModel.endReason?.let { reason ->
-		AlertDialog(
-			onDismissRequest = {},
-			title = { Text(stringResource(R.string.dialog_race_over_title)) },
-			text = {
-				Column {
-					// The result first, and only when there is one: the lives running out ends a race with
-					// nobody having won it.
-					viewModel.iWon?.let { Text(matchWinnerText(it)) }
-					Text(matchEndReasonText(reason))
-				}
-			},
-			confirmButton = { TextButton(onClick = onLeave) { Text(stringResource(R.string.action_leave)) } }
+		// The result first, and only when there is one: the lives running out ends a race with nobody
+		// having won it.
+		MatchOverDialog(
+			title = stringResource(R.string.dialog_race_over_title),
+			reason = reason,
+			youWon = viewModel.iWon,
+			onLeave = onLeave
 		)
 	}
 }

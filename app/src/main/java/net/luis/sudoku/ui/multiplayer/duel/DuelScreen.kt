@@ -25,8 +25,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import net.luis.sudoku.R
 import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.ui.board.BoardScreen
-import net.luis.sudoku.ui.common.matchEndReasonText
-import net.luis.sudoku.ui.common.matchWinnerText
+import net.luis.sudoku.ui.common.LeaveWhenAlreadyOver
+import net.luis.sudoku.ui.common.MatchOverDialog
 import net.luis.sudoku.ui.input.NumberPad
 import net.luis.sudoku.ui.multiplayer.MatchStatusHolder
 import net.luis.sudoku.ui.multiplayer.PublishMatchStatus
@@ -76,6 +76,10 @@ fun DuelScreen(
 		return
 	}
 
+	// Already over when this screen opened it: no board is coming, so there is nothing here to stay for. The
+	// stake was settled server-side when the match ended, with or without this screen being open for it.
+	LeaveWhenAlreadyOver(ended = viewModel.endReason != null, started = viewModel.ready, onLeave = onLeave)
+
 	if (!viewModel.ready) {
 		Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
 		return
@@ -119,28 +123,31 @@ fun DuelScreen(
 	}
 
 	viewModel.endReason?.let { reason ->
-		AlertDialog(
-			onDismissRequest = {},
-			title = { Text(stringResource(R.string.dialog_duel_over_title)) },
-			text = {
-				Column {
-					// Result, then why, then what happened to the stake: the three things a duel ends with.
-					viewModel.iWon?.let { Text(matchWinnerText(it)) }
-					Text(matchEndReasonText(reason))
-					if (stake > 0) {
-						Text(
-							when (viewModel.iWon) {
-								true -> stringResource(R.string.duel_pot_won, stake)
-								false -> stringResource(R.string.duel_pot_lost, stake)
-								// Nobody won it, so nobody was paid: a tied stalemate, or a match the server
-								// abandoned. Saying "paid out" here was the old dialog's other wrong half.
-								null -> stringResource(R.string.duel_stakes_refunded)
-							}
-						)
-					}
-				}
-			},
-			confirmButton = { TextButton(onClick = onLeave) { Text(stringResource(R.string.action_leave)) } }
+		// Result, then why, then what happened to the stake: the three things a duel ends with.
+		MatchOverDialog(
+			title = stringResource(R.string.dialog_duel_over_title),
+			reason = reason,
+			youWon = viewModel.iWon,
+			onLeave = onLeave,
+			extra = stakeSettlement(stake, viewModel.iWon)
+		)
+	}
+}
+
+/** The stake line under a finished duel, or nothing at all when the match was free to join. */
+private fun stakeSettlement(stake: Int, iWon: Boolean?): (@Composable () -> Unit)? {
+	if (stake <= 0) {
+		return null
+	}
+	return {
+		Text(
+			when (iWon) {
+				true -> stringResource(R.string.duel_pot_won, stake)
+				false -> stringResource(R.string.duel_pot_lost, stake)
+				// Nobody won it, so nobody was paid: a tied stalemate, or a match the server abandoned.
+				// Saying "paid out" here was the old dialog's other wrong half.
+				null -> stringResource(R.string.duel_stakes_refunded)
+			}
 		)
 	}
 }

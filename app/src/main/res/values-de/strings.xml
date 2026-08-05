@@ -72,6 +72,15 @@
 	<string name="match_end_you_won">Du hast gewonnen.</string>
 	<string name="match_end_you_lost">Ein anderer Spieler hat gewonnen.</string>
 
+	<!--
+		Beim Start gefragt, wenn der Server meldet, dass dieser Spieler noch in einem laufenden Match ist.
+		Das Schließen der App beendet es nicht: die anderen warten am pausierten Brett.
+	-->
+	<string name="dialog_rejoin_match_title">Dein Match läuft noch</string>
+	<string name="dialog_rejoin_match_message">Das Schließen der App hat dein Match nicht verlassen, die anderen Spieler warten also auf dich. Geh zurück ins Match oder verlasse es jetzt: beim Verlassen endet das Match sofort für alle, statt dass sie die Wartezeit absitzen.</string>
+	<string name="action_rejoin_match">Zurück ins Match</string>
+	<string name="action_leave_match">Match verlassen</string>
+
 	<string name="settings_header_server">Server</string>
 	<string name="dialog_update_required_title">Update erforderlich</string>
 	<string name="dialog_update_required_body">Dieser Server benötigt eine neuere Version der App.</string>

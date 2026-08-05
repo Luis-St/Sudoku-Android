@@ -28,8 +28,9 @@ import net.luis.sudoku.R
 import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.ui.board.BoardScreen
+import net.luis.sudoku.ui.common.LeaveWhenAlreadyOver
+import net.luis.sudoku.ui.common.MatchOverDialog
 import net.luis.sudoku.ui.common.OutlinedActionButton
-import net.luis.sudoku.ui.common.matchEndReasonText
 import net.luis.sudoku.ui.common.ToggleActionButton
 import net.luis.sudoku.ui.input.NumberPad
 import net.luis.sudoku.ui.multiplayer.MatchStatusHolder
@@ -79,6 +80,16 @@ fun CoopScreen(
 			confirmButton = { TextButton(onClick = { viewModel.leave(); onLeave() }) { Text(stringResource(R.string.action_leave)) } }
 		)
 		return
+	}
+
+	// The match was already over when this screen opened it: the player closed the app during the game, the
+	// match was abandoned while they were away, and the first thing the socket says is MATCH_ENDED. There is
+	// no board to come back to and nothing to read a result off, so this goes straight home rather than
+	// putting a dialog in front of a game the player has already left. A match that ends *while* they are
+	// playing is the other case entirely, and still stops on the dialog at the bottom of this screen.
+	LeaveWhenAlreadyOver(ended = viewModel.endReason != null, started = viewModel.ready) {
+		viewModel.leave()
+		onLeave()
 	}
 
 	if (!viewModel.ready) {
@@ -187,12 +198,12 @@ fun CoopScreen(
 	}
 
 	viewModel.endReason?.let { reason ->
-		AlertDialog(
-			onDismissRequest = {},
-			title = { Text(stringResource(R.string.dialog_match_over_title)) },
-			// No winner line: co-op has no winner by design, everybody finishes together or nobody does.
-			text = { Text(matchEndReasonText(reason)) },
-			confirmButton = { TextButton(onClick = { viewModel.leave(); onLeave() }) { Text(stringResource(R.string.action_leave)) } }
+		// No winner line: co-op has no winner by design, everybody finishes together or nobody does.
+		MatchOverDialog(
+			title = stringResource(R.string.dialog_match_over_title),
+			reason = reason,
+			youWon = null,
+			onLeave = { viewModel.leave(); onLeave() }
 		)
 	}
 }

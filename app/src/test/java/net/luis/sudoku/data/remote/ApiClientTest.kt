@@ -17,6 +17,7 @@ import net.luis.sudoku.data.remote.dto.MatchConfigDto
 import net.luis.sudoku.data.remote.dto.MatchSettingsDto
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -469,6 +470,47 @@ class ApiClientTest {
 		}
 
 		assertEquals(listOf("USER_REVOKED"), seen)
+	}
+
+	/**
+	 * The startup question after the app was killed mid-match. 204 is the ordinary answer, not an error, so
+	 * it has to come back as null rather than as a parse failure on an empty body.
+	 */
+	@Test
+	fun activeMatch_withNoRunningMatch_isNull() = runBlocking {
+		val requests = mutableListOf<HttpRequestData>()
+		val client = clientReturning(HttpStatusCode.NoContent, "", requests)
+
+		assertNull(client.activeMatch("https://example.com", "tok"))
+		assertEquals("/api/v1/matches/active", requests.single().url.encodedPath)
+	}
+
+	@Test
+	fun activeMatch_whileInOne_carriesWhatTheRouteNeeds() = runBlocking {
+		val client = clientReturning(
+			HttpStatusCode.OK,
+			"""{"matchId":"m1","mode":"COOP","state":"RUNNING","stake":30}"""
+		)
+
+		val match = client.activeMatch("https://example.com", "tok")
+
+		// Mode picks the screen and the stake is what the duel screen settles, so both have to survive.
+		assertNotNull(match)
+		assertEquals("m1", match?.matchId)
+		assertEquals("COOP", match?.mode)
+		assertEquals(30, match?.stake)
+	}
+
+	@Test
+	fun resignMatch_postsToTheResignEndpoint() = runBlocking {
+		val requests = mutableListOf<HttpRequestData>()
+		val client = clientReturning(HttpStatusCode.NoContent, "", requests)
+
+		client.resignMatch("https://example.com", "tok", "m1")
+
+		assertEquals("/api/v1/matches/m1/resign", requests.single().url.encodedPath)
+		assertEquals(HttpMethod.Post, requests.single().method)
+		assertEquals("Bearer tok", requests.single().headers[HttpHeaders.Authorization])
 	}
 
 	@Test

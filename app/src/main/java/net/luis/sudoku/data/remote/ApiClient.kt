@@ -13,6 +13,7 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import net.luis.sudoku.data.remote.dto.AccountResponse
@@ -311,6 +312,27 @@ class ApiClient @Inject constructor(private val client: HttpClient, private val 
 
 	suspend fun getMatch(baseUrl: String, token: String, matchId: String): MatchResponse =
 		handle(this.client.get(url(baseUrl, "matches/$matchId")) { authorized(token) })
+
+	/**
+	 * The match this player is still in, or null.
+	 *
+	 * Asked on startup, because killing the app is not leaving the match: the socket closes, the reconnect
+	 * grace starts, and the player stays a participant for the length of it - but the board was memory-
+	 * resident and the navigation state died with the process, so the device itself no longer knows which
+	 * match to go back to. The server does.
+	 *
+	 * 204 means "not in one", which is the ordinary answer and not an error.
+	 */
+	suspend fun activeMatch(baseUrl: String, token: String): MatchResponse? {
+		val response = this.client.get(url(baseUrl, "matches/active")) { authorized(token) }
+		if (response.status == HttpStatusCode.NoContent) return null
+		return handle(response)
+	}
+
+	/** Leaves a running match for good, ending it now instead of holding the others for the rest of the grace. */
+	suspend fun resignMatch(baseUrl: String, token: String, matchId: String) {
+		handleUnit(this.client.post(url(baseUrl, "matches/$matchId/resign")) { authorized(token) })
+	}
 
 	suspend fun listPlayers(baseUrl: String, token: String): List<PlayerResponse> =
 		handle(this.client.get(url(baseUrl, "players")) { authorized(token) })

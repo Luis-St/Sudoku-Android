@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import net.luis.sudoku.data.local.DailyStore
@@ -14,8 +15,10 @@ import net.luis.sudoku.data.local.ServerConfig
 import net.luis.sudoku.data.local.ServerConfigStore
 import net.luis.sudoku.data.local.SettingsStore
 import net.luis.sudoku.data.local.ThemeMode
+import net.luis.sudoku.data.remote.ApiClient
 import net.luis.sudoku.data.remote.SessionEndReason
 import net.luis.sudoku.data.remote.SessionGuard
+import net.luis.sudoku.data.remote.dto.MatchMode
 import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.domain.DailyController
 import net.luis.sudoku.notification.DailyReminderScheduler
@@ -37,7 +40,8 @@ class AppViewModel @Inject constructor(
 	private val serverConfigStore: ServerConfigStore,
 	private val dailyStore: DailyStore,
 	private val reminderScheduler: DailyReminderScheduler,
-	private val sessionGuard: SessionGuard
+	private val sessionGuard: SessionGuard,
+	private val api: ApiClient
 ) : ViewModel() {
 
 	var preferences by mutableStateOf(PreferenceSettings.DEFAULT)
@@ -56,6 +60,24 @@ class AppViewModel @Inject constructor(
 	 */
 	var sessionEnded by mutableStateOf<SessionEndReason?>(null)
 		private set
+
+	/**
+	 * A match this device walked out of and is still a participant in, asked about once per app start.
+	 *
+	 * Closing the app is not leaving a match: the socket drops, the server starts the reconnect grace, and
+	 * for the length of it the other players are sitting at a paused board. But the board was memory-
+	 * resident and the navigation state died with the process, so the returning player had no route back in
+	 * and no way to end it either - they could only put the phone down and wait out a minute of somebody
+	 * else's time. The server knows which match it was, so the shell asks it.
+	 *
+	 * Null covers both "not in one" and "could not ask", deliberately: an unreachable server is reported in
+	 * one place only (the top bar), and a question the app cannot answer is not worth a popup.
+	 */
+	var runningMatch by mutableStateOf<RunningMatch?>(null)
+		private set
+
+	/** Once per process, not once per config emission: the config flow re-emits on every settings write. */
+	private var askedForRunningMatch = false
 
 	/**
 	 * The daily difficulty to show as selected in settings (daily item 1). That is the *pending* choice when
@@ -79,10 +101,69 @@ class AppViewModel @Inject constructor(
 		// instant a register/sign-in coroutine was *launched*, so the read raced the session write and the
 		// friends and multiplayer entry points stayed hidden until the next navigation.
 		this.viewModelScope.launch {
-			this@AppViewModel.serverConfigStore.config.collectLatest { this@AppViewModel.serverConfig = it }
+			this@AppViewModel.serverConfigStore.config.collectLatest {
+				this@AppViewModel.serverConfig = it
+				// Asked here rather than in a one-shot read at startup because signing in is what makes the
+				// question answerable, and on a cold start that may land after this model is built.
+				this@AppViewModel.askForRunningMatch(it)
+			}
 		}
 		this.viewModelScope.launch {
 			this@AppViewModel.sessionGuard.sessionEnded.collectLatest { this@AppViewModel.sessionEnded = it }
+		}
+	}
+
+	/**
+	 * Launches its own coroutine rather than suspending inside the config collector: that collector is a
+	 * `collectLatest`, so a second emission mid-request would cancel the question instead of answering it,
+	 * and the once-per-process flag would already have been spent on the attempt that was thrown away.
+	 */
+	private fun askForRunningMatch(config: ServerConfig) {
+		val baseUrl = config.serverUrl
+		val token = config.sessionToken
+		if (this.askedForRunningMatch || baseUrl == null || token == null) {
+			return
+		}
+		this.askedForRunningMatch = true
+		this.viewModelScope.launch {
+			val match = try {
+				this@AppViewModel.api.activeMatch(baseUrl, token)
+			} catch (e: CancellationException) {
+				throw e
+			} catch (e: Exception) {
+				// Silent by design: this is background work nobody asked for, and the top bar already reports
+				// an unreachable server. A match that is still running will still be running the next time the
+				// app starts, so there is nothing lost by not knowing now.
+				null
+			}
+			this@AppViewModel.runningMatch = match?.let { RunningMatch(it.matchId, it.mode ?: MatchMode.COOP.name, it.stake) }
+		}
+	}
+
+	/** The player is going back in. The dialog closes; the caller navigates. */
+	fun dismissRunningMatch() {
+		this.runningMatch = null
+	}
+
+	/**
+	 * The player is not going back. The match ends **now** rather than when the grace window expires, which
+	 * is the whole point of asking: the other players are waiting on an answer this player has just given.
+	 */
+	fun leaveRunningMatch() {
+		val match = this.runningMatch ?: return
+		this.runningMatch = null
+		this.viewModelScope.launch {
+			val config = this@AppViewModel.serverConfigStore.current()
+			val baseUrl = config.serverUrl ?: return@launch
+			val token = config.sessionToken ?: return@launch
+			try {
+				this@AppViewModel.api.resignMatch(baseUrl, token, match.matchId)
+			} catch (e: CancellationException) {
+				throw e
+			} catch (e: Exception) {
+				// Best effort, and safe to lose: the reconnect grace ends the match by itself, just slower.
+				// Nothing is shown, because the player has already left as far as they are concerned.
+			}
 		}
 	}
 
@@ -153,3 +234,11 @@ class AppViewModel @Inject constructor(
 		this.viewModelScope.launch { this@AppViewModel.settingsStore.setSoundEnabled(enabled) }
 	}
 }
+
+/**
+ * The match a returning player is being asked about: everything the match route needs to walk back into it.
+ *
+ * The mode picks which screen, and the stake is what the duel screen shows and settles, so both travel
+ * rather than being looked up again.
+ */
+data class RunningMatch(val matchId: String, val mode: String, val stake: Int)

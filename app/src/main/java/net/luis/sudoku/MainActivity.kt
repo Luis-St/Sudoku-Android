@@ -336,6 +336,40 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 				)
 			}
 
+			// Closing the app does not leave a match, so a player who was killed mid-game comes back still in
+			// one, with the others held at a paused board for the rest of the reconnect grace. The shell asks
+			// rather than the multiplayer screen: this is exactly the case where the player is *not* on that
+			// screen, because the process died and took the navigation state with it.
+			//
+			// Not shown over a match that is already open - the only way that route is showing is that they
+			// are already back in one.
+			if (!onGameScreen) {
+				appViewModel.runningMatch?.let { match ->
+					AlertDialog(
+						// No dismiss: both answers do something, and closing the popup by accident would leave
+						// the other players waiting for a decision that had already been made.
+						onDismissRequest = {},
+						title = { Text(stringResource(R.string.dialog_rejoin_match_title)) },
+						text = { Text(stringResource(R.string.dialog_rejoin_match_message)) },
+						confirmButton = {
+							TextButton(
+								onClick = {
+									appViewModel.dismissRunningMatch()
+									navController.navigate(Routes.multiplayerMatch(match.matchId, match.mode, match.stake))
+								}
+							) {
+								Text(stringResource(R.string.action_rejoin_match))
+							}
+						},
+						dismissButton = {
+							TextButton(onClick = appViewModel::leaveRunningMatch) {
+								Text(stringResource(R.string.action_leave_match), color = MaterialTheme.colorScheme.error)
+							}
+						}
+					)
+				}
+			}
+
 			appViewModel.sessionEnded?.let { reason ->
 				SessionEndedDialog(
 					reason = reason,

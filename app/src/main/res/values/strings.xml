@@ -135,6 +135,16 @@
 	<string name="match_end_you_won">You won.</string>
 	<string name="match_end_you_lost">Another player won.</string>
 
+	<!--
+		Asked on startup when the server says this player is still in a running match, which closing the app
+		does not end: the others are held at a paused board until the reconnect window runs out, so both
+		answers are worth spelling out.
+	-->
+	<string name="dialog_rejoin_match_title">Your match is still running</string>
+	<string name="dialog_rejoin_match_message">Closing the app did not leave your match, so the other players are waiting for you. Go back in, or leave it now: leaving ends the match for everybody straight away instead of making them wait out the timer.</string>
+	<string name="action_rejoin_match">Back to the match</string>
+	<string name="action_leave_match">Leave the match</string>
+
 	<!-- Settings screen (feature-spec §9.1, UI items 2 and 7) -->
 	<string name="settings_header_appearance">Appearance</string>
 	<string name="settings_header_daily">Daily puzzle</string>
