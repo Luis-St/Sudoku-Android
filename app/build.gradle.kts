@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
 	alias(libs.plugins.android.application)
 	alias(libs.plugins.kotlin.compose)
@@ -5,6 +7,18 @@ plugins {
 	alias(libs.plugins.ksp)
 	alias(libs.plugins.hilt)
 }
+
+// Signing credentials live outside the repository, in a `keystore.properties` the .gitignore already
+// excludes along with the `*.jks` it points at. Same arrangement as the FitnessTracker app.
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+	if (keystorePropertiesFile.exists()) {
+		load(keystorePropertiesFile.inputStream())
+	}
+}
+// A checkout without the keystore still has to configure and build debug, so the release signing config
+// only exists when the credentials do. Without this guard every clone fails at configuration time.
+val hasReleaseKeystore = keystorePropertiesFile.exists()
 
 android {
 	namespace = "net.luis.sudoku"
@@ -23,10 +37,29 @@ android {
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 	}
 	
+	signingConfigs {
+		if (hasReleaseKeystore) {
+			create("release") {
+				// Relative to this module, so `storeFile=release-keystore.jks` means `app/release-keystore.jks`.
+				storeFile = file(keystoreProperties.getProperty("storeFile", ""))
+				storePassword = keystoreProperties.getProperty("storePassword", "")
+				keyAlias = keystoreProperties.getProperty("keyAlias", "")
+				keyPassword = keystoreProperties.getProperty("keyPassword", "")
+			}
+		}
+	}
 	buildTypes {
 		release {
+			// R8 stays off. Hilt, Room, Ktor and kotlinx.serialization all rely on reflection or generated
+			// code that shrinking would have to be told about rule by rule, and none of that is worth
+			// debugging on a release build that is installed by hand.
 			optimization {
 				enable = false
+			}
+			// Unsigned without this, which is to say not installable. Left unset when there are no
+			// credentials, so the build still runs and says so instead of failing while configuring.
+			if (hasReleaseKeystore) {
+				signingConfig = signingConfigs.getByName("release")
 			}
 		}
 	}

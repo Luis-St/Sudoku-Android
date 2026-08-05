@@ -4,6 +4,12 @@
 
 	<!-- feature-spec §8.3.2: runtime-requested at opt-in time, not at first launch. -->
 	<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+	<!--
+		Declared here rather than inherited. It reaches the merged manifest either way today, but only as a
+		side effect of WorkManager declaring it for the daily reminder, so dropping the reminder would have
+		silently taken multiplayer with it. Single-player never touches the network (feature-spec §9.1).
+	-->
+	<uses-permission android:name="android.permission.INTERNET" />
 
 	<application
 			android:name=".SudokuApplication"
@@ -16,6 +22,25 @@
 			android:roundIcon="@mipmap/ic_launcher_round"
 			android:supportsRtl="true"
 			android:theme="@style/Theme.SudokuAndroid">
+		<!--
+			WorkManager's automatic initializer has to go, because SudokuApplication is a
+			`Configuration.Provider` (on-demand initialization). Left in, androidx.startup initializes
+			WorkManager first and with the *default* configuration, so the HiltWorkerFactory that
+			`DailyReminderWorker` is built by would never be installed: an `@HiltWorker` with injected
+			dependencies then fails to be constructed when the reminder fires. `lintVitalRelease` refuses to
+			assemble a release over this, which is how it was found.
+		-->
+		<provider
+				android:name="androidx.startup.InitializationProvider"
+				android:authorities="${applicationId}.androidx-startup"
+				android:exported="false"
+				tools:node="merge">
+			<meta-data
+					android:name="androidx.work.WorkManagerInitializer"
+					android:value="androidx.startup"
+					tools:node="remove" />
+		</provider>
+
 		<activity
 				android:name=".MainActivity"
 				android:exported="true"
