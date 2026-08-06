@@ -122,6 +122,21 @@ enum class ActionAccent(val start: Color, val end: Color) {
 fun Modifier.appBackground(): Modifier = this.background(appBackgroundBrush())
 
 /**
+ * Whether [themeMode] currently *renders* dark - the stored preference resolved against the system setting.
+ *
+ * The theme itself needs this, and so does the header's light/dark toggle (game item 3), which has to name
+ * and draw the mode it would switch to. Both asking the same function is what stops the toggle showing a sun
+ * on a light screen the first time somebody leaves the mode on `SYSTEM`.
+ */
+@Composable
+@ReadOnlyComposable
+fun isDarkTheme(themeMode: ThemeMode): Boolean = when (themeMode) {
+	ThemeMode.SYSTEM -> isSystemInDarkTheme()
+	ThemeMode.LIGHT -> false
+	ThemeMode.DARK -> true
+}
+
+/**
  * [themeMode] is the player's own light/dark/system choice (settings item 7). Purchasable board themes
  * stack *above* it: each supplies its own light and dark [BoardPalette], so buying a theme never decides
  * which mode the app is in.
@@ -135,11 +150,7 @@ fun SudokuAndroidTheme(
 	boardTheme: BoardTheme = BoardThemeCatalog.CLASSIC,
 	content: @Composable () -> Unit
 ) {
-	val darkTheme = when (themeMode) {
-		ThemeMode.SYSTEM -> isSystemInDarkTheme()
-		ThemeMode.LIGHT -> false
-		ThemeMode.DARK -> true
-	}
+	val darkTheme = isDarkTheme(themeMode)
 
 	val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 	val boardPalette = if (darkTheme) boardTheme.dark else boardTheme.light

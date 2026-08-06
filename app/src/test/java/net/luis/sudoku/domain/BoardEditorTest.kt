@@ -142,27 +142,9 @@ class BoardEditorTest {
 		assertTrue(session.snapshot(index).hasPencilMark(1))
 	}
 
-	@Test
-	fun togglePencil_withACap_refusesAThirdMarkButAlwaysAllowsRemoval() {
-		val session = session()
-		val undoStack = UndoStack()
-		val editor = BoardEditor(session, undoStack, maxPencilMarksPerCell = 2)
-		val index = firstEmptyNonGiven(session)
-
-		editor.apply(TapAction.TogglePencil(index, 1))
-		editor.apply(TapAction.TogglePencil(index, 2))
-		editor.apply(TapAction.TogglePencil(index, 3)) // over the cap - refused
-
-		assertTrue(session.snapshot(index).hasPencilMark(1))
-		assertTrue(session.snapshot(index).hasPencilMark(2))
-		assertFalse("a third mark should be refused at the Lisa cap", session.snapshot(index).hasPencilMark(3))
-
-		editor.apply(TapAction.TogglePencil(index, 1)) // removing one is always allowed
-		assertFalse(session.snapshot(index).hasPencilMark(1))
-
-		editor.apply(TapAction.TogglePencil(index, 3)) // now under the cap again
-		assertTrue(session.snapshot(index).hasPencilMark(3))
-	}
+	// The per-cell note cap is gone (owner's call, 2026-08-06): it only ever applied to Lisa, and it refused
+	// notes with no feedback at all. `ReportedBugsReproductionTest` holds the "Lisa takes any number of
+	// notes" case that replaced this one.
 
 	@Test
 	fun recomputeAllCandidates_fillsEveryEmptyNonGivenCellWithItsLegalDigits() {

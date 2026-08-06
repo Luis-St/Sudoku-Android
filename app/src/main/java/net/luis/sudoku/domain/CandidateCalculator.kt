@@ -5,7 +5,7 @@ import net.luis.sudoku.core.GameSession
 /**
  * Auto-candidate mode (feature-spec §5.6): "the app fills and maintains all pencil marks automatically."
  * Pure constraint check - a digit is a legal candidate for an empty cell if no peer (row/column/region)
- * already holds it as a pen value. Unavailable under Lisa's 2-note cap (§4.3) - [ModifierSet.autoCandidateModeAvailable]
+ * already holds it as a pen value. Unavailable under Lisa (§4.3) - [ModifierSet.autoCandidateModeAvailable]
  * is the gate the caller checks, this class doesn't know about difficulty at all.
  */
 object CandidateCalculator {

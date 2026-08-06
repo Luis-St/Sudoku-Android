@@ -12,12 +12,30 @@ sealed interface TapAction {
 /**
  * Pure implementation of feature-spec 5.3 (digit lock) and 5.4 (cell lock) for a tap on [cell].
  *
- * The table in 5.3 reads as three rows per mode once the pen/pencil split is made explicit instead of
- * implicit in the "Cell with the locked digit" wording: in pencil mode, a cell that already holds the
- * locked digit as a *pen* value still has an independent pencil-mark bit underneath it (the "stash" from
- * 5.6 - `setValue` never touches `pencilMarks`), and toggling it there is exactly what that row means.
+ * **A filled cell is never written into, in either mode.** Whatever the lock is doing, a cell that already
+ * holds a digit is something to look at: it relocks onto that digit, or it does nothing when that digit is
+ * already the locked one, and either way the focus moves onto it. Game item 1 established that for the
+ * no-lock and cell-lock rows; the digit-lock row kept an older reading of 5.3, under which a pencil-mode tap
+ * on your own digit toggled the pencil bit stashed underneath the pen value (5.6: `setValue` never touches
+ * `pencilMarks`). Nothing draws that bit while the cell is filled ([net.luis.sudoku.ui.board.CellView] shows
+ * the value instead of the notes), and the toggle also suppressed the focus move, so the tap was invisible
+ * twice over: players reported that cells they had filled themselves could not be selected while cells the
+ * puzzle came with could. The stash is still kept and still restored by undo - it is just no longer
+ * reachable by tapping a filled cell.
  */
-fun resolveTap(cell: CellSnapshot, lock: LockState): Pair<TapAction, LockState> {
+fun resolveTap(cell: CellSnapshot, lock: LockState, activeIndex: Int? = null): Pair<TapAction, LockState> {
+	// Game item 4: a second tap on the cell that is already marked takes the mark off, whichever kind of
+	// mark it is. Only the cell-lock row could do that before (`target.index == cell.index` below), so a
+	// digit picked up off a given or off a filled cell could be moved but never put down: every further tap
+	// on it re-set the lock it had just set, and the board stayed lit with no gesture left to clear it.
+	//
+	// [activeIndex] is what makes this "this cell again" rather than "any cell holding this digit" - tapping
+	// a *different* cell with the locked digit is still the player moving their attention to that one, which
+	// has to keep the lock rather than release it.
+	if (activeIndex == cell.index && lock.target == LockTarget.Digit(cell.value) && !cell.empty) {
+		return TapAction.None to lock.withTarget(LockTarget.None)
+	}
+
 	if (cell.given) {
 		// Locking a given's digit to see its other occurrences is always available and never edits it.
 		return TapAction.None to lock.withTarget(LockTarget.Digit(cell.value))
@@ -53,8 +71,9 @@ fun resolveTap(cell: CellSnapshot, lock: LockState): Pair<TapAction, LockState> 
 					InputMode.PENCIL -> TapAction.TogglePencil(cell.index, digit) to lock
 				}
 				cell.value != digit -> TapAction.None to lock.withTarget(LockTarget.Digit(cell.value)) // relock
-				lock.mode == InputMode.PEN -> TapAction.None to lock // already placed - no erase action exists
-				else -> TapAction.TogglePencil(cell.index, digit) to lock // toggle the stashed bit underneath
+				// Already placed, and this is the digit that is locked: there is nothing left to do to the cell
+				// in either mode (no erase action exists), so the tap is only ever the focus moving onto it.
+				else -> TapAction.None to lock
 			}
 		}
 	}
@@ -78,6 +97,18 @@ fun resolveTap(cell: CellSnapshot, lock: LockState): Pair<TapAction, LockState> 
  * component of its result, because it decides nothing about the board.
  */
 fun focusFollowsTap(action: TapAction): Boolean = action !is TapAction.TogglePencil
+
+/**
+ * Game item 4: whether the tap that produced [action]/[nextLock] *released* the mark on the cell it hit,
+ * rather than moving it there - the case where the focus has to come off the board entirely.
+ *
+ * Phrased over the resolved result so the four boards share one answer: a tap releases when it changed
+ * nothing on the board, left nothing locked, and landed on the cell that was already the focus. Tapping an
+ * empty cell twice (the cell lock) and tapping a filled one twice (the digit lock) both satisfy that, which
+ * is the point - to the player they are the same gesture.
+ */
+fun tapReleasedFocus(action: TapAction, nextLock: LockState, activeIndex: Int?, index: Int): Boolean =
+	action is TapAction.None && nextLock.target is LockTarget.None && activeIndex == index
 
 /**
  * Pure implementation of the number-button half of 5.2/5.4: locking/relocking/releasing a digit, or -

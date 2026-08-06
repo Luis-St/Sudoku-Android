@@ -32,6 +32,7 @@ import net.luis.sudoku.domain.TapAction
 import net.luis.sudoku.domain.focusFollowsTap
 import net.luis.sudoku.domain.resolveNumberButtonTap
 import net.luis.sudoku.domain.resolveTap
+import net.luis.sudoku.domain.tapReleasedFocus
 import net.luis.sudoku.hint.HintCandidate
 
 /**
@@ -97,7 +98,8 @@ class CoopViewModel @AssistedInject constructor(
 	var edgeLength by mutableStateOf(9)
 		private set
 
-	var lock by mutableStateOf(LockState())
+	/** Game item 5: pencil is the mode a board opens in - co-op has the toggle, so it takes the default too. */
+	var lock by mutableStateOf(LockState(mode = InputMode.PENCIL))
 		private set
 
 	var activeIndex by mutableStateOf<Int?>(null)
@@ -403,10 +405,14 @@ class CoopViewModel @AssistedInject constructor(
 	fun onCellTap(index: Int) {
 		if (!this.ready || this.endReason != null) return
 		clearMistakes()
-		val (action, nextLock) = resolveTap(this.cells[index], this.lock)
+		val (action, nextLock) = resolveTap(this.cells[index], this.lock, this.activeIndex)
+		// Game item 4: tapping the marked cell again unmarks it.
 		// Game item 1: a pencil mark is annotation, not selection - the same rule the single-player screen
 		// uses, and the same reason. Sharing the board does not change what marking means.
-		if (focusFollowsTap(action)) this.activeIndex = index
+		when {
+			tapReleasedFocus(action, nextLock, this.activeIndex, index) -> this.activeIndex = null
+			focusFollowsTap(action) -> this.activeIndex = index
+		}
 		sendIfEntry(action)
 		// Nothing is sent about the selection itself. It used to be broadcast and drawn on everybody's board,
 		// which marked cells that nothing had happened to; the owner had it removed. What other players see of

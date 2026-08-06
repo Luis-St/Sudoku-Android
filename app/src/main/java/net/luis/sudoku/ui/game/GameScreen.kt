@@ -13,7 +13,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -26,6 +25,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -37,11 +37,10 @@ import net.luis.sudoku.R
 import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.ui.board.BoardScreen
-import net.luis.sudoku.ui.common.CodeShareDialog
 import net.luis.sudoku.ui.common.OutlinedActionButton
-import net.luis.sudoku.ui.common.OutlinedIconActionButton
 import net.luis.sudoku.ui.common.ToggleActionButton
 import net.luis.sudoku.ui.common.friendlyErrorMessage
+import net.luis.sudoku.ui.common.shareText
 import net.luis.sudoku.ui.input.NumberPad
 import net.luis.sudoku.ui.navigation.PlayMode
 import net.luis.sudoku.ui.navigation.PlayRequest
@@ -131,6 +130,19 @@ fun GameScreen(
 		onDispose { topBarActions?.onShare = null }
 	}
 
+	// General item 2: the code goes straight to the system share sheet, which already offers Copy - the
+	// popup that used to stand in front of it was a screen to get past on the way to the screen that shares.
+	//
+	// Consumed in an effect and cleared in the same breath, because `shareCode` is an event rather than a
+	// state: left set, it would re-open the sheet on the next recomposition and again after every rotation.
+	val context = LocalContext.current
+	viewModel.shareCode?.let { code ->
+		LaunchedEffect(code) {
+			shareText(context, context.getString(R.string.share_code_text, code))
+			viewModel.dismissShareCode()
+		}
+	}
+
 	viewModel.summary?.let { summary ->
 		GameSummaryScreen(
 			summary = summary,
@@ -141,7 +153,6 @@ fun GameScreen(
 			onRetryDaily = { viewModel.dismissSummary(); viewModel.switchToDaily() },
 			modifier = modifier
 		)
-		viewModel.shareCode?.let { code -> ShareCodeDialog(code = code, onDismiss = viewModel::dismissShareCode) }
 		return
 	}
 
@@ -153,56 +164,14 @@ fun GameScreen(
 			.verticalScroll(rememberScrollState())
 			.padding(horizontal = 12.dp)
 	) {
-		if (viewModel.isDailyMode) {
-			DailyHeader(viewModel)
-		}
-
+		// Daily item 1: no streak here. It is a record of days, not a fact about the puzzle in front of the
+		// player, and the home screen already shows it where the daily is chosen.
 		if (viewModel.isDailyMode && viewModel.dailyLocked) {
 			Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
 				Text(stringResource(R.string.daily_locked_message))
 			}
 		} else {
 			StatusBar(viewModel)
-
-			Row(
-				modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-				horizontalArrangement = Arrangement.SpaceBetween,
-				verticalAlignment = Alignment.CenterVertically
-			) {
-				// Game item 2: the arrows alone. The words next to them said nothing the arrows didn't, and
-				// they were the widest thing in this row, squeezing the pen/pencil chips in the middle.
-				IconOnlyAction(
-					iconRes = R.drawable.ic_undo,
-					contentDescriptionRes = R.string.action_undo,
-					onClick = viewModel::undo,
-					enabled = viewModel.canUndo
-				)
-
-				// Visual item 3: buttons, not chips. These sit between undo and redo, which are buttons, and a
-				// chip's own height and corner radius made the middle of that row look like a different app.
-				Row {
-					ToggleActionButton(
-						text = stringResource(R.string.mode_pen),
-						selected = viewModel.lock.mode == InputMode.PEN,
-						onClick = { viewModel.onModeToggle(InputMode.PEN) },
-						accent = MODE_ACCENT
-					)
-					ToggleActionButton(
-						text = stringResource(R.string.mode_pencil),
-						selected = viewModel.lock.mode == InputMode.PENCIL,
-						onClick = { viewModel.onModeToggle(InputMode.PENCIL) },
-						accent = MODE_ACCENT,
-						modifier = Modifier.padding(start = 8.dp)
-					)
-				}
-
-				IconOnlyAction(
-					iconRes = R.drawable.ic_redo,
-					contentDescriptionRes = R.string.action_redo,
-					onClick = viewModel::redo,
-					enabled = viewModel.canRedo
-				)
-			}
 
 			BoardScreen(
 				cells = viewModel.cells,
@@ -277,11 +246,6 @@ fun GameScreen(
 			confirmButton = { TextButton(onClick = viewModel::dismissError) { Text(stringResource(R.string.action_ok)) } }
 		)
 	}
-
-	viewModel.shareCode?.let { code ->
-		ShareCodeDialog(code = code, onDismiss = viewModel::dismissShareCode)
-	}
-
 }
 
 /**
@@ -299,54 +263,31 @@ class GameTopBarActions {
 /** The accent the pen/pencil toggles light up in - the same one the whole play screen uses. */
 private val MODE_ACCENT = ActionAccent.INDIGO
 
-/** An icon-only action with the outlined button's look - undo and redo (game item 2). */
-@Composable
-private fun IconOnlyAction(iconRes: Int, contentDescriptionRes: Int, onClick: () -> Unit, enabled: Boolean) {
-	OutlinedIconActionButton(
-		iconPainter = painterResource(iconRes),
-		contentDescription = stringResource(contentDescriptionRes),
-		onClick = onClick,
-		enabled = enabled
-	)
-}
-
 /**
- * The share code plus the two things a player actually wants to do with it (UI item 3): copy it, or hand
- * it to the system share sheet. The popup itself is [CodeShareDialog], shared with the invite code.
+ * Everything above the board, in **one** row (game item 8): lives on the left, the pen/pencil pair in the
+ * middle, the clock on the right.
+ *
+ * It used to be two full-width rows - lives/clock/balance, then undo/pen/pencil/redo - and on a short phone
+ * those two rows plus their gaps were the difference between the number pad fitting under the board and not.
+ * What went with them:
+ *
+ * - **the Rhubarb balance** (game item 6): nothing on this screen spends it, and the one thing that changes
+ *   it happens when the puzzle is already over;
+ * - **undo and redo** (game item 7). The stack itself stays - `BoardEditor` still pushes to it, the hint
+ *   still bundles its reveal and the peer clean-up into one command, and a saved game still carries it, so
+ *   this is the two buttons going, not the history.
+ *
+ * A [Box] rather than a `Row` with `SpaceBetween`, because "centred" has to mean centred on the *screen*:
+ * the lives are five hearts wide and the clock is four characters, so spacing three children evenly would
+ * park the toggles a little left of centre and move them again as lives are lost.
  */
-@Composable
-private fun ShareCodeDialog(code: String, onDismiss: () -> Unit) {
-	CodeShareDialog(
-		title = stringResource(R.string.dialog_share_code),
-		code = code,
-		clipLabel = "sudoku-share-code",
-		onDismiss = onDismiss
-	)
-}
-
-/**
- * Daily item 1: just the streak now. The reminder toggle and the difficulty picker both moved to settings -
- * neither is something you decide while looking at today's board.
- */
-@Composable
-private fun DailyHeader(viewModel: GameViewModel) {
-	Row(
-		modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-		horizontalArrangement = Arrangement.Start,
-		verticalAlignment = Alignment.CenterVertically
-	) {
-		Text(stringResource(R.string.daily_streak, viewModel.dailyStreak))
-	}
-}
-
 @Composable
 private fun StatusBar(viewModel: GameViewModel) {
-	Row(
-		modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-		horizontalArrangement = Arrangement.SpaceBetween,
-		verticalAlignment = Alignment.CenterVertically
-	) {
-		Row {
+	Box(modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+		Row(
+			modifier = Modifier.align(Alignment.CenterStart),
+			verticalAlignment = Alignment.CenterVertically
+		) {
 			repeat(viewModel.livesRemaining) {
 				// Image, not Icon: these are full-color artwork, and Icon would tint them flat (see Components.kt).
 				Image(
@@ -356,18 +297,36 @@ private fun StatusBar(viewModel: GameViewModel) {
 				)
 			}
 		}
-		Text(formatElapsed(viewModel.elapsedMillis), style = MaterialTheme.typography.titleMedium)
-		Row(verticalAlignment = Alignment.CenterVertically) {
-			Image(
-				painter = painterResource(R.drawable.ic_currency),
-				contentDescription = null,
-				modifier = Modifier.size(18.dp)
-			)
-			Text(
-				text = stringResource(R.string.currency_amount_short, viewModel.currencyBalance),
-				modifier = Modifier.padding(start = 4.dp)
-			)
+
+		// Visual item 3: buttons, not chips - a chip's own height and corner radius made the middle of this
+		// row look like a different app.
+		//
+		// Absent entirely while auto-candidate mode maintains the notes: with pencil input refused there is
+		// no choice left for this pair to offer, and it used to sit there taking marks the recompute wiped in
+		// the same frame.
+		if (viewModel.pencilInputAvailable) {
+			Row(modifier = Modifier.align(Alignment.Center)) {
+				ToggleActionButton(
+					text = stringResource(R.string.mode_pen),
+					selected = viewModel.lock.mode == InputMode.PEN,
+					onClick = { viewModel.onModeToggle(InputMode.PEN) },
+					accent = MODE_ACCENT
+				)
+				ToggleActionButton(
+					text = stringResource(R.string.mode_pencil),
+					selected = viewModel.lock.mode == InputMode.PENCIL,
+					onClick = { viewModel.onModeToggle(InputMode.PENCIL) },
+					accent = MODE_ACCENT,
+					modifier = Modifier.padding(start = 8.dp)
+				)
+			}
 		}
+
+		Text(
+			text = formatElapsed(viewModel.elapsedMillis),
+			style = MaterialTheme.typography.titleMedium,
+			modifier = Modifier.align(Alignment.CenterEnd)
+		)
 	}
 }
 

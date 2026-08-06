@@ -46,6 +46,7 @@ import net.luis.sudoku.domain.focusFollowsTap
 import net.luis.sudoku.domain.UndoStack
 import net.luis.sudoku.domain.resolveNumberButtonTap
 import net.luis.sudoku.domain.resolveTap
+import net.luis.sudoku.domain.tapReleasedFocus
 import net.luis.sudoku.domain.soundEventFor
 import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.grid.Variant
@@ -129,7 +130,30 @@ class GameViewModel @Inject constructor(
 	/** Game item 1: only a jigsaw board gets per-region tints - on a classic board they would say nothing. */
 	val isChaos: Boolean get() = this.session.variant == Variant.CHAOS
 
-	var lock by mutableStateOf(LockState())
+	/**
+	 * Game item 5: a puzzle opens in **pencil**.
+	 *
+	 * Notes are what the opening of a puzzle is made of - the pen entries follow from them - and starting in
+	 * pen meant every session began with the player either switching modes or writing a digit they had not
+	 * finished reasoning about, which on this board costs a life. `LockState`'s own default stays PEN: the
+	 * duel and race boards have no pen/pencil control at all, so a pencil default there would strand them.
+	 */
+	var lock by mutableStateOf(LockState(mode = InputMode.PENCIL))
+		private set
+
+	/**
+	 * Whether the player has pencil input at all right now.
+	 *
+	 * False exactly while auto-candidate mode is running: it maintains every note itself (§5.6), so a
+	 * hand-written one is overwritten before it can be read, and one that is rubbed out comes straight back.
+	 * The mode toggle is *absent* rather than disabled while this is false, the same treatment Lisa's hint
+	 * button gets (§4.3) - there is no pen/pencil choice to make, so a greyed-out half of one says nothing.
+	 * [BoardEditor] refuses the edit as well, so this is which controls exist, not the rule itself.
+	 *
+	 * Held as state rather than read off the editor: `BoardEditor.autoCandidateMode` is a plain field, so a
+	 * composable reading it would never be told when the settings screen turns the mode on mid-game.
+	 */
+	var pencilInputAvailable by mutableStateOf(true)
 		private set
 
 	/** The last-tapped cell, for row/column/region highlighting - independent of which lock dimension it drove. */
@@ -137,12 +161,6 @@ class GameViewModel @Inject constructor(
 		private set
 
 	var cells by mutableStateOf<List<CellSnapshot>>(emptyList())
-		private set
-
-	var canUndo by mutableStateOf(false)
-		private set
-
-	var canRedo by mutableStateOf(false)
 		private set
 
 	var livesRemaining by mutableStateOf(5)
@@ -185,17 +203,11 @@ class GameViewModel @Inject constructor(
 	var shareCode by mutableStateOf<String?>(null)
 		private set
 
-	var currencyBalance by mutableStateOf(0L)
-		private set
-
 	var isDailyMode by mutableStateOf(false)
 		private set
 
 	/** A solved daily is locked - no replay, no reset (feature-spec §8.3) - shown instead of a board. */
 	var dailyLocked by mutableStateOf(false)
-		private set
-
-	var dailyStreak by mutableStateOf(0)
 		private set
 
 	var preferences by mutableStateOf(PreferenceSettings.DEFAULT)
@@ -218,7 +230,6 @@ class GameViewModel @Inject constructor(
 		this.viewModelScope.launch {
 			val currency = this@GameViewModel.currencyStore.current()
 			this@GameViewModel.currencyController = CurrencyController(currency.balance, currency.normalGamesEarnedToday, currency.earnDate)
-			this@GameViewModel.currencyBalance = currency.balance
 			this@GameViewModel.preferences = this@GameViewModel.settingsStore.current()
 
 			val saved = this@GameViewModel.savedGameStore.load(SaveSlot.NORMAL)
@@ -234,25 +245,23 @@ class GameViewModel @Inject constructor(
 
 	private fun installSession(session: GameSession, undoStack: UndoStack, elapsedMillis: Long, lives: Int, hintsUsed: Int) {
 		val modifiers = ModifierSet.forDifficulty(session.key.difficulty())
-		// Auto-candidate mode cannot coexist with Lisa's 2-note cap (§4.3) - modifiers is the single gate,
-		// same pattern as maxLives/maxHints/maxPencilMarksPerCell just below.
+		// Lisa withholds auto-candidate mode (§4.3) - modifiers is the single gate, same pattern as
+		// maxLives/maxHints just below.
 		val autoCandidateActive = this.preferences.autoCandidateMode && modifiers.autoCandidateModeAvailable
 		this.session = session
 		this.undoStack = undoStack
 		// autoClearPeers is not passed: settings item 2 made it unconditional, so BoardEditor's own default
 		// is the only value it ever takes outside its unit tests.
-		this.editor = BoardEditor(
-			session,
-			undoStack,
-			maxPencilMarksPerCell = modifiers.maxPencilMarksPerCell,
-			autoCandidateMode = autoCandidateActive
-		)
+		this.editor = BoardEditor(session, undoStack, autoCandidateMode = autoCandidateActive)
+		this.pencilInputAvailable = !autoCandidateActive
 		if (autoCandidateActive) this.editor.recomputeAllCandidates()
 		this.livesController = LivesController(modifiers.maxLives).apply { restore(lives) }
 		this.hintController = HintController(session, maxHints = if (modifiers.hintsAllowed) 5 else 0).apply { restore(hintsUsed) }
 		this.mistakeChecker = MistakeChecker(session)
 		this.timerController.restore(elapsedMillis)
-		this.lock = LockState()
+		// Pencil, unless the app is maintaining the notes itself - then the toggle does not exist and PEN is
+		// the only mode with a control to leave it by (the same trap `applyPreferences` handles below).
+		this.lock = LockState(mode = if (autoCandidateActive) InputMode.PEN else InputMode.PENCIL)
 		this.activeIndex = null
 		this.hintCandidate = null
 		this.mistake = null
@@ -318,7 +327,6 @@ class GameViewModel @Inject constructor(
 			val rolled = this@GameViewModel.dailyController.rollover(this@GameViewModel.dailyStore.current())
 			this@GameViewModel.dailyStore.save(rolled)
 			this@GameViewModel.dailyRecord = rolled
-			this@GameViewModel.dailyStreak = rolled.streak
 			this@GameViewModel.dailyLocked = !this@GameViewModel.dailyController.canPlay(rolled)
 			if (this@GameViewModel.dailyLocked) {
 				showFinishedDailySummary(rolled, dailySize)
@@ -409,10 +417,15 @@ class GameViewModel @Inject constructor(
 		if (!this.ready) return
 
 		if (previous.autoCandidateMode != updated.autoCandidateMode) {
-			// Lisa's 2-note cap forbids it regardless of the stored preference (§4.3).
+			// Lisa withholds it regardless of the stored preference (§4.3).
 			val active = updated.autoCandidateMode && this.modifiers.autoCandidateModeAvailable
 			this.editor.autoCandidateMode = active
+			this.pencilInputAvailable = !active
 			if (active) {
+				// The toggle is about to disappear from under the player's finger, so the mode it was holding
+				// has to go back to pen - leaving it on pencil would strand the board in an input mode with no
+				// control to leave it by, and every subsequent tap would resolve to a refused mark.
+				this.lock = this.lock.withMode(InputMode.PEN)
 				this.editor.recomputeAllCandidates()
 				refresh()
 			}
@@ -437,9 +450,14 @@ class GameViewModel @Inject constructor(
 	fun onCellTap(index: Int) {
 		if (this.outcome != null) return
 		val cell = this.cells[index]
-		val (action, nextLock) = resolveTap(cell, this.lock)
+		val (action, nextLock) = resolveTap(cell, this.lock, this.activeIndex)
+		// Game item 4: the same tap that released the lock takes the focus off the cell too - a cell that is
+		// still lit after being unmarked is only half unmarked.
 		// Game item 1: writing a pencil mark is annotation, not selection - see focusFollowsTap.
-		if (focusFollowsTap(action)) this.activeIndex = index
+		when {
+			tapReleasedFocus(action, nextLock, this.activeIndex, index) -> this.activeIndex = null
+			focusFollowsTap(action) -> this.activeIndex = index
+		}
 		val mistaken = applyAction(action)
 		dropHintIfTargetFilled()
 		this.lock = lockAfter(nextLock, mistaken)
@@ -447,6 +465,11 @@ class GameViewModel @Inject constructor(
 
 	fun onNumberTap(digit: Int, longPress: Boolean = false) {
 		if (this.outcome != null) return
+		// A long press is the one way to write a note without the mode toggle (5.2), so it is also the one way
+		// pencil input could survive the toggle being taken away. Ignored outright rather than falling through
+		// to a pen entry: the player asked for a note, and quietly placing a digit instead is worse than doing
+		// nothing, since a pen entry here can cost a life.
+		if (longPress && !this.pencilInputAvailable) return
 		// Game item 3: the number pad is the other half of the input model, and picking a digit there means the
 		// player has stopped working on one cell. Leaving the old cell lit kept a row and column highlighted
 		// around a cell that no longer had anything to do with what was about to be entered - and after the
@@ -501,21 +524,8 @@ class GameViewModel @Inject constructor(
 	}
 
 	fun onModeToggle(mode: InputMode) {
+		if (mode == InputMode.PENCIL && !this.pencilInputAvailable) return
 		this.lock = this.lock.withMode(mode)
-	}
-
-	fun undo() {
-		if (this.outcome != null) return
-		clearPendingHint()
-		this.undoStack.undo(this.session)
-		refresh()
-	}
-
-	fun redo() {
-		if (this.outcome != null) return
-		clearPendingHint()
-		this.undoStack.redo(this.session)
-		refresh()
 	}
 
 	/**
@@ -629,7 +639,6 @@ class GameViewModel @Inject constructor(
 				this.currencyController.awardForDailySolve(difficultyIndex, edgeLength)
 				val recorded = this.dailyController.recordSuccess(this.dailyRecord, this.timerController.elapsedMillis())
 				this.dailyRecord = recorded
-				this.dailyStreak = recorded.streak
 				this.dailyLocked = true
 				// Home item 1: kept so the daily button can reopen this overview later. Snapshotted here
 				// rather than read inside the coroutine for the same reason [persist] snapshots - the next
@@ -649,7 +658,6 @@ class GameViewModel @Inject constructor(
 					summaryRecord?.let { this@GameViewModel.dailyStore.saveSummary(it) }
 				}
 			}
-			this.currencyBalance = this.currencyController.balance
 		}
 
 		if (this.slot == SaveSlot.DAILY) submitOrQueueDailyResult(outcome)
@@ -786,8 +794,6 @@ class GameViewModel @Inject constructor(
 
 	private fun refresh() {
 		this.cells = this.session.snapshots()
-		this.canUndo = this.undoStack.canUndo
-		this.canRedo = this.undoStack.canRedo
 	}
 
 	override fun onCleared() {

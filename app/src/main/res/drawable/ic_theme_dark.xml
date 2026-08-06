@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The moon, shown while the app is in light mode - the other half of the header toggle (game item 3). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+	android:width="24dp"
+	android:height="24dp"
+	android:viewportWidth="24"
+	android:viewportHeight="24">
+	<path
+		android:fillColor="@android:color/white"
+		android:pathData="M12.34,2.02c-5.5,-0.3 -10.06,4.06 -10.06,9.48c0,5.24 4.25,9.5 9.5,9.5c3.46,0 6.49,-1.86 8.13,-4.63c0.34,-0.58 -0.14,-1.3 -0.81,-1.19c-4.61,0.8 -8.85,-2.73 -8.85,-7.38c0,-2.68 1.43,-5.14 3.76,-6.47C14.6,2.99 14.35,2.13 13.6,2.06C13.18,2.03 12.76,2.01 12.34,2.02z" />
+</vector>

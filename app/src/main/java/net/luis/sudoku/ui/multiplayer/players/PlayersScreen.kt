@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -42,11 +43,11 @@ import kotlinx.coroutines.delay
 import net.luis.sudoku.R
 import net.luis.sudoku.data.remote.dto.MatchRequestResponse
 import net.luis.sudoku.data.remote.dto.PlayerResponse
-import net.luis.sudoku.ui.common.CodeShareDialog
 import net.luis.sudoku.ui.common.GradientButton
 import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.common.friendlyErrorMessage
 import net.luis.sudoku.ui.common.SectionCard
+import net.luis.sudoku.ui.common.shareText
 import net.luis.sudoku.ui.theme.OnlineGreen
 
 /**
@@ -151,14 +152,16 @@ fun PlayersScreen(
 	}
 
 	// Friends item 1: a freshly minted invite code is only useful once it reaches the person being invited,
-	// so it gets the same copy/share pair as the game's share code rather than a code you have to retype.
+	// so creating one opens the share sheet (general item 2) instead of a popup that offered to open it.
+	//
+	// Consumed in an effect and cleared immediately: the code is a one-shot event, and leaving it set would
+	// re-open the sheet on the next recomposition and again after every rotation.
+	val context = LocalContext.current
 	viewModel.createdInviteCode?.let { code ->
-		CodeShareDialog(
-			title = stringResource(R.string.players_invite_created_title),
-			code = code,
-			clipLabel = "sudoku-invite-code",
-			onDismiss = viewModel::dismissInviteCode
-		)
+		LaunchedEffect(code) {
+			shareText(context, context.getString(R.string.players_invite_share_text, code))
+			viewModel.dismissInviteCode()
+		}
 	}
 
 	viewModel.errorMessage?.let { message ->

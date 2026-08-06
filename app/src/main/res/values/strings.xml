@@ -55,7 +55,7 @@
 	<string name="generator_info_variant_chaos">Chaos: regions are irregular shapes instead of boxes, so the box you are solving is never where you expect.</string>
 	<string name="generator_info_difficulty">How much deduction the puzzle demands. Tiers 1 to 5 get progressively harder; Lisa is a separate mode.</string>
 	<string name="generator_info_difficulty_tier">Tier %1$d of 5: the higher the tier, the more advanced the techniques you need.</string>
-	<string name="generator_info_difficulty_lisa">Lisa is the hardest band plus its own rules: fewer lives, no hints, no same-digit highlighting, and at most two notes per cell.</string>
+	<string name="generator_info_difficulty_lisa">Lisa is the hardest band plus its own rules: fewer lives, no hints and no same-digit highlighting. Notes are unlimited, as everywhere else.</string>
 
 	<!-- Enter-code screen (UI item 5) -->
 	<string name="enter_code_title">Play a shared puzzle</string>
@@ -67,8 +67,6 @@
 	<string name="shop_empty_body">Board themes you can buy with Rhubarb will appear here.</string>
 
 	<!-- GameScreen: common controls, reused across Normal/Daily -->
-	<string name="action_undo">Undo</string>
-	<string name="action_redo">Redo</string>
 	<string name="mode_pen">Pen</string>
 	<string name="mode_pencil">Pencil</string>
 	<string name="action_new">New</string>
@@ -85,7 +83,7 @@
 	<string name="dialog_overwrites_saved_game">This overwrites your saved game.</string>
 	<string name="action_start_new">Start new</string>
 	<string name="action_cancel">Cancel</string>
-	<string name="dialog_share_code">Share code</string>
+	<string name="share_code_text">Play this Sudoku with me. Share code: %1$s</string>
 	<string name="action_done">Done</string>
 	<string name="dialog_enter_share_code">Enter a share code</string>
 	<string name="error_invalid_share_code">That code isn\'t valid.</string>
@@ -106,7 +104,7 @@
 	<string name="action_preferences">Preferences</string>
 	<string name="dialog_preferences_title">Preferences</string>
 	<string name="pref_auto_candidate_mode">Auto-candidate mode</string>
-	<string name="pref_auto_candidate_unavailable_lisa">Unavailable on Lisa (2-note cap).</string>
+	<string name="pref_auto_candidate_unavailable_lisa">Unavailable on Lisa: it works the candidates out for you, and Lisa leaves that to you.</string>
 	<string name="pref_hex_display">Hex display (16×16)</string>
 	<string name="pref_sound_enabled">Sound</string>
 
@@ -156,6 +154,9 @@
 	<string name="settings_language_english">English</string>
 	<string name="settings_language_german">Deutsch</string>
 	<string name="settings_theme_label">Theme</string>
+	<!-- The header toggle (game item 3). It names the mode it switches *to*, which is what the icon shows. -->
+	<string name="action_theme_light">Switch to light mode</string>
+	<string name="action_theme_dark">Switch to dark mode</string>
 	<string name="settings_theme_system">Follow system</string>
 	<string name="settings_theme_light">Light</string>
 	<string name="settings_theme_dark">Dark</string>
@@ -323,7 +324,7 @@
 	<string name="players_removed">Removed</string>
 	<string name="players_reinstate">Let back in</string>
 	<string name="players_create_invite">Create an invite code</string>
-	<string name="players_invite_created_title">Invite code</string>
+	<string name="players_invite_share_text">Join me on this Sudoku server. Invite code: %1$s</string>
 	<string name="players_detail_title">Player</string>
 	<string name="players_no_stats">This player has not finished a puzzle yet.</string>
 

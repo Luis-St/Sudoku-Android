@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -57,6 +58,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
+import net.luis.sudoku.data.local.ThemeMode
 import net.luis.sudoku.data.remote.SessionEndReason
 import net.luis.sudoku.ui.app.AppViewModel
 import net.luis.sudoku.ui.code.EnterCodeScreen
@@ -85,6 +87,7 @@ import net.luis.sudoku.ui.shop.ShopScreen
 import net.luis.sudoku.ui.stats.StatsScreen
 import net.luis.sudoku.ui.theme.BoardThemeCatalog
 import net.luis.sudoku.ui.theme.SudokuAndroidTheme
+import net.luis.sudoku.ui.theme.isDarkTheme
 import net.luis.sudoku.ui.theme.appBackground
 import java.util.Locale
 
@@ -191,10 +194,24 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 	var showUnreachableMessage by remember { mutableStateOf(false) }
 	// General item 5: leaving a board is a decision, so the arrow asks before taking it.
 	var showLeaveGameConfirm by remember { mutableStateOf(false) }
+	// Game item 3: what the toggle draws, and what it would switch to. Resolved through the same helper the
+	// theme itself uses, so `SYSTEM` reports what is actually on screen rather than a third state the toggle
+	// has no icon for.
+	val darkTheme = isDarkTheme(appViewModel.preferences.themeMode)
 
+	// General item 1: the app's content color, stated once, here.
+	//
+	// The container has to be transparent for the gradient behind it to show, and Material3 derives a
+	// Scaffold's content color with `contentColorFor(containerColor)` - which matches no scheme role for
+	// `Transparent`, falls back to `LocalContentColor`, and at the root of the composition that is **black**,
+	// in dark mode as well. Every `Text` that neither sets a color nor sits inside a Surface inherited it, so
+	// the game screen (the one screen that paints text straight onto the background: the timer, the hearts
+	// row, the daily notice) came out black on a near-black board. Cards were already working around it one
+	// at a time - see `SectionCard` and `NumberPad`, which both had to say `contentColor` for the same reason.
 	Scaffold(
 		modifier = Modifier.fillMaxSize().appBackground(),
 		containerColor = Color.Transparent,
+		contentColor = MaterialTheme.colorScheme.onBackground,
 		topBar = {
 			TopAppBar(
 				title = { Text(titleFor(route), style = MaterialTheme.typography.titleLarge) },
@@ -218,11 +235,39 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 					// A running match's connection status, left of everything else and drawn on a board where
 					// the navigation icons are not - it is the same class of thing as the server warning below.
 					MatchStatusAction(matchStatus)
-					// General item 3: **no share action here.** It was published by the play screen and only ever
-					// meant anything there, and a board now draws no top-bar buttons at all - so there is
-					// nowhere left to render it and the branch is gone rather than left as a condition that can
-					// never be true. `GameTopBarActions` and `GameViewModel.generateShareCode` are kept intact
-					// and still tested: dormant, not deleted, so giving sharing a home is a call site again.
+					// Singleplayer item 1: sharing has a call site again.
+					//
+					// It was published by the play screen and rendered nowhere, because the branch that drew it was
+					// removed when boards stopped drawing top-bar buttons - so `GameTopBarActions` was being filled
+					// in every frame by a screen the action could not be reached from. Gated on the action existing
+					// rather than on `showTopLevelNavigation`, for the same reason the server warning below is: this
+					// is not a way *out* of the board, it is something to do *with* the board. The play screen still
+					// withdraws it wherever sharing is meaningless - the daily, whose puzzle everybody already has,
+					// and a finished game.
+					gameTopBarActions.onShare?.let { share ->
+						IconButton(onClick = share) {
+							Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.action_share))
+						}
+					}
+					// Game item 3: light and dark, one tap - **on a board only**.
+					//
+					// A board is the one place where the mode is worth a shortcut: it is where the player sits for a long
+					// time, and where a screen that is suddenly too bright gets noticed. Everywhere else settings is one
+					// tap away and offers the full choice, including following the system, so a second control that can
+					// only say light or dark would be a worse version of one already in reach.
+					//
+					// It writes LIGHT or DARK, never SYSTEM: this is a deliberate override of the stored preference, and
+					// the settings dropdown stays the only way back to following the system.
+					if (onGameScreen) {
+						IconButton(onClick = { appViewModel.setThemeMode(if (darkTheme) ThemeMode.LIGHT else ThemeMode.DARK) }) {
+							Icon(
+								painter = painterResource(if (darkTheme) R.drawable.ic_theme_light else R.drawable.ic_theme_dark),
+								contentDescription = stringResource(
+									if (darkTheme) R.string.action_theme_light else R.string.action_theme_dark
+								)
+							)
+						}
+					}
 					// UI item 9: the friends button sits immediately left of settings, and only exists once a
 					// server is configured and signed in (feature-spec §9.1's "no multiplayer UI anywhere").
 					if (appViewModel.serverConfig.isConfigured && appViewModel.serverConfig.isAuthenticated) {

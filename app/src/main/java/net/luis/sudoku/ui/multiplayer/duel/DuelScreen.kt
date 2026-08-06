@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -30,7 +31,7 @@ import net.luis.sudoku.ui.common.MatchOverDialog
 import net.luis.sudoku.ui.input.NumberPad
 import net.luis.sudoku.ui.multiplayer.MatchStatusHolder
 import net.luis.sudoku.ui.multiplayer.PublishMatchStatus
-import net.luis.sudoku.ui.theme.BoardThemeCatalog
+import net.luis.sudoku.ui.theme.LocalBoardPalette
 
 /**
  * feature-spec §10.2: shared board, server-owned time banks. Backgrounding forfeits here (`ON_STOP`
@@ -85,7 +86,11 @@ fun DuelScreen(
 		return
 	}
 
-	val palette = BoardThemeCatalog.CLASSIC.light
+	// General item 1: the board follows the app's mode and the player's bought theme, like every other
+	// board. Pinning it to the light palette here drew near-black grid lines and near-black digits on a
+	// dark screen - readable in exactly one of the two modes.
+	val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+	val palette = LocalBoardPalette.current
 	val lockedDigit = (viewModel.lock.target as? LockTarget.Digit)?.digit
 
 	Column(modifier = modifier.fillMaxSize().padding(12.dp)) {
@@ -109,7 +114,8 @@ fun DuelScreen(
 			regionOf = viewModel::regionOf,
 			palette = palette,
 			onCellTap = viewModel::onCellTap,
-			mistakeDigits = viewModel.mistake?.let { mapOf(it) }.orEmpty()
+			mistakeDigits = viewModel.mistake?.let { mapOf(it) }.orEmpty(),
+			darkTheme = darkTheme
 		)
 
 		NumberPad(
@@ -156,3 +162,7 @@ private fun formatMs(millis: Long): String {
 	val totalSeconds = millis / 1000
 	return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 }
+
+/** The same reading `GameScreen`/`CoopScreen` take: which mode the app is currently drawing in. */
+private fun androidx.compose.ui.graphics.Color.luminance(): Float =
+	0.2126f * this.red + 0.7152f * this.green + 0.0722f * this.blue

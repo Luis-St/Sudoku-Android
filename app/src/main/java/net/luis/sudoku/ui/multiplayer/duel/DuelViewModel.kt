@@ -32,6 +32,7 @@ import net.luis.sudoku.domain.LockState
 import net.luis.sudoku.domain.TapAction
 import net.luis.sudoku.domain.resolveNumberButtonTap
 import net.luis.sudoku.domain.resolveTap
+import net.luis.sudoku.domain.tapReleasedFocus
 
 /**
  * Duel mode (feature-spec §10.2): one shared board, server-owned clocks. The client never decides a
@@ -278,8 +279,9 @@ class DuelViewModel @AssistedInject constructor(
 
 	fun onCellTap(index: Int) {
 		if (!this.ready) return
-		this.activeIndex = index
-		val (action, nextLock) = resolveTap(this.cells[index], this.lock)
+		val (action, nextLock) = resolveTap(this.cells[index], this.lock, this.activeIndex)
+		// Game item 4: tapping the marked cell again unmarks it, here as everywhere else.
+		this.activeIndex = if (tapReleasedFocus(action, nextLock, this.activeIndex, index)) null else index
 		sendIfEntry(action)
 		this.lock = nextLock
 	}

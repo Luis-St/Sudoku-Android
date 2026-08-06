@@ -11,13 +11,18 @@ class BoardEditor(
 	private val session: GameSession,
 	private val undoStack: UndoStack,
 	private val autoClearPeers: Boolean = true,
-	private val maxPencilMarksPerCell: Int = Int.MAX_VALUE,
 	/** feature-spec §5.6: "the app fills and maintains all pencil marks automatically." Never true under
-	 *  Lisa (§4.3, incompatible with the 2-note cap) - the caller (`GameViewModel`) enforces that gate. */
+	 *  Lisa (§4.3) - the caller (`GameViewModel`) enforces that gate. */
 	var autoCandidateMode: Boolean = false
 ) {
 
 	fun apply(action: TapAction) {
+		// While the app maintains the notes, a hand-written one is not a note the player keeps: the recompute
+		// at the end of this very call would overwrite it, so the mark appeared for no frame at all and left a
+		// phantom entry on the undo stack behind it. Refusing here is what the UI's hidden pencil mode rests
+		// on - `GameViewModel` stops offering pencil input while this is on, and this makes that a rule rather
+		// than a screen's good manners.
+		if (this.autoCandidateMode && action is TapAction.TogglePencil) return
 		when (action) {
 			is TapAction.EnterPen -> enterPen(action.index, action.digit)
 			is TapAction.TogglePencil -> togglePencil(action.index, action.digit)
@@ -73,9 +78,6 @@ class BoardEditor(
 
 	private fun togglePencil(index: Int, digit: Int) {
 		val cell = this.session.cellForUndo(index)
-		// Lisa's 2-note cap (feature-spec §4.3): refuse a *new* mark past the cap, but always allow
-		// removing one - the cap narrows candidates, it doesn't lock in whichever two were written first.
-		if (!cell.hasPencilMark(digit) && cell.pencilMarkCount() >= this.maxPencilMarksPerCell) return
 		val before = cell.copy()
 		cell.togglePencilMark(digit)
 		this.undoStack.push(Command(listOf(CellEdit(index, before, cell.copy()))))

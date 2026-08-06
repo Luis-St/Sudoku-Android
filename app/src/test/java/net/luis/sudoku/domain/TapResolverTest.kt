@@ -90,6 +90,94 @@ class TapResolverTest {
 		assertEquals(LockTarget.None, lock.target)
 	}
 
+	/**
+	 * Game item 4: "it should be possible to unmark a cell by clicking it again".
+	 *
+	 * Only the cell lock could be put down before. A digit lock taken off a given or off a filled cell could
+	 * be *moved* but never released, because tapping that same cell again simply re-set the lock it had just
+	 * set - so the board stayed lit with no gesture left to clear it. [activeIndex] is what tells the two
+	 * cases apart: the cell that already has the focus, rather than any cell holding the locked digit.
+	 */
+	@Test
+	fun resolveTap_digitLockedFromThisGiven_tappingItAgainReleasesTheLock() {
+		val (action, lock) = resolveTap(
+			cell(3, value = 7, given = true),
+			LockState(target = LockTarget.Digit(7)),
+			activeIndex = 3
+		)
+
+		assertEquals(TapAction.None, action)
+		assertEquals(LockTarget.None, lock.target)
+	}
+
+	@Test
+	fun resolveTap_digitLockedFromACellThePlayerFilled_tappingItAgainReleasesTheLock() {
+		val (action, lock) = resolveTap(
+			cell(4, value = 6),
+			LockState(target = LockTarget.Digit(6)),
+			activeIndex = 4
+		)
+
+		assertEquals(TapAction.None, action)
+		assertEquals(LockTarget.None, lock.target)
+	}
+
+	/** The release is "this cell again", not "this digit again" - another 6 is somewhere else to look. */
+	@Test
+	fun resolveTap_digitLocked_tappingADifferentCellWithTheSameDigit_keepsTheLock() {
+		val (action, lock) = resolveTap(
+			cell(9, value = 6),
+			LockState(target = LockTarget.Digit(6)),
+			activeIndex = 4
+		)
+
+		assertEquals(TapAction.None, action)
+		assertEquals(LockTarget.Digit(6), lock.target)
+	}
+
+	/** An empty cell is written into, never released: a mark being placed is not a mark being taken off. */
+	@Test
+	fun resolveTap_digitLocked_tappingTheActiveEmptyCell_stillEnters() {
+		val (action, lock) = resolveTap(
+			cell(2),
+			LockState(target = LockTarget.Digit(6), mode = InputMode.PEN),
+			activeIndex = 2
+		)
+
+		assertEquals(TapAction.EnterPen(2, 6), action)
+		assertEquals(LockTarget.Digit(6), lock.target)
+	}
+
+	/** Without an active cell nothing is marked yet, so nothing can be unmarked - the old behaviour stands. */
+	@Test
+	fun resolveTap_digitLocked_withNoActiveCell_locksRatherThanReleases() {
+		val (action, lock) = resolveTap(cell(3, value = 7, given = true), LockState(target = LockTarget.Digit(7)))
+
+		assertEquals(TapAction.None, action)
+		assertEquals(LockTarget.Digit(7), lock.target)
+	}
+
+	@Test
+	fun tapReleasedFocus_theTapThatLetTheLockGo_takesTheFocusWithIt() {
+		assertTrue(tapReleasedFocus(TapAction.None, LockState(target = LockTarget.None), activeIndex = 4, index = 4))
+	}
+
+	@Test
+	fun tapReleasedFocus_aTapOnAnotherCell_isNotARelease() {
+		assertFalse(tapReleasedFocus(TapAction.None, LockState(target = LockTarget.None), activeIndex = 4, index = 5))
+	}
+
+	@Test
+	fun tapReleasedFocus_aTapThatLockedSomething_isNotARelease() {
+		assertFalse(tapReleasedFocus(TapAction.None, LockState(target = LockTarget.Cell(4)), activeIndex = 4, index = 4))
+	}
+
+	/** An edit is never a release, even on the active cell - see the entry case above. */
+	@Test
+	fun tapReleasedFocus_aTapThatWroteADigit_isNotARelease() {
+		assertFalse(tapReleasedFocus(TapAction.EnterPen(4, 6), LockState(target = LockTarget.None), activeIndex = 4, index = 4))
+	}
+
 	/** A cell holding only notes is still empty, so it still takes a cell lock - there is something to enter. */
 	@Test
 	fun resolveTap_noLock_tappingACellWithOnlyPencilMarks_stillLocksTheCell() {
@@ -142,14 +230,22 @@ class TapResolverTest {
 		assertEquals(LockTarget.Digit(6), lock.target) // unchanged, not relocked to "itself"
 	}
 
+	/**
+	 * Pencil mode changes nothing here. This used to toggle the pencil bit stashed under the pen value, which
+	 * no view draws while the cell is filled, and `focusFollowsTap` then held the focus back because the
+	 * action was a mark: the player's own digits could not be selected at all, while givens could. The tap is
+	 * a selection in both modes now.
+	 */
 	@Test
-	fun resolveTap_digitLocked_cellWithTheLockedDigitPencilMode_togglesTheStashedMark() {
-		val (action, _) = resolveTap(
+	fun resolveTap_digitLocked_cellWithTheLockedDigitPencilMode_isANoOpAndStillMovesTheFocus() {
+		val (action, lock) = resolveTap(
 			cell(2, value = 6),
 			LockState(target = LockTarget.Digit(6), mode = InputMode.PENCIL)
 		)
 
-		assertEquals(TapAction.TogglePencil(2, 6), action)
+		assertEquals(TapAction.None, action)
+		assertEquals(LockTarget.Digit(6), lock.target)
+		assertTrue(focusFollowsTap(action))
 	}
 
 	// --- number-button half (5.2/5.4) ---

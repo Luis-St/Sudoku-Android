@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	The sun, shown while the app is in dark mode: the header toggle names the mode it switches *to*
+	(game item 3). A tintable single-path glyph, so it is drawn with `Icon` and follows the app bar's
+	content color - unlike the heart/currency/hint artwork, which is full-colour and uses `Image`.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+	android:width="24dp"
+	android:height="24dp"
+	android:viewportWidth="24"
+	android:viewportHeight="24">
+	<path
+		android:fillColor="@android:color/white"
+		android:pathData="M12,7c-2.76,0 -5,2.24 -5,5s2.24,5 5,5s5,-2.24 5,-5S14.76,7 12,7zM12,15c-1.65,0 -3,-1.35 -3,-3s1.35,-3 3,-3s3,1.35 3,3S13.65,15 12,15zM11,1h2v3h-2zM11,20h2v3h-2zM1,11h3v2h-3zM20,11h3v2h-3zM3.51,4.93l1.41,-1.41l2.12,2.12l-1.41,1.41zM16.96,18.38l1.41,-1.41l2.12,2.12l-1.41,1.41zM4.93,20.49l-1.41,-1.41l2.12,-2.12l1.41,1.41zM18.38,7.04l-1.41,-1.41l2.12,-2.12l1.41,1.41z" />
+</vector>

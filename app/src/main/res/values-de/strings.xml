@@ -9,8 +9,6 @@
 	<string name="tab_multiplayer">Mehrspieler</string>
 	<string name="tab_settings">Einstellungen</string>
 
-	<string name="action_undo">Rückgängig</string>
-	<string name="action_redo">Wiederholen</string>
 	<string name="mode_pen">Stift</string>
 	<string name="mode_pencil">Notiz</string>
 	<string name="action_new">Neu</string>
@@ -27,7 +25,7 @@
 	<string name="dialog_overwrites_saved_game">Dies überschreibt deinen gespeicherten Spielstand.</string>
 	<string name="action_start_new">Neu starten</string>
 	<string name="action_cancel">Abbrechen</string>
-	<string name="dialog_share_code">Freigabecode</string>
+	<string name="share_code_text">Spiel dieses Sudoku mit mir. Freigabecode: %1$s</string>
 	<string name="action_done">Fertig</string>
 	<string name="dialog_enter_share_code">Freigabecode eingeben</string>
 	<string name="error_invalid_share_code">Dieser Code ist ungültig.</string>
@@ -46,7 +44,7 @@
 	<string name="action_preferences">Einstellungen</string>
 	<string name="dialog_preferences_title">Einstellungen</string>
 	<string name="pref_auto_candidate_mode">Automatische Kandidaten</string>
-	<string name="pref_auto_candidate_unavailable_lisa">Bei Lisa nicht verfügbar (Notizlimit 2).</string>
+	<string name="pref_auto_candidate_unavailable_lisa">Bei Lisa nicht verfügbar: Die Funktion nimmt dir das Ermitteln der Kandidaten ab, und genau das überlässt Lisa dir.</string>
 	<string name="pref_hex_display">Hex-Anzeige (16×16)</string>
 	<string name="pref_sound_enabled">Ton</string>
 
@@ -255,7 +253,7 @@
 	<string name="generator_info_variant_chaos">Chaos: Die Regionen sind unregelmäßig geformt statt rechteckig, der Block, den du gerade löst, liegt also nie dort, wo du ihn erwartest.</string>
 	<string name="generator_info_difficulty">Wie viel Kombinieren das Rätsel verlangt. Die Stufen 1 bis 5 werden zunehmend schwerer; Lisa ist ein eigener Modus.</string>
 	<string name="generator_info_difficulty_tier">Stufe %1$d von 5: je höher die Stufe, desto fortgeschrittener die nötigen Techniken.</string>
-	<string name="generator_info_difficulty_lisa">Lisa ist die schwerste Stufe mit eigenen Regeln: weniger Leben, keine Tipps, keine Hervorhebung gleicher Ziffern und höchstens zwei Notizen pro Feld.</string>
+	<string name="generator_info_difficulty_lisa">Lisa ist die schwerste Stufe mit eigenen Regeln: weniger Leben, keine Tipps und keine Hervorhebung gleicher Ziffern. Notizen sind unbegrenzt, wie überall sonst.</string>
 
 	<string name="enter_code_title">Geteiltes Rätsel spielen</string>
 	<string name="enter_code_explainer">Füge einen Code ein, den dir jemand geschickt hat, um genau dasselbe Rätsel zu spielen.</string>
@@ -275,6 +273,8 @@
 	<string name="settings_language_english">English</string>
 	<string name="settings_language_german">Deutsch</string>
 	<string name="settings_theme_label">Design</string>
+	<string name="action_theme_light">Zum hellen Design wechseln</string>
+	<string name="action_theme_dark">Zum dunklen Design wechseln</string>
 	<string name="settings_theme_system">Wie das System</string>
 	<string name="settings_theme_light">Hell</string>
 	<string name="settings_theme_dark">Dunkel</string>
@@ -316,7 +316,7 @@
 	<string name="players_removed">Entfernt</string>
 	<string name="players_reinstate">Wieder hereinlassen</string>
 	<string name="players_create_invite">Einladungscode erstellen</string>
-	<string name="players_invite_created_title">Einladungscode</string>
+	<string name="players_invite_share_text">Komm zu mir auf diesen Sudoku Server. Einladungscode: %1$s</string>
 	<string name="players_detail_title">Spieler</string>
 	<string name="players_no_stats">Dieser Spieler hat noch kein Rätsel abgeschlossen.</string>
 

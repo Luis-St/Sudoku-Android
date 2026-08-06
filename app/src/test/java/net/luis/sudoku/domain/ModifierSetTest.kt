@@ -6,7 +6,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Test
 
-/** feature-spec §4.3: Lisa's five confirmed modifiers, and that every other tier is unaffected. */
+/** feature-spec §4.3: Lisa's modifiers, and that every other tier is unaffected. */
 class ModifierSetTest {
 
 	@Test
@@ -22,10 +22,9 @@ class ModifierSetTest {
 	}
 
 	@Test
-	fun lisa_hasTwoLivesNoHintsAndTheTwoNoteCap() {
+	fun lisa_hasTwoLivesAndNoHints() {
 		assertEquals(2, ModifierSet.LISA.maxLives)
 		assertFalse(ModifierSet.LISA.hintsAllowed)
-		assertEquals(2, ModifierSet.LISA.maxPencilMarksPerCell)
 		assertFalse(ModifierSet.LISA.sameDigitHighlightingAllowed)
 		assertFalse(ModifierSet.LISA.remainingCountShown)
 		assertFalse(ModifierSet.LISA.autoCandidateModeAvailable)
@@ -34,7 +33,6 @@ class ModifierSetTest {
 	@Test
 	fun none_isFullyUnrestricted() {
 		assertEquals(5, ModifierSet.NONE.maxLives)
-		assertEquals(Int.MAX_VALUE, ModifierSet.NONE.maxPencilMarksPerCell)
 		assertEquals(
 			listOf(true, true, true, true),
 			listOf(
