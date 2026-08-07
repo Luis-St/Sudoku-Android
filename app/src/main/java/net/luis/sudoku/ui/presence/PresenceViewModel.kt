@@ -12,9 +12,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.luis.sudoku.data.local.DailyResultQueueStore
+import net.luis.sudoku.data.local.isPermanentDailyRejection
 import net.luis.sudoku.data.local.ServerConfigStore
 import net.luis.sudoku.data.remote.ApiClient
 import net.luis.sudoku.data.remote.dto.MatchRequestResponse
+import net.luis.sudoku.domain.GameResultUploader
+import net.luis.sudoku.domain.StreakPublisher
 import javax.inject.Inject
 
 /**
@@ -36,7 +39,9 @@ import javax.inject.Inject
 class PresenceViewModel @Inject constructor(
 	private val apiClient: ApiClient,
 	private val serverConfigStore: ServerConfigStore,
-	private val dailyResultQueueStore: DailyResultQueueStore
+	private val dailyResultQueueStore: DailyResultQueueStore,
+	private val gameResultUploader: GameResultUploader,
+	private val streakPublisher: StreakPublisher
 ) : ViewModel() {
 
 	/**
@@ -123,6 +128,14 @@ class PresenceViewModel @Inject constructor(
 					// back - the old flush ran only when a session was first stored, so a result queued while
 					// offline sat there until the player signed in again, which they never need to do.
 					flushQueuedDailyResults(baseUrl, token)
+					// And the ordinary games queued the same way. A beat is the only signal the app gets
+					// that the server is back, so it is the only place a backlog can drain from - nothing
+					// else runs while the player is not on a screen that talks to the server.
+					this.gameResultUploader.flush()
+					// And the streak itself, for the days the server never saw earned - a queued daily that
+					// was dropped rather than submitted leaves the local count as the only record of them.
+					// Last, because it is the one that should reflect whatever the two flushes above landed.
+					this.streakPublisher.publish()
 				} catch (e: CancellationException) {
 					throw e
 				} catch (e: Exception) {
@@ -147,7 +160,8 @@ class PresenceViewModel @Inject constructor(
 			} catch (e: CancellationException) {
 				throw e
 			} catch (e: Exception) {
-				false
+				// `true` also drops a row the server has finally refused - see isPermanentDailyRejection.
+				isPermanentDailyRejection(e)
 			}
 		}
 	}

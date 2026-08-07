@@ -122,4 +122,48 @@ class DailyControllerTest {
 
 		assertEquals(2, second.attempts)
 	}
+
+	// --- lastCompletedDate, the anchor StreakPublisher sends (server-spec §8.3) ---
+
+	@Test
+	fun recordSuccess_anchorsTheStreakToTheDaySolved() {
+		val today = controllerOn(day1).rollover(DailyRecord.INITIAL)
+
+		val solved = controllerOn(day1).recordSuccess(today, 60_000L)
+
+		assertEquals(day1, solved.lastCompletedDate)
+	}
+
+	@Test
+	fun rollover_dayEndedSolved_carriesTheAnchorForward() {
+		val today = controllerOn(day1).rollover(DailyRecord.INITIAL)
+		val solvedToday = controllerOn(day1).recordSuccess(today, 60_000L)
+
+		val tomorrow = controllerOn(day1.plusDays(1)).rollover(solvedToday)
+
+		assertEquals(day1, tomorrow.lastCompletedDate)
+	}
+
+	@Test
+	fun rollover_dayEndedUnsolved_clearsTheAnchorWithTheStreak() {
+		val today = controllerOn(day1).rollover(DailyRecord.INITIAL)
+		val solvedToday = controllerOn(day1).recordSuccess(today, 60_000L)
+		val skipped = controllerOn(day1.plusDays(1)).rollover(solvedToday)
+
+		val afterSkip = controllerOn(day1.plusDays(2)).rollover(skipped)
+
+		assertEquals(0, afterSkip.streak)
+		assertEquals(null, afterSkip.lastCompletedDate)
+	}
+
+	@Test
+	fun recordSuccess_onConsecutiveDays_movesTheAnchorWithTheStreak() {
+		val day1Record = controllerOn(day1).recordSuccess(controllerOn(day1).rollover(DailyRecord.INITIAL), 60_000L)
+		val day2 = day1.plusDays(1)
+
+		val day2Record = controllerOn(day2).recordSuccess(controllerOn(day2).rollover(day1Record), 60_000L)
+
+		assertEquals(2, day2Record.streak)
+		assertEquals(day2, day2Record.lastCompletedDate)
+	}
 }

@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -48,6 +49,11 @@ fun PlayerDetailScreen(
 	modifier: Modifier = Modifier,
 	viewModel: PlayerDetailViewModel = hiltViewModel()
 ) {
+	// Player-stats item 1: the profile is re-read every time it is opened. `loading` starts true, so the
+	// first open shows the spinner rather than an empty profile; a re-open keeps the numbers it already has
+	// on screen underneath and swaps them when the answer arrives.
+	LaunchedEffect(Unit) { viewModel.load() }
+
 	if (viewModel.loading && viewModel.player == null) {
 		Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
 			CircularProgressIndicator()
@@ -83,7 +89,7 @@ fun PlayerDetailScreen(
 					}
 
 					Text(
-						text = stringResource(R.string.players_streak_label, player?.streak ?: 0),
+						text = stringResource(R.string.players_streak_label, viewModel.streak),
 						style = MaterialTheme.typography.bodyMedium,
 						color = MaterialTheme.colorScheme.onSurfaceVariant,
 						modifier = Modifier.padding(top = 2.dp)

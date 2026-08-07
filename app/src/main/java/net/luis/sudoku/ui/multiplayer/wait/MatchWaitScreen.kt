@@ -1,6 +1,5 @@
 package net.luis.sudoku.ui.multiplayer.wait
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,7 +23,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -32,7 +30,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import net.luis.sudoku.R
 import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.common.SectionCard
-import net.luis.sudoku.ui.common.copyToClipboard
 import net.luis.sudoku.ui.common.friendlyErrorMessage
 import net.luis.sudoku.ui.common.shareText
 import net.luis.sudoku.ui.multiplayer.players.OnlineDot
@@ -41,9 +38,14 @@ import net.luis.sudoku.ui.multiplayer.players.PlayerAvatar
 /**
  * Multiplayer item 4: the lobby of a match that exists and is waiting for somebody.
  *
- * Three ways out, which is the whole screen: hand the match id and invite token to somebody by any means
- * (copy or the system share sheet), ask an online player directly - the server stores that request for
- * their next heartbeat, so it arrives as a banner wherever they are - or call the match off.
+ * Three ways out, which is the whole screen: hand the match code to somebody through the system share sheet,
+ * ask an online player directly - the server stores that request for their next heartbeat, so it arrives as
+ * a banner wherever they are - or call the match off.
+ *
+ * **One value on the screen.** It used to be two, and the wrong two: the match's UUID and a 43-character
+ * invite token, both of which a player was expected to pass on and the other side to retype. The code is the
+ * whole invitation now, so [matchId] is still taken here - polling, inviting and cancelling all need it - but
+ * it is never drawn.
  *
  * **Nothing enters the board until somebody has actually joined.** Creating a match used to drop the
  * creator straight onto a puzzle that could not start, with the token printed underneath it; the wait is
@@ -95,23 +97,15 @@ fun MatchWaitScreen(
 				)
 
 				CodeRow(
-					label = stringResource(R.string.matchsetup_match_id_label),
-					code = matchId,
-					clipLabel = "sudoku-match-id",
+					label = stringResource(R.string.matchsetup_match_code_label),
+					code = inviteToken,
 					modifier = Modifier.padding(top = 16.dp)
 				)
-				CodeRow(
-					label = stringResource(R.string.matchsetup_invite_token_label),
-					code = inviteToken,
-					clipLabel = "sudoku-invite-token",
-					modifier = Modifier.padding(top = 12.dp)
-				)
 
-				// One share carries both values, because either alone is useless to the person receiving it.
 				OutlinedActionButton(
-					text = stringResource(R.string.matchwait_share_both),
+					text = stringResource(R.string.matchwait_share_code),
 					onClick = {
-						shareText(context, context.getString(R.string.matchwait_share_text, matchId, inviteToken))
+						shareText(context, context.getString(R.string.matchwait_share_text, inviteToken))
 					},
 					icon = Icons.Filled.Share,
 					modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
@@ -185,27 +179,19 @@ fun MatchWaitScreen(
 	}
 }
 
-/** A value worth handing to somebody: selectable, and one tap from the clipboard. */
+/**
+ * The code itself, to read off the screen or select by hand.
+ *
+ * No copy button beside it, at the owner's request: share is the way this value leaves the device, and a
+ * second button doing almost the same thing was the only other control competing with it. Still inside a
+ * [SelectionContainer], so a long press is there for anybody who wants the clipboard anyway.
+ */
 @Composable
-private fun CodeRow(label: String, code: String, clipLabel: String, modifier: Modifier = Modifier) {
-	val context = LocalContext.current
-
+private fun CodeRow(label: String, code: String, modifier: Modifier = Modifier) {
 	Column(modifier = modifier.fillMaxWidth()) {
 		Text(label, style = MaterialTheme.typography.labelLarge)
-		Row(
-			modifier = Modifier.fillMaxWidth(),
-			horizontalArrangement = Arrangement.SpaceBetween,
-			verticalAlignment = Alignment.CenterVertically
-		) {
-			SelectionContainer(modifier = Modifier.weight(1f)) {
-				Text(code, style = MaterialTheme.typography.bodyMedium)
-			}
-			OutlinedActionButton(
-				text = stringResource(R.string.action_copy),
-				onClick = { copyToClipboard(context, clipLabel, code) },
-				iconPainter = painterResource(R.drawable.ic_copy),
-				modifier = Modifier.padding(start = 8.dp)
-			)
+		SelectionContainer {
+			Text(code, style = MaterialTheme.typography.bodyMedium)
 		}
 	}
 }

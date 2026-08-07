@@ -18,6 +18,7 @@ import kotlinx.serialization.json.jsonObject
 import net.luis.sudoku.core.CellSnapshot
 import net.luis.sudoku.core.GameSession
 import net.luis.sudoku.data.local.ServerConfigStore
+import net.luis.sudoku.data.remote.match.MatchOutcomeProbe
 import net.luis.sudoku.data.remote.match.MatchSocketClient
 import net.luis.sudoku.data.remote.match.MessageType
 import net.luis.sudoku.data.remote.match.ReconnectGraceTracker
@@ -44,7 +45,8 @@ class RaceViewModel @AssistedInject constructor(
 	@Assisted("token") private val token: String,
 	@Assisted("matchId") private val matchId: String,
 	private val socketClient: MatchSocketClient,
-	private val serverConfigStore: ServerConfigStore
+	private val serverConfigStore: ServerConfigStore,
+	private val outcomeProbe: MatchOutcomeProbe
 ) : ViewModel() {
 
 	@AssistedFactory
@@ -163,12 +165,43 @@ class RaceViewModel @AssistedInject constructor(
 		scheduleReconnect()
 	}
 
+	/**
+	 * Asks whether the match is already over before spending a reconnect finding out.
+	 *
+	 * A dropped connection and a match being called off look the same from here, and the second one used to
+	 * be discovered the slowest possible way: wait out the delay, reopen the socket, receive the `MATCH_ENDED`
+	 * the server had been holding, and have it close the socket again. `GET /matches/{id}` answers that before
+	 * any of it, and says nothing when the server cannot be reached, which is exactly when reconnecting is the
+	 * right move anyway.
+	 */
 	private fun scheduleReconnect() {
 		this.viewModelScope.launch {
+			if (applyEndedOutcome()) return@launch
 			delay(RECONNECT_DELAY_MS)
 			if (this@RaceViewModel.leaving || this@RaceViewModel.endReason != null) return@launch
 			openSocket(initial = false)
 		}
+	}
+
+	/**
+	 * @return true if the match has ended, in which case this model now holds the result and nothing should
+	 *   reconnect
+	 */
+	private suspend fun applyEndedOutcome(): Boolean {
+		if (this.leaving || this.endReason != null) return true
+		val outcome = this.outcomeProbe.endedOutcome(this.baseUrl, this.token, this.matchId) ?: return false
+
+		// Same teardown the socket's own MATCH_ENDED does: a countdown for somebody who was going to come
+		// back is not something to leave ticking over a match that is finished.
+		this.graceTracker.clear()
+		// One atomic change, for the same reason the socket's frames are: the screen reads the winner and the
+		// reason in one sentence, and must never compose between the two writes.
+		Snapshot.withMutableSnapshot {
+			this.winnerId = outcome.winnerId
+			this.endReason = outcome.endReason
+			this.disconnected = false
+		}
+		return true
 	}
 
 	private fun handleMessage(type: String, payload: JsonObject) {

@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import net.luis.sudoku.data.local.DailyStore
 import net.luis.sudoku.data.local.ServerConfigStore
 import net.luis.sudoku.data.remote.ApiClient
 import net.luis.sudoku.data.remote.ApiException
@@ -33,11 +34,35 @@ import javax.inject.Inject
 @HiltViewModel
 class PlayersViewModel @Inject constructor(
 	private val apiClient: ApiClient,
-	private val serverConfigStore: ServerConfigStore
+	private val serverConfigStore: ServerConfigStore,
+	private val dailyStore: DailyStore
 ) : ViewModel() {
 
 	var players by mutableStateOf<List<PlayerResponse>>(emptyList())
 		private set
+
+	/**
+	 * This device's own daily streak (feature-spec §8.3), which is not the same number the server holds.
+	 *
+	 * The local streak counts every daily this player solved; the server's counts the ones it verified,
+	 * and it deliberately never merges a local one (server-spec §9) - so a daily solved offline, or one
+	 * whose submission the server refused, advances the first and not the second. Signed in or not, the
+	 * home screen has always shown the local number, and this screen showing a smaller one for the very
+	 * same player was the app disagreeing with itself about a streak the player can see two taps away.
+	 */
+	private var localStreak by mutableStateOf(0)
+
+	/**
+	 * The streak to draw for [player]: the server's, except on this player's own row, where whichever of
+	 * the two knows about more days wins.
+	 *
+	 * Taking the larger rather than always the local one covers the case that makes "just use local"
+	 * wrong: a reinstalled app, or a second device, has a local streak of zero and a server that knows
+	 * better. Neither number can be too *high* - each only counts days its own side saw solved - so the
+	 * larger of them is the one with the fuller picture.
+	 */
+	fun streakOf(player: PlayerResponse): Int =
+		if (player.id == this.currentUserId) maxOf(player.streak, this.localStreak) else player.streak
 
 	var isAdmin by mutableStateOf(false)
 		private set
@@ -77,7 +102,13 @@ class PlayersViewModel @Inject constructor(
 			// would keep seeing the screen of the role they registered with (friends item 3).
 			this@PlayersViewModel.refreshRole()
 		}
-		loadPlayers()
+		// Players item 1: the list itself is **not** loaded here.
+		//
+		// `init` runs once per view model, and this one is scoped to the navigation entry - which survives
+		// opening a player's profile and coming back, and survives the app being backgrounded. So a load
+		// fired from here is a load that happens when the screen is *created*, not when it is opened, and
+		// everything on the row that is not the online dot - the streak above all - was whatever it had been
+		// the first time. The screen calls [refreshPlayers] as it enters composition instead.
 	}
 
 	/**
@@ -145,6 +176,9 @@ class PlayersViewModel @Inject constructor(
 	 */
 	fun refreshPlayers() {
 		this.viewModelScope.launch {
+			// Read first and unconditionally: it is a local read that cannot fail, and it is the only streak
+			// this player's own row has to show when the server has never seen one of their dailies.
+			this@PlayersViewModel.localStreak = this@PlayersViewModel.dailyStore.current().streak
 			try {
 				val (baseUrl, token) = serverCredentials() ?: return@launch
 				this@PlayersViewModel.players = this@PlayersViewModel.apiClient.listPlayers(baseUrl, token)

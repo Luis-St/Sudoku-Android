@@ -33,6 +33,7 @@ import net.luis.sudoku.domain.Command
 import net.luis.sudoku.domain.CurrencyController
 import net.luis.sudoku.domain.DailyController
 import net.luis.sudoku.domain.DailyRecord
+import net.luis.sudoku.domain.GameResultUploader
 import net.luis.sudoku.domain.HintController
 import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.domain.LivesController
@@ -98,13 +99,23 @@ class GameViewModel @Inject constructor(
 	private val settingsStore: SettingsStore,
 	private val apiClient: ApiClient,
 	private val serverConfigStore: ServerConfigStore,
-	private val dailyResultQueueStore: DailyResultQueueStore
+	private val dailyResultQueueStore: DailyResultQueueStore,
+	private val gameResultUploader: GameResultUploader
 ) : ViewModel() {
 
 	private lateinit var session: GameSession
 	private lateinit var undoStack: UndoStack
-	/** feature-spec §9.6: submitted alongside a connected daily result, verified server-side by replay. */
-	private val dailySolveOrder = mutableListOf<Int>()
+	/**
+	 * feature-spec §9.6: submitted alongside a connected daily result, verified server-side by replay.
+	 *
+	 * `[cell, digit]` per entry, which is what the server replays - a cell index alone cannot be checked
+	 * against the solution, and sending bare indices is why every daily submission was rejected outright.
+	 *
+	 * **Every** filled cell has to be in here for the replay to reach a complete grid: the player's own
+	 * entries and the cells a hint revealed alike. A hint writes through `GameSession`, so it used to miss
+	 * this list entirely and one hint was enough to make an otherwise perfect daily unverifiable.
+	 */
+	private val dailySolveOrder = mutableListOf<List<Int>>()
 	private var dailyMistakes = 0
 	private lateinit var editor: BoardEditor
 	private lateinit var livesController: LivesController
@@ -315,9 +326,19 @@ class GameViewModel @Inject constructor(
 			this@GameViewModel.slot = SaveSlot.DAILY
 			this@GameViewModel.isDailyMode = true
 
-			// §8.3.1: normally connected, this uses the server's own serverId/timezone/size, cached at
-			// connect time - so the daily is identical to what the server (and every other player at this
-			// tier) computes, not a different "local" puzzle. Falls back to "local"/9x9 if never connected.
+			// §8.3.1: normally connected, this uses the server's own serverId/timezone/size - so the daily is
+			// identical to what the server (and every other player at this tier) computes, not a different
+			// "local" puzzle. Falls back to "local"/9x9 if never connected.
+			//
+			// Re-read from `/server-info` here rather than trusted from connect time, which is the only place
+			// that used to write it. Those three values are the entire input to the puzzle the player is about
+			// to solve, and the server verifies a solve by regenerating *its* puzzle and replaying the entries
+			// against it: get any of them wrong and the player spends their daily on a different grid, the
+			// replay fails on the first entry, and the result is stored unverified - no streak, no leaderboard,
+			// no currency, and nothing said about it. A device that set its server up before this was cached at
+			// all had `serverId = "local"` and lost every daily that way. Best-effort: an unreachable server
+			// leaves the cache in place, which is exactly what §8.3.1 keeps it for.
+			this@GameViewModel.refreshDailyConfig()
 			val config = this@GameViewModel.serverConfigStore.current()
 			val dailySize = config.cachedDailySize?.let(GridSize::ofEdgeLength) ?: DAILY_SIZE
 			this@GameViewModel.dailyController = DailyController(serverId = config.cachedServerId ?: "local") {
@@ -339,14 +360,20 @@ class GameViewModel @Inject constructor(
 
 			if (saved != null && saved.session.key == key) {
 				installSession(saved.session, saved.undoStack, saved.elapsedMillis, saved.livesRemaining, saved.hintsUsed)
+				// The board came back from disk, so its solve order has to as well: the server verifies the
+				// submission by replaying it, and a resumed attempt that starts the list again from empty
+				// submits a grid full of cells it never accounts for.
+				this@GameViewModel.dailySolveOrder.clear()
+				this@GameViewModel.dailySolveOrder += this@GameViewModel.dailyStore.currentSolveOrder(rolled.date!!)
 			} else {
 				val started = this@GameViewModel.dailyController.recordAttemptStart(rolled)
 				this@GameViewModel.dailyStore.save(started)
 				this@GameViewModel.dailyRecord = started
 				installSession(GameSession.generate(key), UndoStack(), 0L, 5, 0)
-				// A fresh attempt - not persisted across process death (§9.6 is a "basic" anti-cheat
-				// stance), but always accurate for the attempt currently in memory.
+				// A fresh attempt starts from nothing, and takes the stored order with it - what is on disk
+				// belongs to the attempt that was just replaced.
 				this@GameViewModel.dailySolveOrder.clear()
+				this@GameViewModel.dailyStore.clearSolveOrder()
 				this@GameViewModel.dailyMistakes = 0
 			}
 			this@GameViewModel.timerController.start()
@@ -503,7 +530,7 @@ class GameViewModel @Inject constructor(
 			return true
 		}
 		this.editor.apply(action)
-		if (this.isDailyMode && action is TapAction.EnterPen) this.dailySolveOrder.add(action.index)
+		if (this.isDailyMode && action is TapAction.EnterPen) this.dailySolveOrder.add(listOf(action.index, action.digit))
 		if (this.preferences.soundEnabled) soundEventFor(action)?.let(this.soundPlayer::play)
 		refresh()
 		checkForWin()
@@ -569,6 +596,8 @@ class GameViewModel @Inject constructor(
 		this.hintCandidate = null
 		this.hintsRemaining = this.hintController.remaining
 		this.hintCells.add(index)
+		// The cell is filled from here on, so the replay has to know about it - see [dailySolveOrder].
+		if (this.isDailyMode) this.dailySolveOrder.add(listOf(index, digit))
 		// Game item 2: a hint is a pen entry as far as the rest of the board is concerned, so it clears the
 		// digit out of every peer's notes exactly as typing it would - in the same Command, so one undo takes
 		// the reveal and the clean-up back together.
@@ -671,7 +700,11 @@ class GameViewModel @Inject constructor(
 				elapsedMillis = this@GameViewModel.timerController.elapsedMillis(),
 				hintsUsed = this@GameViewModel.hintController.used,
 				livesLost = this@GameViewModel.livesController.maxLives - this@GameViewModel.livesController.remaining,
-				hardestTechnique = report.hardestTechnique().orElse(null)
+				hardestTechnique = report.hardestTechnique().orElse(null),
+				// Recorded locally, never uploaded as an ordinary game: the daily reaches the server as a
+				// daily result and the rollover folds it into the same aggregates, so sending it here too
+				// would count every daily twice.
+				isDaily = this@GameViewModel.slot == SaveSlot.DAILY
 			)
 			this@GameViewModel.savedGameStore.clear(this@GameViewModel.slot)
 			this@GameViewModel.currencyStore.save(
@@ -681,6 +714,13 @@ class GameViewModel @Inject constructor(
 					earnDate = this@GameViewModel.currencyController.currentEarnDate
 				)
 			)
+			// Straight onto the server afterwards, so the profile screens stop showing statistics that
+			// froze when this device linked. Its own coroutine, and last: it is the only step here that
+			// waits on a network, and the local writes above must not be held up behind a timeout.
+			//
+			// Nothing reports a failure - the game is already recorded locally and queued, and the
+			// heartbeat retries it when the server is next reachable.
+			this@GameViewModel.gameResultUploader.flush()
 		}
 	}
 
@@ -724,6 +764,30 @@ class GameViewModel @Inject constructor(
 				false
 			}
 			if (!submitted) this@GameViewModel.dailyResultQueueStore.enqueue(request)
+			// Either way this attempt's order has been handed on and the day is over for it - the queued copy
+			// carries its own.
+			this@GameViewModel.dailyStore.clearSolveOrder()
+		}
+	}
+
+	/**
+	 * Brings the cached daily configuration up to date, so the puzzle this device generates is the one the
+	 * server will verify against (§8.2).
+	 *
+	 * Silent on every failure, and deliberately so: the cache exists to answer this question when the
+	 * server cannot, so an unreachable server is not a reason to refuse the daily - it is the case the
+	 * cache was written for. What it is not is a reason to keep a value that was only ever written once,
+	 * years of restarts ago.
+	 */
+	private suspend fun refreshDailyConfig() {
+		try {
+			val baseUrl = this.serverConfigStore.current().serverUrl ?: return
+			val info = this.apiClient.serverInfo(baseUrl)
+			this.serverConfigStore.cacheDailyConfig(info.serverId, info.dailySize, info.timezone)
+		} catch (e: CancellationException) {
+			throw e
+		} catch (e: Exception) {
+			// Keep whatever is cached - see above.
 		}
 	}
 
@@ -787,8 +851,15 @@ class GameViewModel @Inject constructor(
 		val elapsedMillis = this.timerController.elapsedMillis()
 		val livesRemaining = this.livesController.remaining
 		val hintsUsed = this.hintController.used
+		// Snapshotted here for the same reason everything else is: the daily's own fields are reassigned the
+		// moment the other slot is switched to.
+		// `dailyRecord` is only initialized once the daily has been opened, so the slot decides whether it is
+		// read at all - a normal game must not touch it.
+		val dailyDate = if (slot == SaveSlot.DAILY) this.dailyRecord.date else null
+		val solveOrder = this.dailySolveOrder.toList()
 		this.viewModelScope.launch {
 			this@GameViewModel.savedGameStore.save(slot, session, undoStack, elapsedMillis, livesRemaining, hintsUsed)
+			dailyDate?.let { this@GameViewModel.dailyStore.saveSolveOrder(it, solveOrder) }
 		}
 	}
 

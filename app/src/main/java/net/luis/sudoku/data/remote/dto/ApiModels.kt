@@ -106,6 +106,30 @@ data class SyncEntry(
 @Serializable
 data class StatsSyncRequest(val entries: List<SyncEntry>)
 
+/**
+ * One finished single-player game for `POST /stats/games` (server-spec §9).
+ *
+ * [gameId] is generated once, when the game ends, and re-sent unchanged on every retry - that is what
+ * lets the server fold the game exactly once however often the queue replays it.
+ */
+@Serializable
+data class PlayedGameDto(
+	val gameId: String,
+	val size: Int,
+	val variant: String,
+	val difficulty: Int,
+	val solved: Boolean,
+	val elapsedMs: Long,
+	val hintsUsed: Int
+)
+
+@Serializable
+data class GameResultsRequest(val games: List<PlayedGameDto>)
+
+/** How many of the uploaded games were new; the rest were retries the server had already recorded. */
+@Serializable
+data class GameResultsResponse(val recorded: Int = 0)
+
 @Serializable
 data class PreferencesResponse(val dailyDifficulty: Int)
 

@@ -30,8 +30,11 @@ import net.luis.sudoku.data.remote.dto.DailyResultRequest
 import net.luis.sudoku.data.remote.dto.DailyResultResponse
 import net.luis.sudoku.data.remote.dto.DeviceResponse
 import net.luis.sudoku.data.remote.dto.ErrorResponse
+import net.luis.sudoku.data.remote.dto.GameResultsRequest
+import net.luis.sudoku.data.remote.dto.GameResultsResponse
 import net.luis.sudoku.data.remote.dto.HeartbeatResponse
 import net.luis.sudoku.data.remote.dto.InviteResponse
+import net.luis.sudoku.data.remote.dto.JoinByCodeRequest
 import net.luis.sudoku.data.remote.dto.JoinMatchRequest
 import net.luis.sudoku.data.remote.dto.LeaderboardEntryResponse
 import net.luis.sudoku.data.remote.dto.LinkCodeResponse
@@ -40,6 +43,7 @@ import net.luis.sudoku.data.remote.dto.MatchConfigDto
 import net.luis.sudoku.data.remote.dto.MatchRequestRequest
 import net.luis.sudoku.data.remote.dto.MatchResponse
 import net.luis.sudoku.data.remote.dto.MatchSettingsDto
+import net.luis.sudoku.data.remote.dto.PlayedGameDto
 import net.luis.sudoku.data.remote.dto.PlayerResponse
 import net.luis.sudoku.data.remote.dto.PreferencesResponse
 import net.luis.sudoku.data.remote.dto.RecoveryEmailRequest
@@ -51,6 +55,7 @@ import net.luis.sudoku.data.remote.dto.SetEmailRequest
 import net.luis.sudoku.data.remote.dto.SetPreferencesRequest
 import net.luis.sudoku.data.remote.dto.StatsEntryResponse
 import net.luis.sudoku.data.remote.dto.StatsSyncRequest
+import net.luis.sudoku.data.remote.dto.StreakSyncRequest
 import net.luis.sudoku.data.remote.dto.StreakResponse
 import net.luis.sudoku.data.remote.dto.SyncEntry
 import net.luis.sudoku.data.remote.dto.UserResponse
@@ -224,6 +229,23 @@ class ApiClient @Inject constructor(private val client: HttpClient, private val 
 		)
 	}
 
+	/**
+	 * Uploads finished single-player games (server-spec §9), which is what keeps a player's server-side
+	 * statistics current.
+	 *
+	 * Safe to repeat, and meant to be: each game carries its own id, and the server folds an id it has
+	 * already seen exactly zero further times. So a caller that cannot tell whether its last request
+	 * arrived simply sends again.
+	 */
+	suspend fun recordGames(baseUrl: String, token: String, games: List<PlayedGameDto>): GameResultsResponse =
+		handle(
+			this.client.post(url(baseUrl, "stats/games")) {
+				authorized(token)
+				contentType(ContentType.Application.Json)
+				setBody(GameResultsRequest(games))
+			}
+		)
+
 	suspend fun setDailyDifficultyPreference(baseUrl: String, token: String, difficultyIndex: Int): PreferencesResponse =
 		handle(
 			this.client.put(url(baseUrl, "preferences")) {
@@ -289,6 +311,25 @@ class ApiClient @Inject constructor(private val client: HttpClient, private val 
 			}
 		)
 	}
+
+	/**
+	 * Joins a match from its code alone (server-spec §10.1).
+	 *
+	 * The code is the whole invitation, which is why there is no match id here - it comes back in the
+	 * response. [joinMatch] is still what the match-request banner uses, since being asked to join hands the
+	 * client both values already and there is nothing to look up.
+	 *
+	 * `NOT_FOUND` covers every way a code can fail: mistyped, already started, cancelled. The server does not
+	 * distinguish them and neither should the message shown for it.
+	 */
+	suspend fun joinMatchByCode(baseUrl: String, token: String, code: String): MatchResponse =
+		handle(
+			this.client.post(url(baseUrl, "matches/join")) {
+				authorized(token)
+				contentType(ContentType.Application.Json)
+				setBody(JoinByCodeRequest(code))
+			}
+		)
 
 	suspend fun joinMatch(baseUrl: String, token: String, matchId: String, inviteToken: String?): MatchResponse =
 		handle(
@@ -361,6 +402,22 @@ class ApiClient @Inject constructor(private val client: HttpClient, private val 
 
 	suspend fun dailyStreak(baseUrl: String, token: String): StreakResponse =
 		handle(this.client.get(url(baseUrl, "daily/streak")) { authorized(token) })
+
+	/**
+	 * Publishes the streak this device counted (server-spec §8.3), for days the server never saw earned.
+	 *
+	 * One-way and idempotent server-side: a count lower than the stored one is ignored, so this is safe to
+	 * send on every reconnect and safe to repeat. It never grants restore points - only a verified solve
+	 * does that.
+	 */
+	suspend fun syncDailyStreak(baseUrl: String, token: String, current: Int, lastCompletedDate: String): StreakResponse =
+		handle(
+			this.client.post(url(baseUrl, "daily/streak/sync")) {
+				authorized(token)
+				contentType(ContentType.Application.Json)
+				setBody(StreakSyncRequest(current, lastCompletedDate))
+			}
+		)
 
 	suspend fun restoreDailyStreak(baseUrl: String, token: String): StreakResponse =
 		handle(this.client.post(url(baseUrl, "daily/streak/restore")) { authorized(token) })

@@ -29,6 +29,47 @@ class DailyStoreTest {
 		assertEquals(DailyRecord.INITIAL, record)
 	}
 
+	/**
+	 * The solve order has to outlive the process, because the server verifies a daily by replaying it: an
+	 * attempt resumed after the app was killed would otherwise submit a list that accounts for only part of
+	 * the grid, and a genuinely solved daily would be stored unverified - no streak day, no leaderboard
+	 * entry, no currency, and no word to the player about any of it.
+	 */
+	@Test
+	fun saveThenCurrentSolveOrder_roundTripsThePairs() = runBlocking {
+		val store = newStore()
+		val date = LocalDate.of(2026, 8, 6)
+
+		store.saveSolveOrder(date, listOf(listOf(4, 1), listOf(7, 9), listOf(12, 3)))
+
+		assertEquals(listOf(listOf(4, 1), listOf(7, 9), listOf(12, 3)), store.currentSolveOrder(date))
+	}
+
+	/** Yesterday's entries replayed against today's grid are worse than none, so the date has to match. */
+	@Test
+	fun currentSolveOrder_forAnotherDate_isEmpty() = runBlocking {
+		val store = newStore()
+		store.saveSolveOrder(LocalDate.of(2026, 8, 6), listOf(listOf(4, 1)))
+
+		assertEquals(emptyList<List<Int>>(), store.currentSolveOrder(LocalDate.of(2026, 8, 7)))
+	}
+
+	@Test
+	fun currentSolveOrder_withNothingSaved_isEmpty() = runBlocking {
+		assertEquals(emptyList<List<Int>>(), newStore().currentSolveOrder(LocalDate.of(2026, 8, 6)))
+	}
+
+	@Test
+	fun clearSolveOrder_dropsTheStoredAttempt() = runBlocking {
+		val store = newStore()
+		val date = LocalDate.of(2026, 8, 6)
+		store.saveSolveOrder(date, listOf(listOf(4, 1)))
+
+		store.clearSolveOrder()
+
+		assertEquals(emptyList<List<Int>>(), store.currentSolveOrder(date))
+	}
+
 	@Test
 	fun saveThenCurrent_roundTripsEveryField() = runBlocking {
 		val store = newStore()

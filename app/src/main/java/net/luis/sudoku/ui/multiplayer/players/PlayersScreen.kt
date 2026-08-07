@@ -86,11 +86,19 @@ fun PlayersScreen(
 	onJoinInvite: (MatchRequestResponse) -> Unit = {},
 	viewModel: PlayersViewModel = hiltViewModel()
 ) {
-	// Friends item 6: this list is the *only* source of online status now, so keeping it current is keeping
-	// the dots current - and it is also what makes a player who joined the server while this screen was open
-	// appear at all. Polled only while this screen is composed: nothing else on the list changes fast enough
-	// to be worth a request, and the heartbeat that keeps *this* device online runs regardless.
+	// Players item 1: read once as the screen opens, then kept current only for the sake of the online dots.
+	//
+	// The opening read is the fix: this effect used to start with the delay, and the only load before it was
+	// the view model's `init` - which does not run again when the player comes back from a profile or from
+	// the background, because the view model belongs to the navigation entry and that outlives both. Streaks
+	// were therefore as old as the screen's first visit, up to a poll behind even on a fresh one.
+	//
+	// Friends item 6: this list is also the *only* source of online status, so the poll stays - it is what
+	// keeps the dots honest and what makes a player who joined while the screen was open appear at all.
+	// Nothing else here changes fast enough to be worth a request, which is why the poll is the same call
+	// rather than a second one: one endpoint carries the whole row.
 	LaunchedEffect(Unit) {
+		viewModel.refreshPlayers()
 		while (true) {
 			delay(PLAYERS_REFRESH_MS)
 			viewModel.refreshPlayers()
@@ -138,6 +146,7 @@ fun PlayersScreen(
 					if (index > 0) HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 					PlayerRow(
 						player = player,
+						streak = viewModel.streakOf(player),
 						isAdminViewer = viewModel.isAdmin,
 						isSelf = player.id == viewModel.currentUserId,
 						isOnline = player.online,
@@ -208,6 +217,8 @@ private fun InviteRow(request: MatchRequestResponse, onJoin: () -> Unit) {
 @Composable
 private fun PlayerRow(
 	player: PlayerResponse,
+	/** Not `player.streak`: on this player's own row the local streak has a say - see [PlayersViewModel.streakOf]. */
+	streak: Int,
 	isAdminViewer: Boolean,
 	isSelf: Boolean,
 	isOnline: Boolean,
@@ -279,7 +290,7 @@ private fun PlayerRow(
 					)
 				}
 				Text(
-					text = stringResource(R.string.players_streak_label, player.streak),
+					text = stringResource(R.string.players_streak_label, streak),
 					style = MaterialTheme.typography.bodySmall,
 					color = MaterialTheme.colorScheme.onSurfaceVariant,
 					modifier = Modifier.padding(start = 12.dp)

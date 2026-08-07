@@ -151,23 +151,22 @@
 	<string name="matchsetup_stake_label">Einsatz (Rhabarber, 0 = kostenlos beitreten)</string>
 	<string name="action_create_match">Match erstellen</string>
 	<string name="matchsetup_join_header">Match beitreten</string>
-	<string name="matchsetup_match_id_label">Match-ID</string>
-	<string name="matchsetup_invite_token_label">Einladungstoken</string>
+	<string name="matchsetup_match_code_label">Match-Code</string>
 	<string name="action_join_match">Match beitreten</string>
 	<string name="matchsetup_mode_label">Modus</string>
-	<string name="matchsetup_join_explainer">Gib die Match-ID und den Einladungstoken ein, die du bekommen hast.</string>
+	<string name="matchsetup_join_explainer">Gib den Match-Code ein, den du bekommen hast.</string>
 
 	<!-- Multiplayer-Übersicht und Wartebereich (Multiplayer 2-4) -->
 	<string name="multiplayer_hub_header">Mit anderen spielen</string>
 	<string name="multiplayer_create_game">Spiel erstellen</string>
 	<string name="multiplayer_create_game_note">Wähle Modus und Rätsel und lade dann jemanden ein.</string>
 	<string name="multiplayer_join_game">Spiel beitreten</string>
-	<string name="multiplayer_join_game_note">Nutze eine Match-ID und einen Einladungstoken, die du bekommen hast.</string>
+	<string name="multiplayer_join_game_note">Nutze einen Match-Code, den du bekommen hast.</string>
 	<string name="matchwait_header">Warten auf Mitspieler</string>
 	<string name="matchwait_waiting">Warte darauf, dass jemand beitritt…</string>
-	<string name="matchwait_explainer">Das Match startet, sobald ein anderer Spieler beitritt. Teile die Codes unten oder lade jemanden ein, der online ist.</string>
-	<string name="matchwait_share_both">Match teilen</string>
-	<string name="matchwait_share_text">Tritt meinem Sudoku-Match bei!\nMatch-ID: %1$s\nEinladungstoken: %2$s</string>
+	<string name="matchwait_explainer">Das Match startet, sobald ein anderer Spieler beitritt. Teile den Code unten oder lade jemanden ein, der online ist.</string>
+	<string name="matchwait_share_code">Code teilen</string>
+	<string name="matchwait_share_text">Tritt meinem Sudoku-Match bei! Der Code ist %1$s</string>
 	<string name="matchwait_invite_header">Online-Spieler einladen</string>
 	<string name="matchwait_nobody_online">Gerade ist niemand sonst online.</string>
 	<string name="matchwait_invited">Eingeladen</string>
@@ -220,7 +219,6 @@
 	<string name="tab_friends">Spieler</string>
 	<string name="action_back">Zurück</string>
 	<string name="action_info">Was ist das?</string>
-	<string name="action_copy">Kopieren</string>
 
 	<string name="home_section_play">Spielen</string>
 	<string name="home_section_more">Mehr</string>

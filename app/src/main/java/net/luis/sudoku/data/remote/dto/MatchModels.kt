@@ -23,11 +23,22 @@ data class MatchSettingsDto(
 @Serializable
 data class CreateMatchRequest(val mode: String, val config: MatchConfigDto, val settings: MatchSettingsDto? = null)
 
+/**
+ * What creating a match hands back.
+ *
+ * [inviteToken] is the match code, `XXXX-XXXX`, and is the only thing a player has to pass on: it resolves to
+ * the match on its own. The field kept its wire name because the server has been live since 2026-08-06 and
+ * older clients read it by that name.
+ */
 @Serializable
 data class CreatedMatchResponse(val matchId: String, val inviteToken: String)
 
 @Serializable
 data class JoinMatchRequest(val inviteToken: String? = null)
+
+/** Body of `POST /matches/join`: the code alone, in whatever casing and spacing the player typed it. */
+@Serializable
+data class JoinByCodeRequest(val code: String)
 
 /** Body of `POST /matches/{id}/request`: which online player to ask (feature-spec §9.7). */
 @Serializable

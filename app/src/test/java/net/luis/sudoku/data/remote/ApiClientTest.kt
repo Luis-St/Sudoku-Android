@@ -9,6 +9,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import io.ktor.http.content.TextContent
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -26,6 +27,9 @@ import org.junit.Test
  * and error-mapping match `Sudoku-Server/openapi.json` without a running server.
  */
 class ApiClientTest {
+
+	/** The JSON actually put on the wire - the request shapes this suite proves are only half the contract. */
+	private fun HttpRequestData.bodyText(): String = (this.body as TextContent).text
 
 	private fun clientReturning(
 		status: HttpStatusCode,
@@ -141,6 +145,25 @@ class ApiClientTest {
 	}
 
 	@Test
+	fun joinMatchByCode_postsTheCodeAloneAndGetsTheMatchIdBack() = runBlocking {
+		// The point of the route: the caller has no match id to put in the path, and receives one.
+		val requests = mutableListOf<HttpRequestData>()
+		val client = clientReturning(
+			HttpStatusCode.OK,
+			"""{"matchId":"m1","mode":"DUEL","state":"WAITING","livesEnabled":false,"stake":25}""",
+			requests
+		)
+
+		val match = client.joinMatchByCode("https://example.com", "tok", "K7QM-4X2P")
+
+		assertEquals("m1", match.matchId)
+		assertEquals(25, match.stake)
+		assertEquals("/api/v1/matches/join", requests.single().url.encodedPath)
+		assertEquals(HttpMethod.Post, requests.single().method)
+		assertEquals("""{"code":"K7QM-4X2P"}""", requests.single().bodyText())
+	}
+
+	@Test
 	fun listPlayers_parsesEachPlayer() = runBlocking {
 		val client = clientReturning(HttpStatusCode.OK, """[{"id":"u1","displayName":"Lisa","streak":5}]""")
 
@@ -253,13 +276,26 @@ class ApiClientTest {
 		val response = client.submitDailyResult(
 			"https://example.com",
 			"tok",
-			DailyResultRequest(date = "2026-07-27", difficulty = 3, outcome = "SOLVED", elapsedMs = 60_000L, solveOrder = listOf(1, 2, 3))
+			DailyResultRequest(
+				date = "2026-07-27",
+				difficulty = 3,
+				outcome = "SOLVED",
+				elapsedMs = 60_000L,
+				solveOrder = listOf(listOf(1, 5), listOf(2, 9))
+			)
 		)
 
 		assertTrue(response.accepted)
 		assertTrue(response.verified)
 		assertEquals("/api/v1/daily/result", requests.single().url.encodedPath)
 		assertEquals(HttpMethod.Post, requests.single().method)
+		// The bug this asserts against: `solveOrder` went out as bare cell indices, which the server reads as
+		// `List<List<Integer>>` and rejects with 400 - so every daily result was queued and re-rejected
+		// forever, and no streak, leaderboard entry or currency was ever credited for one.
+		assertTrue(
+			"solveOrder must go out as [cell, digit] pairs",
+			requests.single().bodyText().contains(""""solveOrder":[[1,5],[2,9]]""")
+		)
 	}
 
 	@Test

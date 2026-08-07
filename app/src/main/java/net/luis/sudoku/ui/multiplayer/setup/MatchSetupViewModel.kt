@@ -29,6 +29,9 @@ data class ActiveMatch(val matchId: String, val mode: String, val stake: Int = 0
  *
  * Distinct from [ActiveMatch] on purpose: the difference is not a flag on the same thing but which screen
  * it belongs to - a match with an [inviteToken] to hand out is a lobby, and one being played is a board.
+ *
+ * [inviteToken] is the `XXXX-XXXX` match code, and is the whole invitation - the lobby shows nothing else,
+ * and the person receiving it needs nothing else.
  */
 data class CreatedMatch(val matchId: String, val inviteToken: String, val mode: String, val stake: Int)
 
@@ -93,6 +96,24 @@ class MatchSetupViewModel @Inject constructor(
 		this.createdMatch = null
 	}
 
+	/**
+	 * Joins from the code the creator passed on, which is the only thing a player ever has to type.
+	 *
+	 * The code goes up as it was typed: the server is what decides whether `k7qm 4x2p` is `K7QM-4X2P`, and
+	 * having the client normalise it too would be two rules to keep in step for no gain.
+	 */
+	fun joinByCode(code: String) {
+		runOrReportError {
+			val config = this.serverConfigStore.current()
+			val baseUrl = config.serverUrl ?: return@runOrReportError
+			val token = config.sessionToken ?: return@runOrReportError
+
+			val match = this.apiClient.joinMatchByCode(baseUrl, token, code)
+			this.activeMatch = ActiveMatch(match.matchId, match.mode ?: "RACE", match.stake)
+		}
+	}
+
+	/** The match-request banner's way in: it was handed both values, so there is no code to resolve. */
 	fun joinMatch(matchId: String, inviteToken: String) {
 		runOrReportError {
 			val config = this.serverConfigStore.current()

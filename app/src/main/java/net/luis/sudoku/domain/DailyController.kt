@@ -20,6 +20,14 @@ data class DailyRecord(
 	val attempts: Int,
 	val solvedElapsedMillis: Long?,
 	val streak: Int,
+	/**
+	 * The most recent day this device saw solved, which is the day [streak] ends on.
+	 *
+	 * Stored because [streak] alone cannot be published to a server: a count without the day it ends on
+	 * cannot be continued, only replaced. Null on a record written before this existed, and on one that has
+	 * never solved a daily - see `StreakPublisher`, which reconstructs a best-effort anchor for the former.
+	 */
+	val lastCompletedDate: LocalDate? = null,
 	val activeDifficulty: Difficulty,
 	val pendingDifficulty: Difficulty?,
 	val pendingEffectiveDate: LocalDate?
@@ -31,6 +39,7 @@ data class DailyRecord(
 			attempts = 0,
 			solvedElapsedMillis = null,
 			streak = 0,
+			lastCompletedDate = null,
 			activeDifficulty = Difficulty.THREE,
 			pendingDifficulty = null,
 			pendingEffectiveDate = null
@@ -86,6 +95,9 @@ class DailyController(
 			attempts = 0,
 			solvedElapsedMillis = null,
 			streak = streakAfterPreviousDay,
+			// Carried across the day boundary untouched: it names a day that was solved, which rolling over
+			// to a new date does not change. Cleared only with the streak it anchors.
+			lastCompletedDate = if (streakAfterPreviousDay == 0) null else record.lastCompletedDate,
 			activeDifficulty = if (difficultyDue) record.pendingDifficulty ?: record.activeDifficulty else record.activeDifficulty,
 			pendingDifficulty = if (difficultyDue) null else record.pendingDifficulty,
 			pendingEffectiveDate = if (difficultyDue) null else record.pendingEffectiveDate
@@ -100,5 +112,12 @@ class DailyController(
 
 	/** The streak increments immediately on success - [rollover] only ever breaks it, never increments it. */
 	fun recordSuccess(record: DailyRecord, elapsedMillis: Long): DailyRecord =
-		record.copy(solved = true, solvedElapsedMillis = elapsedMillis, streak = record.streak + 1)
+		record.copy(
+			solved = true,
+			solvedElapsedMillis = elapsedMillis,
+			streak = record.streak + 1,
+			// The day the new count ends on. `record` is today's by the time this is called (`rollover` runs
+			// when the daily is opened), so its own date is the day just solved.
+			lastCompletedDate = record.date ?: this.today()
+		)
 }

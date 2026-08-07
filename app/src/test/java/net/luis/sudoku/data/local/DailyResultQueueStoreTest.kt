@@ -2,9 +2,12 @@ package net.luis.sudoku.data.local
 
 import androidx.room.Room
 import kotlinx.coroutines.runBlocking
+import net.luis.sudoku.data.local.entity.PendingDailyResultEntity
 import net.luis.sudoku.data.remote.dto.DailyResultRequest
 import org.junit.After
+import net.luis.sudoku.data.remote.ApiException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -41,7 +44,7 @@ class DailyResultQueueStoreTest {
 		elapsedMs = 60_000L,
 		mistakes = 1,
 		hintsUsed = 2,
-		solveOrder = listOf(4, 7, 12)
+		solveOrder = listOf(listOf(4, 1), listOf(7, 9), listOf(12, 3))
 	)
 
 	@Test
@@ -53,11 +56,61 @@ class DailyResultQueueStoreTest {
 
 		assertEquals(1, submitted.size)
 		assertEquals("2026-07-27", submitted.single().date)
-		assertEquals(listOf(4, 7, 12), submitted.single().solveOrder)
+		assertEquals(listOf(listOf(4, 1), listOf(7, 9), listOf(12, 3)), submitted.single().solveOrder)
 
 		val remaining = mutableListOf<DailyResultRequest>()
 		this@DailyResultQueueStoreTest.store.flush { remaining.add(it); true }
 		assertTrue(remaining.isEmpty())
+	}
+
+	/**
+	 * A row queued by the version that sent bare cell indices.
+	 *
+	 * It is dropped rather than submitted: it has no digits, so the server's replay can never complete the
+	 * grid, and an unverified `SOLVED` would still count as solved for that date - blocking the day from
+	 * ever being submitted properly while crediting nothing.
+	 */
+	@Test
+	fun flush_aRowFromTheOldCellIndexFormat_isDroppedWithoutSubmitting() = runBlocking {
+		this@DailyResultQueueStoreTest.database.pendingDailyResultDao().insert(
+			PendingDailyResultEntity(
+				date = "2026-07-27",
+				difficulty = 3,
+				outcome = "SOLVED",
+				elapsedMs = 60_000L,
+				mistakes = 0,
+				hintsUsed = 0,
+				solveOrderJson = "[4,7,12]"
+			)
+		)
+
+		val submitted = mutableListOf<DailyResultRequest>()
+		this@DailyResultQueueStoreTest.store.flush { submitted.add(it); true }
+		assertTrue(submitted.isEmpty())
+
+		// And it is gone, so it cannot be retried on every future flush for the rest of the app's life.
+		val remaining = mutableListOf<DailyResultRequest>()
+		this@DailyResultQueueStoreTest.store.flush { remaining.add(it); true }
+		assertTrue(remaining.isEmpty())
+	}
+
+	@Test
+	fun isPermanentDailyRejection_theServersFinalAnswer_isNotRetried() {
+		assertTrue(isPermanentDailyRejection(ApiException("DAILY_ALREADY_SOLVED", "You have already solved this daily")))
+	}
+
+	/** The server takes any past date now, so this code only means a clock ahead of it - which time fixes. */
+	@Test
+	fun isPermanentDailyRejection_aDateTheServerCallsFuture_isRetried() {
+		assertFalse(isPermanentDailyRejection(ApiException("DAILY_DATE_INVALID", "That daily is in the future")))
+	}
+
+	/** An unreachable server is the case the queue exists for, so it must never drop a row. */
+	@Test
+	fun isPermanentDailyRejection_aFailureThatMightPassLater_isRetried() {
+		assertFalse(isPermanentDailyRejection(ApiException(ApiException.NETWORK_ERROR, "connection refused")))
+		assertFalse(isPermanentDailyRejection(ApiException("INTERNAL_ERROR", "boom")))
+		assertFalse(isPermanentDailyRejection(java.io.IOException("socket closed")))
 	}
 
 	@Test

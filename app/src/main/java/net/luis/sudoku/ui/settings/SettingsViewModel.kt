@@ -11,9 +11,11 @@ import kotlinx.coroutines.launch
 import net.luis.sudoku.data.keystore.DeviceKeyManager
 import net.luis.sudoku.data.local.CurrencyStore
 import net.luis.sudoku.data.local.DailyResultQueueStore
+import net.luis.sudoku.data.local.isPermanentDailyRejection
 import net.luis.sudoku.data.local.ServerConfig
 import net.luis.sudoku.data.local.ServerConfigStore
 import net.luis.sudoku.data.local.StatisticsStore
+import net.luis.sudoku.domain.StreakPublisher
 import net.luis.sudoku.data.remote.ApiClient
 import net.luis.sudoku.data.remote.ApiException
 import net.luis.sudoku.data.remote.dto.DeviceResponse
@@ -33,7 +35,8 @@ class SettingsViewModel @Inject constructor(
 	private val configStore: ServerConfigStore,
 	private val currencyStore: CurrencyStore,
 	private val statisticsStore: StatisticsStore,
-	private val dailyResultQueueStore: DailyResultQueueStore
+	private val dailyResultQueueStore: DailyResultQueueStore,
+	private val streakPublisher: StreakPublisher
 ) : ViewModel() {
 
 	var config by mutableStateOf(ServerConfig.UNCONFIGURED)
@@ -326,7 +329,8 @@ class SettingsViewModel @Inject constructor(
 				this.apiClient.submitDailyResult(baseUrl, token, request)
 				true
 			} catch (e: ApiException) {
-				false
+				// `true` also drops a row the server has finally refused - see isPermanentDailyRejection.
+				isPermanentDailyRejection(e)
 			}
 		}
 	}
@@ -335,12 +339,22 @@ class SettingsViewModel @Inject constructor(
 	private suspend fun syncLocalHistory(baseUrl: String, token: String) {
 		val entries = this.statisticsStore.toSyncEntries()
 		if (entries.isNotEmpty()) this.apiClient.syncStats(baseUrl, token, entries)
+		// Everything played so far is now in the server's aggregates, as one bulk merge. Marking the rows
+		// is what stops the per-game upload from sending them again one at a time: the server's counters
+		// only ever increment, so that would count this history twice.
+		this.statisticsStore.markAllUploaded()
 
 		val currency = this.currencyStore.current()
 		val serverBalance = this.apiClient.syncCurrency(baseUrl, token, currency.balance).balance
 		// The server's plausibility-checked balance is authoritative once connected (§6a) - no user-facing
 		// "your balance was adjusted" message, silently accepted.
 		this.currencyStore.save(currency.copy(balance = serverBalance))
+
+		// The streak is not part of that bulk merge and never has been - the server refuses to take one on
+		// trust from `/stats/sync` (server-spec §9). It has its own one-way endpoint, and this is the
+		// earliest moment it can be offered: a device that registers or links with days already on it would
+		// otherwise wait for the first heartbeat to report them.
+		this.streakPublisher.publish()
 	}
 
 	private fun runOrReportError(block: suspend () -> Unit) {

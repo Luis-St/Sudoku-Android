@@ -39,7 +39,17 @@ data class ServerConfig(
 	val cachedDailySize: Int? = null,
 	val cachedTimezone: String? = null,
 	val emailVerificationPending: Boolean = false,
-	val emailVerified: Boolean = false
+	val emailVerified: Boolean = false,
+	/** Whether [net.luis.sudoku.domain.StatsHistoryBackfill] has already had its one look at this account. */
+	val statsHistoryBackfilled: Boolean = false,
+	/**
+	 * The highest daily streak this device has got the server to accept - see
+	 * [net.luis.sudoku.domain.StreakPublisher].
+	 *
+	 * A local note about what has already been said, not a second copy of the streak: it exists only so a
+	 * heartbeat with nothing new to report costs no request.
+	 */
+	val publishedStreak: Int = 0
 ) {
 	val isConfigured: Boolean get() = this.serverUrl != null
 	val isAuthenticated: Boolean get() = this.sessionToken != null
@@ -62,7 +72,9 @@ class ServerConfigStore @Inject constructor(@ServerConfigDataStore private val d
 			cachedDailySize = prefs[CACHED_DAILY_SIZE],
 			cachedTimezone = prefs[CACHED_TIMEZONE],
 			emailVerificationPending = prefs[EMAIL_VERIFICATION_PENDING] ?: false,
-			emailVerified = prefs[EMAIL_VERIFIED] ?: false
+			emailVerified = prefs[EMAIL_VERIFIED] ?: false,
+			statsHistoryBackfilled = prefs[STATS_HISTORY_BACKFILLED] ?: false,
+			publishedStreak = prefs[PUBLISHED_STREAK] ?: 0
 		)
 	}
 
@@ -106,6 +118,20 @@ class ServerConfigStore @Inject constructor(@ServerConfigDataStore private val d
 		}
 	}
 
+	/**
+	 * Set once [net.luis.sudoku.domain.StatsHistoryBackfill] has decided about this account's pre-upload
+	 * history - whether it queued it or concluded the server already had it. Either way the question is
+	 * answered for good, and asking it again would mean re-reading the server's statistics on every flush.
+	 */
+	suspend fun markStatsHistoryBackfilled() {
+		this.dataStore.edit { it[STATS_HISTORY_BACKFILLED] = true }
+	}
+
+	/** Records that the server has accepted [streak], so the next heartbeat has nothing to offer it. */
+	suspend fun markStreakPublished(streak: Int) {
+		this.dataStore.edit { it[PUBLISHED_STREAK] = streak }
+	}
+
 	/** Called right after a successful `/server-info` check (feature-spec §8.3.1's fallback cache). */
 	suspend fun cacheDailyConfig(serverId: String?, dailySize: Int, timezone: String?) {
 		this.dataStore.edit { prefs ->
@@ -126,6 +152,13 @@ class ServerConfigStore @Inject constructor(@ServerConfigDataStore private val d
 			// inherit "your address is verified" from the player who signed out.
 			prefs.remove(EMAIL_VERIFICATION_PENDING)
 			prefs.remove(EMAIL_VERIFIED)
+			// Same reasoning: the question "does the server already have this history" is about an account,
+			// and whoever signs in next is owed their own answer. Re-asking is cheap and cannot double
+			// anything - the backfill only ever acts on a server that reports no games at all.
+			prefs.remove(STATS_HISTORY_BACKFILLED)
+			// Whoever signs in next is owed their own answer here too: "already published" is a fact about
+			// one account, and keeping it would leave the next player's streak stranded on this device.
+			prefs.remove(PUBLISHED_STREAK)
 		}
 	}
 
@@ -145,5 +178,7 @@ class ServerConfigStore @Inject constructor(@ServerConfigDataStore private val d
 		val CACHED_TIMEZONE = stringPreferencesKey("cached_timezone")
 		val EMAIL_VERIFICATION_PENDING = booleanPreferencesKey("email_verification_pending")
 		val EMAIL_VERIFIED = booleanPreferencesKey("email_verified")
+		val STATS_HISTORY_BACKFILLED = booleanPreferencesKey("stats_history_backfilled")
+		val PUBLISHED_STREAK = intPreferencesKey("published_streak")
 	}
 }
