@@ -478,14 +478,18 @@ class GameViewModel @Inject constructor(
 		if (this.outcome != null) return
 		val cell = this.cells[index]
 		val (action, nextLock) = resolveTap(cell, this.lock, this.activeIndex)
+		val mistaken = applyAction(action)
 		// Game item 4: the same tap that released the lock takes the focus off the cell too - a cell that is
 		// still lit after being unmarked is only half unmarked.
 		// Game item 1: writing a pencil mark is annotation, not selection - see focusFollowsTap.
+		// A wrong digit selects nothing at all: nothing was written, the cell is empty again a moment later,
+		// and it is marked red for exactly that reason - leaving it lit as the chosen cell said the opposite,
+		// on top of the red. It goes with [lockAfter] releasing the lock: a mistake ends the move outright.
 		when {
+			mistaken -> this.activeIndex = null
 			tapReleasedFocus(action, nextLock, this.activeIndex, index) -> this.activeIndex = null
 			focusFollowsTap(action) -> this.activeIndex = index
 		}
-		val mistaken = applyAction(action)
 		dropHintIfTargetFilled()
 		this.lock = lockAfter(nextLock, mistaken)
 	}

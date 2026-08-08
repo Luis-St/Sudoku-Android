@@ -415,6 +415,12 @@ class CoopViewModel @AssistedInject constructor(
 			// players getting two cells wrong at once no longer cut each other's warning short. Each mark
 			// carries its own digit and lasts until [clearMistakes] or the cell being filled.
 			this.mistakes = this.mistakes + (cell to digit)
+			// A wrong digit selects nothing, exactly as in single-player - the difference is only that the
+			// verdict gets here after the tap, so the focus is taken off rather than never put on. Keyed on
+			// the cell rather than on who placed it (this screen does not know its own user id, and the
+			// broadcast reaches everybody): a cell somebody else just got wrong is red for this player too,
+			// so it is not what anybody is still working on.
+			if (this.activeIndex == cell) this.activeIndex = null
 		}
 	}
 

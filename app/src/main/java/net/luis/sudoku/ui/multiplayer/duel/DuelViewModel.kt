@@ -296,6 +296,10 @@ class DuelViewModel @AssistedInject constructor(
 			val cell = payload.intOrNull("cell") ?: return
 			val digit = payload.intOrNull("digit") ?: return
 			this.mistake = cell to digit
+			// A wrong digit selects nothing, exactly as in single-player - the difference is only that the
+			// verdict gets here after the tap, so the focus is taken off rather than never put on. Guarded on
+			// the cell so a result for somewhere else cannot unmark whatever the player has moved on to.
+			if (this.activeIndex == cell) this.activeIndex = null
 			this.viewModelScope.launch {
 				delay(1000)
 				this@DuelViewModel.mistake = null
