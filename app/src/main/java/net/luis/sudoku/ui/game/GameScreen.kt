@@ -180,7 +180,6 @@ fun GameScreen(
 					hintCandidateIndex = viewModel.hintCandidate?.cellIndex(),
 					// Single-player keeps the timed flash (feature-spec §6): at most one wrong digit, briefly.
 					mistakeDigits = viewModel.mistake?.let { mapOf(it) }.orEmpty(),
-					sameDigitHighlightingAllowed = viewModel.modifiers.sameDigitHighlightingAllowed,
 					tintRegions = viewModel.isChaos,
 					darkTheme = darkTheme
 				)

@@ -11,14 +11,12 @@ import net.luis.sudoku.difficulty.Difficulty
 data class ModifierSet(
 	val maxLives: Int,
 	val hintsAllowed: Boolean,
-	val sameDigitHighlightingAllowed: Boolean,
 	val autoCandidateModeAvailable: Boolean
 ) {
 	companion object {
 		val NONE = ModifierSet(
 			maxLives = 5,
 			hintsAllowed = true,
-			sameDigitHighlightingAllowed = true,
 			autoCandidateModeAvailable = true
 		)
 
@@ -36,14 +34,18 @@ data class ModifierSet(
 		 * button any more (it cost too much height on a small phone), so a flag to switch it off had nothing
 		 * left to switch. Lisa still greys out an exhausted digit, which is what §4.3 was really after.
 		 *
+		 * `sameDigitHighlightingAllowed` is gone for the same reason (owner's call): selection works the same
+		 * way on every difficulty now, so Lisa marks the locked digit's occurrences exactly as tiers 1 to 5 do
+		 * and there is no flag left to switch. Withholding it made the board read as broken rather than hard,
+		 * since the lock still governed input while nothing on the board showed what was locked.
+		 *
 		 * [autoCandidateModeAvailable] stays false here even though the cap was its stated reason: Lisa is the
-		 * mode that withholds assistance (no hints, no same-digit highlighting, half the lives), and a mode
-		 * that fills in every candidate for you is the largest assistance the app has.
+		 * mode that withholds assistance (no hints, half the lives), and a mode that fills in every candidate
+		 * for you is the largest assistance the app has.
 		 */
 		val LISA = ModifierSet(
 			maxLives = 2,
 			hintsAllowed = false,
-			sameDigitHighlightingAllowed = false,
 			autoCandidateModeAvailable = false
 		)
 

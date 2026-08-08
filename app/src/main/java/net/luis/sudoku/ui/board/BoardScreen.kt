@@ -60,7 +60,6 @@ fun BoardScreen(
 	 * life.
 	 */
 	mistakeDigits: Map<Int, Int> = emptyMap(),
-	sameDigitHighlightingAllowed: Boolean = true,
 	/** Game item 1: tint each region when the puzzle is a jigsaw, so regions read without tracing outlines. */
 	tintRegions: Boolean = false,
 	/** Game item 1: chaos tints need the dark variants; passed in because the palette itself is mode-agnostic. */
@@ -76,9 +75,7 @@ fun BoardScreen(
 	// the whole app down.
 	if (cells.size < edgeLength * edgeLength) return
 
-	// Lisa removes same-digit highlighting entirely (feature-spec §4.3) - locking still governs input,
-	// it just stops drawing attention to where the digit already is.
-	val lockedDigit = (lock.target as? LockTarget.Digit)?.digit.takeIf { sameDigitHighlightingAllowed }
+	val lockedDigit = (lock.target as? LockTarget.Digit)?.digit
 
 	ZoomableBoard(enabled = edgeLength >= ZOOMABLE_FROM_EDGE_LENGTH, modifier = modifier.fillMaxWidth()) {
 		// Grid item 9: the cells paint fills only, and *one* canvas on top paints every line. When each cell

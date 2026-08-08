@@ -251,7 +251,7 @@
 	<string name="generator_info_variant_chaos">Chaos: Die Regionen sind unregelmäßig geformt statt rechteckig, der Block, den du gerade löst, liegt also nie dort, wo du ihn erwartest.</string>
 	<string name="generator_info_difficulty">Wie viel Kombinieren das Rätsel verlangt. Die Stufen 1 bis 5 werden zunehmend schwerer; Lisa ist ein eigener Modus.</string>
 	<string name="generator_info_difficulty_tier">Stufe %1$d von 5: je höher die Stufe, desto fortgeschrittener die nötigen Techniken.</string>
-	<string name="generator_info_difficulty_lisa">Lisa ist die schwerste Stufe mit eigenen Regeln: weniger Leben, keine Tipps und keine Hervorhebung gleicher Ziffern. Notizen sind unbegrenzt, wie überall sonst.</string>
+	<string name="generator_info_difficulty_lisa">Lisa ist die schwerste Stufe mit eigenen Regeln: weniger Leben und keine Tipps. Notizen sind unbegrenzt, wie überall sonst.</string>
 
 	<string name="enter_code_title">Geteiltes Rätsel spielen</string>
 	<string name="enter_code_explainer">Füge einen Code ein, den dir jemand geschickt hat, um genau dasselbe Rätsel zu spielen.</string>

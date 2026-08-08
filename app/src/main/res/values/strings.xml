@@ -54,7 +54,7 @@
 	<string name="generator_info_variant_chaos">Chaos: regions are irregular shapes instead of boxes, so the box you are solving is never where you expect.</string>
 	<string name="generator_info_difficulty">How much deduction the puzzle demands. Tiers 1 to 5 get progressively harder; Lisa is a separate mode.</string>
 	<string name="generator_info_difficulty_tier">Tier %1$d of 5: the higher the tier, the more advanced the techniques you need.</string>
-	<string name="generator_info_difficulty_lisa">Lisa is the hardest band plus its own rules: fewer lives, no hints and no same-digit highlighting. Notes are unlimited, as everywhere else.</string>
+	<string name="generator_info_difficulty_lisa">Lisa is the hardest band plus its own rules: fewer lives and no hints. Notes are unlimited, as everywhere else.</string>
 
 	<!-- Enter-code screen (UI item 5) -->
 	<string name="enter_code_title">Play a shared puzzle</string>

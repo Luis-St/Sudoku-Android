@@ -90,10 +90,24 @@ object BoardThemeCatalog {
 			error = Color(0xFFBA1A1A),
 			selectedCell = Color(0xFFE4DFF7),
 			peerHighlight = Color(0xFFF1EEFB),
-			// Teal, not the app's indigo: every ink on this board is a near-black violet, and the marked digit
-			// has to be a different *hue* to be spotted at a glance rather than a darker shade of the rest.
-			sameValuePen = Color(0xFF00767C),
-			sameValuePencil = Color(0xFF00767C),
+			// Orange, after two teals failed at the same job. Every ink on this board is a near-black violet, so
+			// the marked digit has to differ in *value* and in hue at once, and the teal family cannot do the
+			// first: #00767C sat 3.3:1 from [given] and #0097A7 4.7:1, both still reported as "black". Blue and
+			// violet are dark by construction, so moving that way costs the very contrast being asked for.
+			//
+			// This is 5.4:1 from the black inks - the step that was missing - and 3.1:1 on the white cell, which
+			// is the floor for the bold, large glyph a marked digit always is. It is also the one hue that stays
+			// legible on the chaos region tints: those are pale pinks, blues, greens and yellows
+			// ([ChaosRegionColors.LIGHT]), and orange is opposite the coolest of them rather than a lighter
+			// version of any, where the teals landed close to the blue and green tints they had to sit on.
+			//
+			// It does land near [hintCandidate]'s yellow when a hint is offered on the marked digit's cell, which
+			// is accepted: that cell is one cell, and it is about to be filled in.
+			//
+			// Dark mode was never affected and keeps its own lifted teal - there the inks are already light, so
+			// the mark separates by hue alone.
+			sameValuePen = Color(0xFFEF6C00),
+			sameValuePencil = Color(0xFFEF6C00),
 			conflict = Color(0xFFFFDAD6),
 			hintCandidate = Color(0xFFFFC400),
 			tintHighlight = Color(0xFF4C4ED9)
@@ -138,14 +152,27 @@ object BoardThemeCatalog {
 			penEntry = Color(0xFF5C1A1A),
 			pencilMark = Color(0xFF7A5A5A),
 			error = Color(0xFFBA1A1A),
-			selectedCell = Color(0xFFF3D9D9),
-			peerHighlight = Color(0xFFFBEDED),
-			// Lisa's every ink is a red, so the marked digit goes to the other side of the wheel outright.
-			sameValuePen = Color(0xFF1A6B8C),
-			sameValuePencil = Color(0xFF1A6B8C),
+			// Classic's selection, at the owner's instruction, and for the same reason the marked digit below
+			// is Classic's orange: a tap means the same thing on every board, so it looks the same on every
+			// board. Lisa stays recognizable through its inks, lines and region tint, which is what the red
+			// board was for - the selection was never the part carrying that.
+			selectedCell = Color(0xFFE4DFF7),
+			peerHighlight = Color(0xFFF1EEFB),
+			// Classic's orange, at the owner's instruction: the marked digit means the same thing on every
+			// board, so it is the same colour on every board and a player moving between difficulties is not
+			// relearning what the mark looks like.
+			//
+			// This board's inks are reds rather than Classic's violet-blacks, so orange is a nearer hue here
+			// than it is there - the separation rests on value (5.4:1 from [given]'s near-black red, and the
+			// glyph is bold) rather than on the hue distance Classic gets for free. It was a cyan for exactly
+			// that reason; one colour for one meaning won.
+			sameValuePen = Color(0xFFEF6C00),
+			sameValuePencil = Color(0xFFEF6C00),
 			conflict = Color(0xFFFFB4AB),
 			hintCandidate = Color(0xFFFFC400),
-			tintHighlight = Color(0xFF9B2B2B)
+			// Classic's accent too: this is the same selection, composited over a chaos region tint instead of
+			// drawn on white, so a Lisa-specific red here would reintroduce the difference the fills just lost.
+			tintHighlight = Color(0xFF4C4ED9)
 		),
 		dark = BoardPalette(
 			gridLine = Color(0xFF6B4A4A),
@@ -154,13 +181,15 @@ object BoardThemeCatalog {
 			penEntry = Color(0xFFE0A8A8),
 			pencilMark = Color(0xFFA87A7A),
 			error = Color(0xFFFFB4AB),
-			selectedCell = Color(0xFF5C1A1A),
-			peerHighlight = Color(0xFF3A1414),
-			sameValuePen = Color(0xFF8FD3EF),
-			sameValuePencil = Color(0xFF8FD3EF),
+			// Classic's, as in light mode. The lifted violet reads as a selection against this board's dark
+			// reds as readily as it does against Classic's, and it is the same colour the player already knows.
+			selectedCell = Color(0xFF3A3646),
+			peerHighlight = Color(0xFF2B2836),
+			sameValuePen = Color(0xFF4DD9E0),
+			sameValuePencil = Color(0xFF4DD9E0),
 			conflict = Color(0xFF93000A),
 			hintCandidate = Color(0xFF9A6E00),
-			tintHighlight = Color(0xFFE0A8A8)
+			tintHighlight = Color(0xFFC1C1FF)
 		)
 	)
 
