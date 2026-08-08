@@ -12,7 +12,6 @@ data class ModifierSet(
 	val maxLives: Int,
 	val hintsAllowed: Boolean,
 	val sameDigitHighlightingAllowed: Boolean,
-	val remainingCountShown: Boolean,
 	val autoCandidateModeAvailable: Boolean
 ) {
 	companion object {
@@ -20,7 +19,6 @@ data class ModifierSet(
 			maxLives = 5,
 			hintsAllowed = true,
 			sameDigitHighlightingAllowed = true,
-			remainingCountShown = true,
 			autoCandidateModeAvailable = true
 		)
 
@@ -34,6 +32,10 @@ data class ModifierSet(
 		 * as a broken board. Notes are now uncapped in every mode, and `maxPencilMarksPerCell` is gone with it
 		 * rather than left behind set to "unlimited" everywhere.
 		 *
+		 * `remainingCountShown` is gone the same way: no mode shows the "N left" count under a number-pad
+		 * button any more (it cost too much height on a small phone), so a flag to switch it off had nothing
+		 * left to switch. Lisa still greys out an exhausted digit, which is what §4.3 was really after.
+		 *
 		 * [autoCandidateModeAvailable] stays false here even though the cap was its stated reason: Lisa is the
 		 * mode that withholds assistance (no hints, no same-digit highlighting, half the lives), and a mode
 		 * that fills in every candidate for you is the largest assistance the app has.
@@ -42,7 +44,6 @@ data class ModifierSet(
 			maxLives = 2,
 			hintsAllowed = false,
 			sameDigitHighlightingAllowed = false,
-			remainingCountShown = false,
 			autoCandidateModeAvailable = false
 		)
 

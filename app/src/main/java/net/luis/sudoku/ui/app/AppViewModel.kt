@@ -111,6 +111,18 @@ class AppViewModel @Inject constructor(
 		this.viewModelScope.launch {
 			this@AppViewModel.sessionGuard.sessionEnded.collectLatest { this@AppViewModel.sessionEnded = it }
 		}
+		// Re-arms the reminder chain once per app start, because a force stop takes the scheduled job with
+		// it and nothing else would ever put it back - the chain is only re-armed by a run of its own worker,
+		// and that run is exactly what a force stop cancelled. Opting in is otherwise a one-time act that
+		// silently stops working after the first time the player swipes the app away from a settings screen.
+		//
+		// This cannot itself post a notification: `DailyReminderWorker` decides that, and it refuses a day it
+		// has already reminded about.
+		this.viewModelScope.launch {
+			if (this@AppViewModel.settingsStore.isDailyReminderEnabled()) {
+				this@AppViewModel.reminderScheduler.schedule()
+			}
+		}
 	}
 
 	/**

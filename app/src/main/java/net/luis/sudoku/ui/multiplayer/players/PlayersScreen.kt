@@ -54,7 +54,7 @@ import net.luis.sudoku.ui.theme.OnlineGreen
  * How often the list is re-read while this screen is open. Matched to the presence heartbeat interval:
  * polling faster could not surface a change sooner, since a player's own status only moves that often.
  */
-private const val PLAYERS_REFRESH_MS = 10_000L
+private const val PLAYERS_REFRESH_MS = 5_000L
 
 /**
  * feature-spec §9.7 plus UI item 9: every player gets an avatar, a name, their role and their online

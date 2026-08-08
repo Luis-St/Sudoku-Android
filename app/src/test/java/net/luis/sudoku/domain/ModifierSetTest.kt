@@ -26,7 +26,6 @@ class ModifierSetTest {
 		assertEquals(2, ModifierSet.LISA.maxLives)
 		assertFalse(ModifierSet.LISA.hintsAllowed)
 		assertFalse(ModifierSet.LISA.sameDigitHighlightingAllowed)
-		assertFalse(ModifierSet.LISA.remainingCountShown)
 		assertFalse(ModifierSet.LISA.autoCandidateModeAvailable)
 	}
 
@@ -34,11 +33,10 @@ class ModifierSetTest {
 	fun none_isFullyUnrestricted() {
 		assertEquals(5, ModifierSet.NONE.maxLives)
 		assertEquals(
-			listOf(true, true, true, true),
+			listOf(true, true, true),
 			listOf(
 				ModifierSet.NONE.hintsAllowed,
 				ModifierSet.NONE.sameDigitHighlightingAllowed,
-				ModifierSet.NONE.remainingCountShown,
 				ModifierSet.NONE.autoCandidateModeAvailable
 			)
 		)

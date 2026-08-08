@@ -1,29 +1,66 @@
 <!--
-	Notification small icon: the rhubarb silhouette (feature-spec §6a).
+	Notification small icon: the launcher's sudoku cell, reduced to a silhouette.
 
-	This is the flat-fill twin of the ic_currency artwork. The in-app currency icon is now the full-colour
-	render in drawable-*dpi, but a notification small icon cannot be that: Android discards the colours and
-	draws the icon as a solid tinted mask, so a photographic source collapses into a blob. Hence a
-	single-colour vector kept alongside it.
+	It used to be the rhubarb, which is the currency rather than the game, and at status-bar size a deeply
+	lobed leaf on a stalk is an unreadable blob - the shape has no straight lines to hold onto.
 
-	Two stalks under a broad, deeply lobed leaf. The lobes are exaggerated well past life size because the
-	whole thing is a single flat fill at status-bar size: the silhouette is the only cue there is, and a
-	smooth leaf at that size is just an oval.
+	Derived from icons/app_icon.svg, which is a 3x3 cell with pale blue rules and six black digits, but it
+	cannot be a copy of it: Android draws a small icon as a solid mask taken from the alpha channel alone.
+	The white ground and the blue rules both vanish, and 16px numerals inside 6dp cells collapse. So the
+	*lines* carry the icon here, and the three digits on the launcher's diagonal (1, 5, 9) become three
+	filled squares - "some cells are filled" is the part of the picture that survives at this size.
+
+	Everything is a filled rectangle rather than a stroke: a stroke is centred on its path, which puts the
+	outer border half outside the 24dp box and rounds to a different pixel count on every density. Fills
+	land where they are put. The border is heavier than the inner rules (1.6 against 1.2) for the same
+	reason the board itself draws region lines heavier than cell lines.
+
+	Laid out inside 2..22 of the 24dp viewport, leaving the 2dp of padding the status bar expects.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
 	android:width="24dp"
 	android:height="24dp"
 	android:viewportWidth="24"
 	android:viewportHeight="24">
-	<!-- Leaf -->
+
+	<!-- Border: top, bottom, left, right. -->
 	<path
 		android:fillColor="@android:color/white"
-		android:pathData="M12,2.5c2.9,0 5.6,1.2 7.3,3.2 0.6,0.7 0.4,1.5 -0.4,1.7 -0.8,0.2 -1.5,0.1 -2,0.5 -0.5,0.4 -0.4,1.1 -1.1,1.4 -0.7,0.3 -1.4,-0.1 -2,0.2 -0.6,0.3 -0.7,1.1 -1.8,1.1 -1.1,0 -1.2,-0.8 -1.8,-1.1 -0.6,-0.3 -1.3,0.1 -2,-0.2 -0.7,-0.3 -0.6,-1 -1.1,-1.4 -0.5,-0.4 -1.2,-0.3 -2,-0.5 -0.8,-0.2 -1,-1 -0.4,-1.7 1.7,-2 4.4,-3.2 7.3,-3.2z" />
-	<!-- Stalks -->
+		android:pathData="M2,2 h20 v1.6 h-20 z" />
 	<path
 		android:fillColor="@android:color/white"
-		android:pathData="M9.5,12.4l1.6,0.1 -0.4,8.2c-0.03,0.9 -1.3,0.9 -1.3,0z" />
+		android:pathData="M2,20.4 h20 v1.6 h-20 z" />
 	<path
 		android:fillColor="@android:color/white"
-		android:pathData="M12.9,12.5l1.6,-0.1 0.1,8.3c0,0.9 -1.27,0.9 -1.3,0z" />
+		android:pathData="M2,2 h1.6 v20 h-1.6 z" />
+	<path
+		android:fillColor="@android:color/white"
+		android:pathData="M20.4,2 h1.6 v20 h-1.6 z" />
+
+	<!-- The four inner rules that cut the cell into 3x3, each running between the inner edges of the border. -->
+	<path
+		android:fillColor="@android:color/white"
+		android:pathData="M8.067,3.6 h1.2 v16.8 h-1.2 z" />
+	<path
+		android:fillColor="@android:color/white"
+		android:pathData="M14.733,3.6 h1.2 v16.8 h-1.2 z" />
+	<path
+		android:fillColor="@android:color/white"
+		android:pathData="M3.6,8.067 h16.8 v1.2 h-16.8 z" />
+	<path
+		android:fillColor="@android:color/white"
+		android:pathData="M3.6,14.733 h16.8 v1.2 h-16.8 z" />
+
+	<!-- The filled cells, on the diagonal where the launcher puts 1, 5 and 9. All three the same size and
+	     centred in their cell, with a gap to the rules around them so they read as contents rather than as
+	     the grid getting thicker in places. -->
+	<path
+		android:fillColor="@android:color/white"
+		android:pathData="M4.033,4.033 h3.6 v3.6 h-3.6 z" />
+	<path
+		android:fillColor="@android:color/white"
+		android:pathData="M10.2,10.2 h3.6 v3.6 h-3.6 z" />
+	<path
+		android:fillColor="@android:color/white"
+		android:pathData="M16.367,16.367 h3.6 v3.6 h-3.6 z" />
 </vector>

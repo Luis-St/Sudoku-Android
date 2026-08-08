@@ -3,14 +3,11 @@ package net.luis.sudoku.ui.game
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +35,7 @@ import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.ui.board.BoardScreen
 import net.luis.sudoku.ui.common.OutlinedActionButton
+import net.luis.sudoku.ui.common.PlayLayout
 import net.luis.sudoku.ui.common.ToggleActionButton
 import net.luis.sudoku.ui.common.friendlyErrorMessage
 import net.luis.sudoku.ui.common.shareText
@@ -156,85 +154,83 @@ fun GameScreen(
 		return
 	}
 
-	// Scrollable: board + number pad + hint overflows a short screen at 16x16, where the pad alone is two
-	// rows of eight. Without this the hint button is simply clipped off the bottom.
-	Column(
-		modifier = modifier
-			.fillMaxSize()
-			.verticalScroll(rememberScrollState())
-			.padding(horizontal = 12.dp)
-	) {
-		// Daily item 1: no streak here. It is a record of days, not a fact about the puzzle in front of the
-		// player, and the home screen already shows it where the daily is chosen.
-		if (viewModel.isDailyMode && viewModel.dailyLocked) {
-			Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-				Text(stringResource(R.string.daily_locked_message))
-			}
-		} else {
-			StatusBar(viewModel)
+	// Daily item 1: no streak here. It is a record of days, not a fact about the puzzle in front of the
+	// player, and the home screen already shows it where the daily is chosen.
+	if (viewModel.isDailyMode && viewModel.dailyLocked) {
+		Box(modifier = modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+			Text(stringResource(R.string.daily_locked_message))
+		}
+	} else {
+		// The pad and the hint row ride the bottom edge, with the leftover height opening up under the board
+		// (see PlayLayout) - so the digits stay in thumb reach whatever size the puzzle is.
+		PlayLayout(
+			modifier = modifier.padding(horizontal = 12.dp),
+			board = {
+				StatusBar(viewModel)
 
-			BoardScreen(
-				cells = viewModel.cells,
-				edgeLength = viewModel.edgeLength,
-				lock = viewModel.lock,
-				activeIndex = viewModel.activeIndex,
-				peersOfActive = viewModel.peersOfActive(),
-				regionOf = viewModel::regionOf,
-				palette = palette,
-				onCellTap = viewModel::onCellTap,
-				hintCandidateIndex = viewModel.hintCandidate?.cellIndex(),
-				// Single-player keeps the timed flash (feature-spec §6): at most one wrong digit, briefly.
-				mistakeDigits = viewModel.mistake?.let { mapOf(it) }.orEmpty(),
-				sameDigitHighlightingAllowed = viewModel.modifiers.sameDigitHighlightingAllowed,
-				tintRegions = viewModel.isChaos,
-				darkTheme = darkTheme
-			)
+				BoardScreen(
+					cells = viewModel.cells,
+					edgeLength = viewModel.edgeLength,
+					lock = viewModel.lock,
+					activeIndex = viewModel.activeIndex,
+					peersOfActive = viewModel.peersOfActive(),
+					regionOf = viewModel::regionOf,
+					palette = palette,
+					onCellTap = viewModel::onCellTap,
+					hintCandidateIndex = viewModel.hintCandidate?.cellIndex(),
+					// Single-player keeps the timed flash (feature-spec §6): at most one wrong digit, briefly.
+					mistakeDigits = viewModel.mistake?.let { mapOf(it) }.orEmpty(),
+					sameDigitHighlightingAllowed = viewModel.modifiers.sameDigitHighlightingAllowed,
+					tintRegions = viewModel.isChaos,
+					darkTheme = darkTheme
+				)
+			},
+			input = {
+				NumberPad(
+					edgeLength = viewModel.edgeLength,
+					cells = viewModel.cells,
+					lockedDigit = lockedDigit,
+					hexDisplay = viewModel.preferences.hexDisplay,
+					onDigitTap = { digit -> viewModel.onNumberTap(digit, longPress = false) },
+					onDigitLongPress = { digit -> viewModel.onNumberTap(digit, longPress = true) },
+					modifier = Modifier.padding(top = 12.dp)
+				)
 
-			NumberPad(
-				edgeLength = viewModel.edgeLength,
-				cells = viewModel.cells,
-				lockedDigit = lockedDigit,
-				showRemainingCount = viewModel.modifiers.remainingCountShown,
-				hexDisplay = viewModel.preferences.hexDisplay,
-				onDigitTap = { digit -> viewModel.onNumberTap(digit, longPress = false) },
-				onDigitLongPress = { digit -> viewModel.onNumberTap(digit, longPress = true) },
-				modifier = Modifier.padding(top = 12.dp)
-			)
-
-			// The hint button is absent under Lisa, not merely disabled (feature-spec §4.3).
-			if (viewModel.modifiers.hintsAllowed) {
-				// Game item 3: a peeked hint is half-used, and the button is where that shows. The yellow cell
-				// alone was not enough of a signal - a player who did not already know the hint takes two
-				// presses read the marked cell as something that had happened *to* the board.
-				val hintPending = viewModel.hintCandidate != null
-				Row(
-					modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-					horizontalArrangement = Arrangement.Center,
-					verticalAlignment = Alignment.CenterVertically
-				) {
-					OutlinedActionButton(
-						text = if (hintPending) {
-							stringResource(R.string.action_hint_reveal)
-						} else {
-							stringResource(R.string.action_hint_with_count, viewModel.hintsRemaining)
-						},
-						onClick = viewModel::onHintTap,
-						enabled = viewModel.hintsRemaining > 0 || hintPending,
-						iconPainter = painterResource(R.drawable.ic_hint),
-						iconIsArtwork = true
-					)
-					// The peek's third exit, alongside revealing it and filling the cell: nothing has been spent
-					// yet, so a player who changed their mind can hand it straight back.
-					if (hintPending) {
+				// The hint button is absent under Lisa, not merely disabled (feature-spec §4.3).
+				if (viewModel.modifiers.hintsAllowed) {
+					// Game item 3: a peeked hint is half-used, and the button is where that shows. The yellow cell
+					// alone was not enough of a signal - a player who did not already know the hint takes two
+					// presses read the marked cell as something that had happened *to* the board.
+					val hintPending = viewModel.hintCandidate != null
+					Row(
+						modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+						horizontalArrangement = Arrangement.Center,
+						verticalAlignment = Alignment.CenterVertically
+					) {
 						OutlinedActionButton(
-							text = stringResource(R.string.action_hint_withdraw),
-							onClick = viewModel::onHintCancel,
-							modifier = Modifier.padding(start = 8.dp)
+							text = if (hintPending) {
+								stringResource(R.string.action_hint_reveal)
+							} else {
+								stringResource(R.string.action_hint_with_count, viewModel.hintsRemaining)
+							},
+							onClick = viewModel::onHintTap,
+							enabled = viewModel.hintsRemaining > 0 || hintPending,
+							iconPainter = painterResource(R.drawable.ic_hint),
+							iconIsArtwork = true
 						)
+						// The peek's third exit, alongside revealing it and filling the cell: nothing has been spent
+						// yet, so a player who changed their mind can hand it straight back.
+						if (hintPending) {
+							OutlinedActionButton(
+								text = stringResource(R.string.action_hint_withdraw),
+								onClick = viewModel::onHintCancel,
+								modifier = Modifier.padding(start = 8.dp)
+							)
+						}
 					}
 				}
 			}
-		}
+		)
 	}
 
 	viewModel.errorMessage?.let { message ->

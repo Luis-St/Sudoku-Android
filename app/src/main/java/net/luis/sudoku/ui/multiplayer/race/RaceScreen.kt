@@ -1,7 +1,6 @@
 package net.luis.sudoku.ui.multiplayer.race
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,6 +23,7 @@ import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.ui.board.BoardScreen
 import net.luis.sudoku.ui.common.LeaveWhenAlreadyOver
 import net.luis.sudoku.ui.common.MatchOverDialog
+import net.luis.sudoku.ui.common.PlayLayout
 import net.luis.sudoku.ui.input.NumberPad
 import net.luis.sudoku.ui.multiplayer.MatchStatusHolder
 import net.luis.sudoku.ui.multiplayer.PublishMatchStatus
@@ -74,40 +74,44 @@ fun RaceScreen(
 	val palette = LocalBoardPalette.current
 	val lockedDigit = (viewModel.lock.target as? LockTarget.Digit)?.digit
 
-	Column(modifier = modifier.fillMaxSize().padding(12.dp)) {
-		viewModel.livesLeft?.let { Text(stringResource(R.string.race_lives, it)) }
+	PlayLayout(
+		modifier = modifier.padding(12.dp),
+		board = {
+			viewModel.livesLeft?.let { Text(stringResource(R.string.race_lives, it)) }
 
-		Text(stringResource(R.string.race_opponent_progress_header), modifier = Modifier.padding(top = 8.dp))
-		viewModel.opponentProgress.forEach { (userId, percent) ->
-			Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-				LinearProgressIndicator(progress = { percent / 100f }, modifier = Modifier.weight(1f))
-				Text(stringResource(R.string.race_percent_suffix, percent))
+			Text(stringResource(R.string.race_opponent_progress_header), modifier = Modifier.padding(top = 8.dp))
+			viewModel.opponentProgress.forEach { (userId, percent) ->
+				Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+					LinearProgressIndicator(progress = { percent / 100f }, modifier = Modifier.weight(1f))
+					Text(stringResource(R.string.race_percent_suffix, percent))
+				}
 			}
+
+			BoardScreen(
+				cells = viewModel.cells,
+				edgeLength = viewModel.edgeLength,
+				lock = viewModel.lock,
+				activeIndex = viewModel.activeIndex,
+				peersOfActive = viewModel.peersOfActive(),
+				regionOf = viewModel::regionOf,
+				palette = palette,
+				onCellTap = viewModel::onCellTap,
+				mistakeDigits = viewModel.mistake?.let { mapOf(it) }.orEmpty(),
+				darkTheme = darkTheme,
+				modifier = Modifier.padding(top = 8.dp)
+			)
+		},
+		input = {
+			NumberPad(
+				edgeLength = viewModel.edgeLength,
+				cells = viewModel.cells,
+				lockedDigit = lockedDigit,
+				onDigitTap = { digit -> viewModel.onNumberTap(digit, longPress = false) },
+				onDigitLongPress = { digit -> viewModel.onNumberTap(digit, longPress = true) },
+				modifier = Modifier.padding(top = 12.dp)
+			)
 		}
-
-		BoardScreen(
-			cells = viewModel.cells,
-			edgeLength = viewModel.edgeLength,
-			lock = viewModel.lock,
-			activeIndex = viewModel.activeIndex,
-			peersOfActive = viewModel.peersOfActive(),
-			regionOf = viewModel::regionOf,
-			palette = palette,
-			onCellTap = viewModel::onCellTap,
-			mistakeDigits = viewModel.mistake?.let { mapOf(it) }.orEmpty(),
-			darkTheme = darkTheme,
-			modifier = Modifier.padding(top = 8.dp)
-		)
-
-		NumberPad(
-			edgeLength = viewModel.edgeLength,
-			cells = viewModel.cells,
-			lockedDigit = lockedDigit,
-			onDigitTap = { digit -> viewModel.onNumberTap(digit, longPress = false) },
-			onDigitLongPress = { digit -> viewModel.onNumberTap(digit, longPress = true) },
-			modifier = Modifier.padding(top = 12.dp)
-		)
-	}
+	)
 
 	viewModel.endReason?.let { reason ->
 		// The result first, and only when there is one: the lives running out ends a race with nobody

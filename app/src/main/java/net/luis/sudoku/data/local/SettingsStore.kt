@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Qualifier
 
@@ -76,6 +77,22 @@ class SettingsStore @Inject constructor(@SettingsDataStore private val dataStore
 		this.dataStore.edit { it[DAILY_REMINDER_ENABLED] = enabled }
 	}
 
+	/**
+	 * The day the reminder was last posted, or `null` if it never has been.
+	 *
+	 * Bookkeeping rather than a preference, so it stays out of [PreferenceSettings] - nothing on the settings
+	 * screen shows it. It is what stops a catch-up run posting a second reminder for a day that already had
+	 * one: the scheduled job does not run while the app is force stopped, so WorkManager executes it the
+	 * moment the app is next launched, and without this that arrives as a notification for a day the player
+	 * has already been reminded about.
+	 */
+	suspend fun lastReminderDate(): LocalDate? =
+		this.dataStore.data.first()[LAST_REMINDER_DATE]?.let(LocalDate::parse)
+
+	suspend fun setLastReminderDate(date: LocalDate) {
+		this.dataStore.edit { it[LAST_REMINDER_DATE] = date.toString() }
+	}
+
 	suspend fun setAutoCandidateMode(enabled: Boolean) {
 		this.dataStore.edit { it[AUTO_CANDIDATE_MODE] = enabled }
 	}
@@ -111,5 +128,6 @@ class SettingsStore @Inject constructor(@SettingsDataStore private val dataStore
 		val THEME_MODE = stringPreferencesKey("theme_mode")
 		val LANGUAGE_TAG = stringPreferencesKey("language_tag")
 		val BOARD_THEME_ID = stringPreferencesKey("board_theme_id")
+		val LAST_REMINDER_DATE = stringPreferencesKey("last_reminder_date")
 	}
 }

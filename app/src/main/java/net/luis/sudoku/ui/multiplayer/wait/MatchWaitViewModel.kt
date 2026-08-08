@@ -180,6 +180,6 @@ class MatchWaitViewModel @Inject constructor(
 		const val MATCH_POLL_MS = 2_000L
 
 		/** Matched to the presence heartbeat: a player's online status cannot move faster than they report it. */
-		const val PLAYERS_REFRESH_MS = 10_000L
+		const val PLAYERS_REFRESH_MS = 5_000L
 	}
 }

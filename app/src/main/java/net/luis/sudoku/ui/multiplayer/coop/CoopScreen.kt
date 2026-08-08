@@ -3,14 +3,11 @@ package net.luis.sudoku.ui.multiplayer.coop
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -31,6 +28,7 @@ import net.luis.sudoku.ui.board.BoardScreen
 import net.luis.sudoku.ui.common.LeaveWhenAlreadyOver
 import net.luis.sudoku.ui.common.MatchOverDialog
 import net.luis.sudoku.ui.common.OutlinedActionButton
+import net.luis.sudoku.ui.common.PlayLayout
 import net.luis.sudoku.ui.common.ToggleActionButton
 import net.luis.sudoku.ui.input.NumberPad
 import net.luis.sudoku.ui.multiplayer.MatchStatusHolder
@@ -101,101 +99,100 @@ fun CoopScreen(
 	val lockedDigit = (viewModel.lock.target as? LockTarget.Digit)?.digit
 	val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
-	// Scrollable for the same reason the single-player screen is: board plus pad plus the hint row overflows
-	// a short screen once the grid is large.
-	Column(
-		modifier = modifier
-			.fillMaxSize()
-			.verticalScroll(rememberScrollState())
-			.padding(horizontal = 12.dp)
-	) {
-		CoopStatusBar(viewModel)
+	// The pad and the hint row ride the bottom edge, whatever is left over opens up under the board, and it
+	// still scrolls when a large grid does not fit (see PlayLayout).
+	PlayLayout(
+		modifier = modifier.padding(horizontal = 12.dp),
+		board = {
+			CoopStatusBar(viewModel)
 
-		// The input model's other half (feature-spec §5.1), which this screen simply did not have. Same
-		// buttons, same accent and same position as single-player's, since it is the same decision.
-		Row(
-			modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-			horizontalArrangement = Arrangement.Center,
-			verticalAlignment = Alignment.CenterVertically
-		) {
-			ToggleActionButton(
-				text = stringResource(R.string.mode_pen),
-				selected = viewModel.lock.mode == InputMode.PEN,
-				onClick = { viewModel.onModeToggle(InputMode.PEN) },
-				accent = ActionAccent.INDIGO
-			)
-			ToggleActionButton(
-				text = stringResource(R.string.mode_pencil),
-				selected = viewModel.lock.mode == InputMode.PENCIL,
-				onClick = { viewModel.onModeToggle(InputMode.PENCIL) },
-				accent = ActionAccent.INDIGO,
-				modifier = Modifier.padding(start = 8.dp)
-			)
-		}
-
-		BoardScreen(
-			cells = viewModel.cells,
-			edgeLength = viewModel.edgeLength,
-			lock = viewModel.lock,
-			activeIndex = viewModel.activeIndex,
-			peersOfActive = viewModel.peersOfActive(),
-			regionOf = viewModel::regionOf,
-			palette = palette,
-			onCellTap = viewModel::onCellTap,
-			// The match's hint, not this player's: whoever asked, every board marks the same cell yellow.
-			hintCandidateIndex = viewModel.hintCell,
-			// Multiplayer item 2: the digit and the mark are the same fact, so they arrive together and leave
-			// together - the number stays readable for exactly as long as the cell is red.
-			mistakeDigits = viewModel.mistakes,
-			mistakeCells = viewModel.mistakes.keys,
-			darkTheme = darkTheme
-		)
-
-		NumberPad(
-			edgeLength = viewModel.edgeLength,
-			cells = viewModel.cells,
-			lockedDigit = lockedDigit,
-			onDigitTap = { digit -> viewModel.onNumberTap(digit, longPress = false) },
-			onDigitLongPress = { digit -> viewModel.onNumberTap(digit, longPress = true) },
-			modifier = Modifier.padding(top = 12.dp)
-		)
-
-		// Multiplayer-game item 1 (second round): no switch here. Whether hints exist is decided when the
-		// match is configured and arrives in MATCH_STATE, so this screen only obeys it - a toggle on a
-		// shared board let two players in one match disagree about the rules of that match.
-		if (viewModel.hintsEnabled) {
-			// One offer per match, but it is the group's: every screen shows the same two buttons on it, no
-			// matter who asked. The asker-only version left the others with a marked cell they could neither
-			// take nor clear.
-			val hintPending = viewModel.hintCell != null
+			// The input model's other half (feature-spec §5.1), which this screen simply did not have. Same
+			// buttons, same accent and same position as single-player's, since it is the same decision.
 			Row(
-				modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 8.dp),
+				modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
 				horizontalArrangement = Arrangement.Center,
 				verticalAlignment = Alignment.CenterVertically
 			) {
-				OutlinedActionButton(
-					text = if (hintPending) {
-						stringResource(R.string.action_hint_reveal)
-					} else {
-						stringResource(R.string.action_hint_with_count, viewModel.hintsRemaining)
-					},
-					onClick = viewModel::onHintTap,
-					// The cap is per player and the reveal charges whoever presses it, so an empty cap stops
-					// this player taking the offer even though somebody else could.
-					enabled = viewModel.hintsRemaining > 0,
-					iconPainter = painterResource(R.drawable.ic_hint),
-					iconIsArtwork = true
+				ToggleActionButton(
+					text = stringResource(R.string.mode_pen),
+					selected = viewModel.lock.mode == InputMode.PEN,
+					onClick = { viewModel.onModeToggle(InputMode.PEN) },
+					accent = ActionAccent.INDIGO
 				)
-				if (hintPending) {
+				ToggleActionButton(
+					text = stringResource(R.string.mode_pencil),
+					selected = viewModel.lock.mode == InputMode.PENCIL,
+					onClick = { viewModel.onModeToggle(InputMode.PENCIL) },
+					accent = ActionAccent.INDIGO,
+					modifier = Modifier.padding(start = 8.dp)
+				)
+			}
+
+			BoardScreen(
+				cells = viewModel.cells,
+				edgeLength = viewModel.edgeLength,
+				lock = viewModel.lock,
+				activeIndex = viewModel.activeIndex,
+				peersOfActive = viewModel.peersOfActive(),
+				regionOf = viewModel::regionOf,
+				palette = palette,
+				onCellTap = viewModel::onCellTap,
+				// The match's hint, not this player's: whoever asked, every board marks the same cell yellow.
+				hintCandidateIndex = viewModel.hintCell,
+				// Multiplayer item 2: the digit and the mark are the same fact, so they arrive together and leave
+				// together - the number stays readable for exactly as long as the cell is red.
+				mistakeDigits = viewModel.mistakes,
+				mistakeCells = viewModel.mistakes.keys,
+				darkTheme = darkTheme
+			)
+		},
+		input = {
+			NumberPad(
+				edgeLength = viewModel.edgeLength,
+				cells = viewModel.cells,
+				lockedDigit = lockedDigit,
+				onDigitTap = { digit -> viewModel.onNumberTap(digit, longPress = false) },
+				onDigitLongPress = { digit -> viewModel.onNumberTap(digit, longPress = true) },
+				modifier = Modifier.padding(top = 12.dp)
+			)
+
+			// Multiplayer-game item 1 (second round): no switch here. Whether hints exist is decided when the
+			// match is configured and arrives in MATCH_STATE, so this screen only obeys it - a toggle on a
+			// shared board let two players in one match disagree about the rules of that match.
+			if (viewModel.hintsEnabled) {
+				// One offer per match, but it is the group's: every screen shows the same two buttons on it, no
+				// matter who asked. The asker-only version left the others with a marked cell they could neither
+				// take nor clear.
+				val hintPending = viewModel.hintCell != null
+				Row(
+					modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 8.dp),
+					horizontalArrangement = Arrangement.Center,
+					verticalAlignment = Alignment.CenterVertically
+				) {
 					OutlinedActionButton(
-						text = stringResource(R.string.action_hint_withdraw),
-						onClick = viewModel::onHintCancel,
-						modifier = Modifier.padding(start = 8.dp)
+						text = if (hintPending) {
+							stringResource(R.string.action_hint_reveal)
+						} else {
+							stringResource(R.string.action_hint_with_count, viewModel.hintsRemaining)
+						},
+						onClick = viewModel::onHintTap,
+						// The cap is per player and the reveal charges whoever presses it, so an empty cap stops
+						// this player taking the offer even though somebody else could.
+						enabled = viewModel.hintsRemaining > 0,
+						iconPainter = painterResource(R.drawable.ic_hint),
+						iconIsArtwork = true
 					)
+					if (hintPending) {
+						OutlinedActionButton(
+							text = stringResource(R.string.action_hint_withdraw),
+							onClick = viewModel::onHintCancel,
+							modifier = Modifier.padding(start = 8.dp)
+						)
+					}
 				}
 			}
 		}
-	}
+	)
 
 	viewModel.endReason?.let { reason ->
 		// No winner line: co-op has no winner by design, everybody finishes together or nobody does.

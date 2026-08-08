@@ -1,7 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Debug overlay: allows cleartext to the local dev server only. See res/xml/network_security_config.xml. -->
+<!-- Debug overlay: allows cleartext to the local dev server only (see res/xml/network_security_config.xml),
+     and adds the on demand reminder trigger. Neither reaches a release build. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-	<application android:networkSecurityConfig="@xml/network_security_config" />
+	<application android:networkSecurityConfig="@xml/network_security_config">
+
+		<!-- Posts the daily reminder, or runs its worker, on request. send-notifications.sh drives both.
+
+		     Exported, because an "adb shell am broadcast" comes from the shell user rather than from this
+		     app, and an unexported receiver would refuse it. That is safe here only because the whole
+		     receiver is debug only; it must never be moved to src/main. -->
+		<receiver
+				android:name=".notification.DebugReminderReceiver"
+				android:exported="true">
+			<intent-filter>
+				<action android:name="net.luis.sudoku.DEBUG_SHOW_REMINDER" />
+				<action android:name="net.luis.sudoku.DEBUG_RUN_REMINDER" />
+			</intent-filter>
+		</receiver>
+	</application>
 
 </manifest>

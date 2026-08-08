@@ -247,13 +247,23 @@ class PresenceViewModel @Inject constructor(
 
 	private companion object {
 
-		/** Beats per server TTL. Three leaves two beats' worth of slack before a player looks offline. */
-		const val BEATS_PER_TTL = 3
+		/**
+		 * Beats per server TTL. Six against the old 30 second TTL and three against the current 15 second one,
+		 * so the beat lands on five seconds either way: an invite rides back in the heartbeat response, and a
+		 * client that talks to a server which has not taken the shorter TTL yet must not fall back to waiting
+		 * ten seconds for one. Three beats per TTL is the floor worth keeping, since it leaves two beats of
+		 * slack before a player who is sitting right there flickers offline.
+		 */
+		const val BEATS_PER_TTL = 6
 
 		/** Until the first response says what the server's TTL actually is. */
-		const val DEFAULT_INTERVAL_MS = 10_000L
+		const val DEFAULT_INTERVAL_MS = 5_000L
 
-		/** A floor, so a misconfigured server cannot turn this into a request flood. */
+		/**
+		 * A floor, so a misconfigured server cannot turn this into a request flood. It binds against the
+		 * current 15 second TTL, which is deliberate: it is what holds the beat at five seconds instead of
+		 * letting a shorter TTL pull it lower.
+		 */
 		const val MIN_INTERVAL_MS = 5_000L
 
 		/** How often a signed-out loop re-checks for credentials. Costs one local read, no request. */

@@ -382,4 +382,9 @@
 	<string name="action_keep_playing">Weiterspielen</string>
 	<string name="dialog_leave_game_title">Dieses Spiel verlassen?</string>
 	<string name="dialog_leave_game_message">Dein Fortschritt wird gespeichert. Du kannst dieses Rätsel über \"Weiter\" auf dem Startbildschirm fortsetzen.</string>
+
+	<!-- Daily reminder notification (feature-spec 8.3.2). -->
+	<string name="notification_channel_daily">Erinnerung an das tägliche Rätsel</string>
+	<string name="notification_daily_ready_title">Das heutige Rätsel ist bereit</string>
+	<string name="notification_daily_ready_text">Halte deine Serie am Laufen.</string>
 </resources>

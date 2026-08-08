@@ -411,4 +411,10 @@
 	<string name="action_keep_playing">Keep playing</string>
 	<string name="dialog_leave_game_title">Leave this game?</string>
 	<string name="dialog_leave_game_message">Your progress is saved, so you can pick this puzzle up again from Continue on the home screen.</string>
+
+	<!-- Daily reminder notification (feature-spec 8.3.2). The channel name is what the player sees in the
+	     system notification settings, so it names the thing being switched off, not the app. -->
+	<string name="notification_channel_daily">Daily puzzle reminder</string>
+	<string name="notification_daily_ready_title">Today\'s daily is ready</string>
+	<string name="notification_daily_ready_text">Keep your streak going.</string>
 </resources>

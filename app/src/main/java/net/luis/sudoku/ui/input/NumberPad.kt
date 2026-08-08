@@ -27,6 +27,11 @@ import net.luis.sudoku.core.CellSnapshot
  *
  * [hexDisplay] swaps 10-16 for A-F on these buttons only - it never changes the digit value passed to
  * [onDigitTap].
+ *
+ * There is no "N left" count under the digit any more (owner's call, from the small-phone report). It made
+ * every button two lines tall, which is three lines of button height on a 9x9 - and that was the difference
+ * between the hint button being on screen and off it. The remaining count still decides whether a digit is
+ * drawn as exhausted, so the information it carried is not gone, only the second line is.
  */
 @Composable
 fun NumberPad(
@@ -34,7 +39,6 @@ fun NumberPad(
 	cells: List<CellSnapshot>,
 	lockedDigit: Int?,
 	hexDisplay: Boolean = false,
-	showRemainingCount: Boolean = true,
 	onDigitTap: (Int) -> Unit,
 	onDigitLongPress: (Int) -> Unit,
 	modifier: Modifier = Modifier
@@ -51,7 +55,6 @@ fun NumberPad(
 					NumberButton(
 						label = digitLabel(digit, hexDisplay),
 						remaining = remaining(digit),
-						showRemainingCount = showRemainingCount,
 						locked = digit == lockedDigit,
 						onTap = { onDigitTap(digit) },
 						onLongPress = { onDigitLongPress(digit) },
@@ -89,7 +92,6 @@ private fun digitLabel(digit: Int, hexDisplay: Boolean): String =
 private fun NumberButton(
 	label: String,
 	remaining: Int,
-	showRemainingCount: Boolean,
 	locked: Boolean,
 	onTap: () -> Unit,
 	onLongPress: () -> Unit,
@@ -111,9 +113,9 @@ private fun NumberButton(
 			color = if (locked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
 		)
 	) {
-		Column(
-			modifier = Modifier.padding(vertical = 10.dp),
-			horizontalAlignment = Alignment.CenterHorizontally
+		Box(
+			modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+			contentAlignment = Alignment.Center
 		) {
 			Text(
 				text = label,
@@ -126,17 +128,6 @@ private fun NumberButton(
 					else -> MaterialTheme.colorScheme.onSurface
 				}
 			)
-			if (showRemainingCount) {
-				// UI item 12: the count must not read as a second digit. Smaller, lighter, letter-spaced
-				// and in the muted variant color, so it registers as an annotation rather than a value.
-				Text(
-					text = remaining.coerceAtLeast(0).toString(),
-					style = MaterialTheme.typography.labelSmall,
-					fontWeight = FontWeight.Light,
-					textAlign = TextAlign.Center,
-					color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (exhausted) 0.35f else 0.7f)
-				)
-			}
 		}
 	}
 }

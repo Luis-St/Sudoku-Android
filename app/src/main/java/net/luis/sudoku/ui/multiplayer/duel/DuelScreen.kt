@@ -2,7 +2,6 @@ package net.luis.sudoku.ui.multiplayer.duel
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,6 +27,7 @@ import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.ui.board.BoardScreen
 import net.luis.sudoku.ui.common.LeaveWhenAlreadyOver
 import net.luis.sudoku.ui.common.MatchOverDialog
+import net.luis.sudoku.ui.common.PlayLayout
 import net.luis.sudoku.ui.input.NumberPad
 import net.luis.sudoku.ui.multiplayer.MatchStatusHolder
 import net.luis.sudoku.ui.multiplayer.PublishMatchStatus
@@ -93,40 +93,44 @@ fun DuelScreen(
 	val palette = LocalBoardPalette.current
 	val lockedDigit = (viewModel.lock.target as? LockTarget.Digit)?.digit
 
-	Column(modifier = modifier.fillMaxSize().padding(12.dp)) {
-		Row(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-			Text(stringResource(R.string.duel_you_bank, formatMs(viewModel.myBankMs)))
-			Text(stringResource(if (viewModel.isMyTurn) R.string.duel_your_turn else R.string.duel_opponent_turn))
-			Text(stringResource(R.string.duel_them_bank, formatMs(viewModel.opponentBankMs)))
+	PlayLayout(
+		modifier = modifier.padding(12.dp),
+		board = {
+			Row(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+				Text(stringResource(R.string.duel_you_bank, formatMs(viewModel.myBankMs)))
+				Text(stringResource(if (viewModel.isMyTurn) R.string.duel_your_turn else R.string.duel_opponent_turn))
+				Text(stringResource(R.string.duel_them_bank, formatMs(viewModel.opponentBankMs)))
+			}
+
+			// Stakes are duel-only (feature-spec §10.2) - escrowed server-side, winner takes the whole pot.
+			if (stake > 0) {
+				Text(stringResource(R.string.duel_stake_display, stake), modifier = Modifier.padding(bottom = 8.dp))
+			}
+
+			BoardScreen(
+				cells = viewModel.cells,
+				edgeLength = viewModel.edgeLength,
+				lock = viewModel.lock,
+				activeIndex = viewModel.activeIndex,
+				peersOfActive = viewModel.peersOfActive(),
+				regionOf = viewModel::regionOf,
+				palette = palette,
+				onCellTap = viewModel::onCellTap,
+				mistakeDigits = viewModel.mistake?.let { mapOf(it) }.orEmpty(),
+				darkTheme = darkTheme
+			)
+		},
+		input = {
+			NumberPad(
+				edgeLength = viewModel.edgeLength,
+				cells = viewModel.cells,
+				lockedDigit = lockedDigit,
+				onDigitTap = { digit -> viewModel.onNumberTap(digit, longPress = false) },
+				onDigitLongPress = { digit -> viewModel.onNumberTap(digit, longPress = true) },
+				modifier = Modifier.padding(top = 12.dp)
+			)
 		}
-
-		// Stakes are duel-only (feature-spec §10.2) - escrowed server-side, winner takes the whole pot.
-		if (stake > 0) {
-			Text(stringResource(R.string.duel_stake_display, stake), modifier = Modifier.padding(bottom = 8.dp))
-		}
-
-		BoardScreen(
-			cells = viewModel.cells,
-			edgeLength = viewModel.edgeLength,
-			lock = viewModel.lock,
-			activeIndex = viewModel.activeIndex,
-			peersOfActive = viewModel.peersOfActive(),
-			regionOf = viewModel::regionOf,
-			palette = palette,
-			onCellTap = viewModel::onCellTap,
-			mistakeDigits = viewModel.mistake?.let { mapOf(it) }.orEmpty(),
-			darkTheme = darkTheme
-		)
-
-		NumberPad(
-			edgeLength = viewModel.edgeLength,
-			cells = viewModel.cells,
-			lockedDigit = lockedDigit,
-			onDigitTap = { digit -> viewModel.onNumberTap(digit, longPress = false) },
-			onDigitLongPress = { digit -> viewModel.onNumberTap(digit, longPress = true) },
-			modifier = Modifier.padding(top = 12.dp)
-		)
-	}
+	)
 
 	viewModel.endReason?.let { reason ->
 		// Result, then why, then what happened to the stake: the three things a duel ends with.
