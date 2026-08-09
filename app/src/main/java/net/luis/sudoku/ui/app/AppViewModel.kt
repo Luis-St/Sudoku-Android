@@ -84,7 +84,7 @@ class AppViewModel @Inject constructor(
 	 * one is queued, not the active one: a change takes effect tomorrow (feature-spec §8.1), and showing
 	 * today's active difficulty would make the setting look like it silently ignored the player.
 	 */
-	var pendingDailyDifficulty by mutableStateOf(Difficulty.THREE)
+	var pendingDailyDifficulty by mutableStateOf(Difficulty.FIVE)
 		private set
 
 	init {

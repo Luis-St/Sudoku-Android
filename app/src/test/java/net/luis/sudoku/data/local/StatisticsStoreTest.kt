@@ -41,7 +41,7 @@ class StatisticsStoreTest {
 	@Test
 	fun personalBest_isTheMinimumWinningTime() = runBlocking {
 		this@StatisticsStoreTest.store.recordResult(GridSize.NINE, Variant.CLASSIC, Difficulty.THREE, true, 90_000L, 0, 0, Technique.NAKED_SINGLE)
-		this@StatisticsStoreTest.store.recordResult(GridSize.NINE, Variant.CLASSIC, Difficulty.THREE, true, 60_000L, 1, 2, Technique.HIDDEN_SINGLE)
+		this@StatisticsStoreTest.store.recordResult(GridSize.NINE, Variant.CLASSIC, Difficulty.THREE, true, 60_000L, 1, 2, Technique.HIDDEN_SINGLE_REGION)
 		this@StatisticsStoreTest.store.recordResult(GridSize.NINE, Variant.CLASSIC, Difficulty.THREE, false, 30_000L, 0, 5, null)
 
 		val best = this@StatisticsStoreTest.store.personalBestMillis(GridSize.NINE, Variant.CLASSIC, Difficulty.THREE)

@@ -54,7 +54,7 @@ class DailyControllerTest {
 		assertEquals(day1, rolled.date)
 		assertFalse(rolled.solved)
 		assertEquals(0, rolled.attempts)
-		assertEquals(Difficulty.THREE, rolled.activeDifficulty)
+		assertEquals(Difficulty.FIVE, rolled.activeDifficulty)
 	}
 
 	@Test
@@ -105,11 +105,11 @@ class DailyControllerTest {
 		val controller = controllerOn(day1)
 		val today = controller.rollover(DailyRecord.INITIAL)
 
-		val changed = controller.setDifficulty(today, Difficulty.FIVE)
+		val changed = controller.setDifficulty(today, Difficulty.EIGHT)
 
-		assertEquals(Difficulty.THREE, controller.effectiveDifficulty(changed)) // unchanged today
+		assertEquals(Difficulty.FIVE, controller.effectiveDifficulty(changed)) // unchanged today
 		val tomorrow = controllerOn(day1.plusDays(1)).rollover(changed)
-		assertEquals(Difficulty.FIVE, tomorrow.activeDifficulty)
+		assertEquals(Difficulty.EIGHT, tomorrow.activeDifficulty)
 	}
 
 	@Test

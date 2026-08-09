@@ -241,6 +241,7 @@
 	<string name="label_variant">Variante</string>
 	<string name="variant_classic">Klassisch</string>
 	<string name="variant_chaos">Chaos</string>
+	<string name="variant_other">Spezial</string>
 	<string name="difficulty_lisa">Lisa</string>
 	<string name="difficulty_tier">Stufe %1$d</string>
 	<string name="generator_info_current">Ausgewählt: %1$s</string>
@@ -249,9 +250,9 @@
 	<string name="generator_info_variant">Welche zusätzlichen Regeln die Regionen neben Zeilen und Spalten befolgen.</string>
 	<string name="generator_info_variant_classic">Klassisch: Die Regionen sind die üblichen rechteckigen Blöcke.</string>
 	<string name="generator_info_variant_chaos">Chaos: Die Regionen sind unregelmäßig geformt statt rechteckig, der Block, den du gerade löst, liegt also nie dort, wo du ihn erwartest.</string>
-	<string name="generator_info_difficulty">Wie viel Kombinieren das Rätsel verlangt. Die Stufen 1 bis 5 werden zunehmend schwerer; Lisa ist ein eigener Modus.</string>
-	<string name="generator_info_difficulty_tier">Stufe %1$d von 5: je höher die Stufe, desto fortgeschrittener die nötigen Techniken.</string>
-	<string name="generator_info_difficulty_lisa">Lisa ist die schwerste Stufe mit eigenen Regeln: weniger Leben und keine Tipps. Notizen sind unbegrenzt, wie überall sonst.</string>
+	<string name="generator_info_difficulty">Wie viel Kombinieren das Rätsel verlangt. Die Stufen 1 bis 14 werden zunehmend schwerer, Lisa ist die fünfzehnte: die schwersten Rätsel mit eigenen Regeln. Kleine Gitter erreichen nicht jede Stufe, die Liste zeigt deshalb nur die Stufen, die die gewählte Größe wirklich hergibt.</string>
+	<string name="generator_info_difficulty_tier">Stufe %1$d von 15: je höher die Stufe, desto fortgeschrittener die nötigen Techniken. Die Stufen 1 bis 3 kommen mit einzelnen Ziffern aus, die mittleren verlangen Paare, Tripel und einfache Muster, die höchsten brauchen Ketten.</string>
+	<string name="generator_info_difficulty_lisa">Lisa ist die fünfzehnte Stufe mit eigenen Regeln: weniger Leben und keine Tipps. Notizen sind unbegrenzt, wie überall sonst.</string>
 
 	<string name="enter_code_title">Geteiltes Rätsel spielen</string>
 	<string name="enter_code_explainer">Füge einen Code ein, den dir jemand geschickt hat, um genau dasselbe Rätsel zu spielen.</string>
@@ -387,4 +388,11 @@
 	<string name="notification_channel_daily">Erinnerung an das tägliche Rätsel</string>
 	<string name="notification_daily_ready_title">Das heutige Rätsel ist bereit</string>
 	<string name="notification_daily_ready_text">Halte deine Serie am Laufen.</string>
+
+	<string name="puzzle_loading_title">Dein Rätsel wird vorbereitet</string>
+	<string name="puzzle_loading_from_server">Ein frisches Gitter wird vom Server geladen.</string>
+	<string name="puzzle_loading_on_device">Der Server ist nicht erreichbar, dein Gerät erstellt das Rätsel deshalb selbst.</string>
+	<string name="puzzle_loading_on_device_note">Das dauert länger als das Laden, bei den schweren Stufen am längsten. Das Rätsel ist in beiden Fällen genau dasselbe.</string>
+	<string name="puzzle_loading_puzzle">Es kommt: %1$s, %2$s, %3$s</string>
+
 </resources>

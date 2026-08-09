@@ -40,7 +40,11 @@ data class DailyRecord(
 			solvedElapsedMillis = null,
 			streak = 0,
 			lastCompletedDate = null,
-			activeDifficulty = Difficulty.THREE,
+			// Matches the server's PreferenceRepository.DEFAULT_DIFFICULTY, which is the whole requirement:
+			// a player with no stored preference must be handed the same tier whether the answer came from
+			// here or from a row the server never wrote. Tier 3 was a sensible starting point out of five
+			// and is close to trivial out of fifteen, which is why the number moved at all.
+			activeDifficulty = Difficulty.FIVE,
 			pendingDifficulty = null,
 			pendingEffectiveDate = null
 		)

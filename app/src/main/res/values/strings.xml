@@ -44,6 +44,7 @@
 	<string name="label_variant">Variant</string>
 	<string name="variant_classic">Classic</string>
 	<string name="variant_chaos">Chaos</string>
+	<string name="variant_other">Special</string>
 	<string name="difficulty_lisa">Lisa</string>
 	<string name="difficulty_tier">Tier %1$d</string>
 	<string name="generator_info_current">Selected: %1$s</string>
@@ -52,9 +53,9 @@
 	<string name="generator_info_variant">Which extra rules the regions follow on top of rows and columns.</string>
 	<string name="generator_info_variant_classic">Classic: regions are the usual rectangular boxes.</string>
 	<string name="generator_info_variant_chaos">Chaos: regions are irregular shapes instead of boxes, so the box you are solving is never where you expect.</string>
-	<string name="generator_info_difficulty">How much deduction the puzzle demands. Tiers 1 to 5 get progressively harder; Lisa is a separate mode.</string>
-	<string name="generator_info_difficulty_tier">Tier %1$d of 5: the higher the tier, the more advanced the techniques you need.</string>
-	<string name="generator_info_difficulty_lisa">Lisa is the hardest band plus its own rules: fewer lives and no hints. Notes are unlimited, as everywhere else.</string>
+	<string name="generator_info_difficulty">How much deduction the puzzle demands. Tiers 1 to 14 get progressively harder, and Lisa is the fifteenth: the hardest puzzles plus its own rules. Small grids cannot reach every tier, so the list shows only the ones the chosen size can actually produce.</string>
+	<string name="generator_info_difficulty_tier">Tier %1$d of 15: the higher the tier, the more advanced the techniques you need. Tiers 1 to 3 need nothing beyond singles, the middle tiers ask for pairs, triples and simple patterns, and the highest ones need chains.</string>
+	<string name="generator_info_difficulty_lisa">Lisa is the fifteenth tier plus its own rules: fewer lives and no hints. Notes are unlimited, as everywhere else.</string>
 
 	<!-- Enter-code screen (UI item 5) -->
 	<string name="enter_code_title">Play a shared puzzle</string>
@@ -417,4 +418,13 @@
 	<string name="notification_channel_daily">Daily puzzle reminder</string>
 	<string name="notification_daily_ready_title">Today\'s daily is ready</string>
 	<string name="notification_daily_ready_text">Keep your streak going.</string>
+
+	<!-- Puzzle loading (job 3): the wait before a board, which is worth explaining when the device is
+	     generating the puzzle itself. No dashes in player-facing copy, and never a raw code or tier index. -->
+	<string name="puzzle_loading_title">Getting your puzzle ready</string>
+	<string name="puzzle_loading_from_server">Fetching a fresh grid from the server.</string>
+	<string name="puzzle_loading_on_device">The server could not be reached, so your device is building the puzzle itself.</string>
+	<string name="puzzle_loading_on_device_note">That takes longer than fetching one, and the harder tiers take the longest. The puzzle is exactly the same either way.</string>
+	<string name="puzzle_loading_puzzle">Coming up: %1$s, %2$s, %3$s</string>
+
 </resources>

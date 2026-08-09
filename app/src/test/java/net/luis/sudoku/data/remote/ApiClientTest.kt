@@ -48,6 +48,60 @@ class ApiClientTest {
 	}
 
 	@Test
+	fun requestPuzzle_postsTheShapeToV2AndParsesTheGivens() = runBlocking {
+		val requests = mutableListOf<HttpRequestData>()
+		val client = clientReturning(
+			HttpStatusCode.OK,
+			"""{"puzzle":{"genVersion":2,"size":9,"variant":"CLASSIC","difficulty":7,"seed":"42","givens":"CQAB"}}""",
+			requests
+		)
+
+		val response = client.requestPuzzle("https://example.com", "tok123", 9, "CLASSIC", 7)
+
+		assertEquals(7, response.puzzle?.difficulty)
+		assertEquals("CQAB", response.puzzle?.givens)
+		assertEquals("/api/v2/puzzles", requests.single().url.encodedPath)
+		assertEquals(HttpMethod.Post, requests.single().method)
+		assertEquals("""{"size":9,"variant":"CLASSIC","difficulty":7}""", requests.single().bodyText())
+	}
+
+	/**
+	 * The version split itself, stated once. Only the routes carrying a difficulty index or a puzzle moved to
+	 * v2, because only their *meaning* changed: a `6` used to be Lisa and is now tier 6. A heartbeat means
+	 * exactly what it always did, and moving it would be a second path to keep alive for nothing.
+	 */
+	@Test
+	fun routesThatCarryNoDifficulty_stayOnV1() = runBlocking {
+		val requests = mutableListOf<HttpRequestData>()
+		val client = clientReturning(HttpStatusCode.OK, """{"onlineTtlSeconds":60}""", requests)
+
+		client.presenceHeartbeat("https://example.com", "tok123")
+
+		assertEquals("/api/v1/presence/heartbeat", requests.single().url.encodedPath)
+	}
+
+	@Test
+	fun statsUploads_areOnV2_becauseTheyCarryABandIndex() = runBlocking {
+		val requests = mutableListOf<HttpRequestData>()
+		val client = clientReturning(HttpStatusCode.OK, """{"recorded":1}""", requests)
+
+		client.recordGames("https://example.com", "tok123", emptyList())
+
+		assertEquals("/api/v2/stats/games", requests.single().url.encodedPath)
+	}
+
+	@Test
+	fun dailyLeaderboard_isOnV2AndKeepsItsDifficultyQuery() = runBlocking {
+		val requests = mutableListOf<HttpRequestData>()
+		val client = clientReturning(HttpStatusCode.OK, "[]", requests)
+
+		client.dailyLeaderboard("https://example.com", "tok123", 15)
+
+		assertEquals("/api/v2/daily/leaderboard", requests.single().url.encodedPath)
+		assertEquals("15", requests.single().url.parameters["difficulty"])
+	}
+
+	@Test
 	fun serverInfo_hitsTheRightPathAndParsesTheResponse() = runBlocking {
 		val requests = mutableListOf<HttpRequestData>()
 		val client = clientReturning(HttpStatusCode.OK, """{"serverId":"abc","dailySize":9,"genVersion":1,"apiVersion":1}""", requests)
@@ -125,7 +179,7 @@ class ApiClientTest {
 
 		assertEquals("m1", created.matchId)
 		assertEquals("tok-abc", created.inviteToken)
-		assertEquals("/api/v1/matches", requests.single().url.encodedPath)
+		assertEquals("/api/v2/matches", requests.single().url.encodedPath)
 		assertEquals(HttpMethod.Post, requests.single().method)
 	}
 
@@ -141,7 +195,7 @@ class ApiClientTest {
 		val match = client.joinMatch("https://example.com", "tok", "m1", "invite-token")
 
 		assertEquals("RACE", match.mode)
-		assertEquals("/api/v1/matches/m1/join", requests.single().url.encodedPath)
+		assertEquals("/api/v2/matches/m1/join", requests.single().url.encodedPath)
 	}
 
 	@Test
@@ -158,7 +212,7 @@ class ApiClientTest {
 
 		assertEquals("m1", match.matchId)
 		assertEquals(25, match.stake)
-		assertEquals("/api/v1/matches/join", requests.single().url.encodedPath)
+		assertEquals("/api/v2/matches/join", requests.single().url.encodedPath)
 		assertEquals(HttpMethod.Post, requests.single().method)
 		assertEquals("""{"code":"K7QM-4X2P"}""", requests.single().bodyText())
 	}
@@ -265,7 +319,7 @@ class ApiClientTest {
 
 		assertEquals("2026-07-27", daily.date)
 		assertEquals(9, daily.puzzleKey?.size)
-		assertEquals("/api/v1/daily", requests.single().url.encodedPath)
+		assertEquals("/api/v2/daily", requests.single().url.encodedPath)
 	}
 
 	@Test
@@ -287,7 +341,7 @@ class ApiClientTest {
 
 		assertTrue(response.accepted)
 		assertTrue(response.verified)
-		assertEquals("/api/v1/daily/result", requests.single().url.encodedPath)
+		assertEquals("/api/v2/daily/result", requests.single().url.encodedPath)
 		assertEquals(HttpMethod.Post, requests.single().method)
 		// The bug this asserts against: `solveOrder` went out as bare cell indices, which the server reads as
 		// `List<List<Integer>>` and rejects with 400 - so every daily result was queued and re-rejected
@@ -518,7 +572,7 @@ class ApiClientTest {
 		val client = clientReturning(HttpStatusCode.NoContent, "", requests)
 
 		assertNull(client.activeMatch("https://example.com", "tok"))
-		assertEquals("/api/v1/matches/active", requests.single().url.encodedPath)
+		assertEquals("/api/v2/matches/active", requests.single().url.encodedPath)
 	}
 
 	@Test

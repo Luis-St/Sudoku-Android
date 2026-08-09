@@ -38,11 +38,18 @@ object MessageType {
 	const val ERROR = "ERROR"
 }
 
-/** `ws://`/`wss://` upgrade path for a match connection (server-spec §10.1) - the token travels as a query param. */
+/**
+ * `ws://`/`wss://` upgrade path for a match connection (server-spec §10.1) - the token travels as a query
+ * param.
+ *
+ * `v2`, for the same reason the REST routes moved: a `MATCH_STATE` carries a difficulty integer, and that
+ * integer changed meaning when the bands went from five plus Lisa to fifteen. The v2 snapshot also carries
+ * the puzzle's `givens`, which is what lets a joining client build the board without regenerating it.
+ */
 fun matchSocketUrl(baseUrl: String, matchId: String, token: String): String {
 	val wsScheme = if (baseUrl.startsWith("https")) "wss" else "ws"
 	val host = baseUrl.substringAfter("://").trimEnd('/')
-	return "$wsScheme://$host/ws/v1/matches/$matchId?token=$token"
+	return "$wsScheme://$host/ws/v2/matches/$matchId?token=$token"
 }
 
 /** Small helpers for reading the server's untyped `Map<String, Object>` payloads (server-spec §10.2). */

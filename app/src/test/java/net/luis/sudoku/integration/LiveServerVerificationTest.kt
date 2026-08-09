@@ -34,6 +34,7 @@ import net.luis.sudoku.generation.PuzzleGenerator
 import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.grid.Variant
 import net.luis.sudoku.key.PuzzleKey
+import net.luis.sudoku.version.GenVersion
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -174,7 +175,11 @@ class LiveServerVerificationTest {
 		val api = ApiClient(http, AuthFailureListener.NONE)
 
 		val info = api.serverInfo(baseUrl)
-		assertEquals(1, info.genVersion)
+		// Against GenVersion.CURRENT, never a literal: this assertion is the whole point of the class, and a
+		// literal here is exactly what let a generator bump land without the one test that checks the two
+		// sides agree on the wire ever being updated. It failed closed rather than open, but it failed
+		// before reaching a single one of the protocol checks below it.
+		assertEquals(GenVersion.CURRENT, info.genVersion)
 
 		// --- register two real users against the real server (the admin doubles as match creator) ---
 		val creatorToken = adminSessionToken()

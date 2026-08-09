@@ -2,6 +2,7 @@ package net.luis.sudoku.data.remote
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.HttpRequestBuilder
@@ -46,6 +47,8 @@ import net.luis.sudoku.data.remote.dto.MatchSettingsDto
 import net.luis.sudoku.data.remote.dto.PlayedGameDto
 import net.luis.sudoku.data.remote.dto.PlayerResponse
 import net.luis.sudoku.data.remote.dto.PreferencesResponse
+import net.luis.sudoku.data.remote.dto.PuzzleEnvelopeResponse
+import net.luis.sudoku.data.remote.dto.PuzzleRequest
 import net.luis.sudoku.data.remote.dto.RecoveryEmailRequest
 import net.luis.sudoku.data.remote.dto.RecoveryRedeemRequest
 import net.luis.sudoku.data.remote.dto.RegisterRequest
@@ -221,7 +224,7 @@ class ApiClient @Inject constructor(private val client: HttpClient, private val 
 
 	suspend fun syncStats(baseUrl: String, token: String, entries: List<SyncEntry>) {
 		handleUnit(
-			this.client.post(url(baseUrl, "stats/sync")) {
+			this.client.post(urlV2(baseUrl, "stats/sync")) {
 				authorized(token)
 				contentType(ContentType.Application.Json)
 				setBody(StatsSyncRequest(entries))
@@ -239,16 +242,48 @@ class ApiClient @Inject constructor(private val client: HttpClient, private val 
 	 */
 	suspend fun recordGames(baseUrl: String, token: String, games: List<PlayedGameDto>): GameResultsResponse =
 		handle(
-			this.client.post(url(baseUrl, "stats/games")) {
+			this.client.post(urlV2(baseUrl, "stats/games")) {
 				authorized(token)
 				contentType(ContentType.Application.Json)
 				setBody(GameResultsRequest(games))
 			}
 		)
 
+	/**
+	 * Asks the server for a single-player puzzle (`POST /api/v2/puzzles`).
+	 *
+	 * This is how a normal game is obtained now. The server generates and rates once and ships the finished
+	 * givens, which costs this device a decode instead of up to a second of generation at the hard bands -
+	 * see [net.luis.sudoku.core.PuzzleProvider], which owns the fallback for when this cannot be reached.
+	 */
+	/**
+	 * The only call with a timeout of its own, because it is the only one a player is watching a loading
+	 * screen for and the only one with a complete local answer already built behind it.
+	 *
+	 * A server that has this band pooled answers in milliseconds; one that does not is generating inline and
+	 * may take seconds, and waiting that out costs more than simply generating here - the device was going
+	 * to be able to do it all along. So this fails over fast rather than politely: [PuzzleProvider] treats
+	 * the timeout exactly like an unreachable server and generates locally, which is a correct puzzle either
+	 * way. The ordinary ceiling in `NetworkModule` would make the player wait fifteen seconds to learn
+	 * something worth knowing after two.
+	 */
+	suspend fun requestPuzzle(baseUrl: String, token: String, size: Int, variant: String, difficultyIndex: Int): PuzzleEnvelopeResponse =
+		handle(
+			this.client.post(urlV2(baseUrl, "puzzles")) {
+				authorized(token)
+				contentType(ContentType.Application.Json)
+				timeout { requestTimeoutMillis = PUZZLE_REQUEST_TIMEOUT_MILLIS }
+				setBody(PuzzleRequest(size, variant, difficultyIndex))
+			}
+		)
+
+	/** The stored daily difficulty for this account, which [setDailyDifficultyPreference] writes. */
+	suspend fun dailyDifficultyPreference(baseUrl: String, token: String): PreferencesResponse =
+		handle(this.client.get(urlV2(baseUrl, "preferences")) { authorized(token) })
+
 	suspend fun setDailyDifficultyPreference(baseUrl: String, token: String, difficultyIndex: Int): PreferencesResponse =
 		handle(
-			this.client.put(url(baseUrl, "preferences")) {
+			this.client.put(urlV2(baseUrl, "preferences")) {
 				authorized(token)
 				contentType(ContentType.Application.Json)
 				setBody(SetPreferencesRequest(difficultyIndex))
@@ -257,7 +292,7 @@ class ApiClient @Inject constructor(private val client: HttpClient, private val 
 
 	suspend fun createMatch(baseUrl: String, token: String, mode: String, config: MatchConfigDto, settings: MatchSettingsDto?): CreatedMatchResponse =
 		handle(
-			this.client.post(url(baseUrl, "matches")) {
+			this.client.post(urlV2(baseUrl, "matches")) {
 				authorized(token)
 				contentType(ContentType.Application.Json)
 				setBody(CreateMatchRequest(mode, config, settings))
@@ -324,7 +359,7 @@ class ApiClient @Inject constructor(private val client: HttpClient, private val 
 	 */
 	suspend fun joinMatchByCode(baseUrl: String, token: String, code: String): MatchResponse =
 		handle(
-			this.client.post(url(baseUrl, "matches/join")) {
+			this.client.post(urlV2(baseUrl, "matches/join")) {
 				authorized(token)
 				contentType(ContentType.Application.Json)
 				setBody(JoinByCodeRequest(code))
@@ -333,7 +368,7 @@ class ApiClient @Inject constructor(private val client: HttpClient, private val 
 
 	suspend fun joinMatch(baseUrl: String, token: String, matchId: String, inviteToken: String?): MatchResponse =
 		handle(
-			this.client.post(url(baseUrl, "matches/$matchId/join")) {
+			this.client.post(urlV2(baseUrl, "matches/$matchId/join")) {
 				authorized(token)
 				contentType(ContentType.Application.Json)
 				setBody(JoinMatchRequest(inviteToken))
@@ -352,7 +387,7 @@ class ApiClient @Inject constructor(private val client: HttpClient, private val 
 	}
 
 	suspend fun getMatch(baseUrl: String, token: String, matchId: String): MatchResponse =
-		handle(this.client.get(url(baseUrl, "matches/$matchId")) { authorized(token) })
+		handle(this.client.get(urlV2(baseUrl, "matches/$matchId")) { authorized(token) })
 
 	/**
 	 * The match this player is still in, or null.
@@ -365,7 +400,7 @@ class ApiClient @Inject constructor(private val client: HttpClient, private val 
 	 * 204 means "not in one", which is the ordinary answer and not an error.
 	 */
 	suspend fun activeMatch(baseUrl: String, token: String): MatchResponse? {
-		val response = this.client.get(url(baseUrl, "matches/active")) { authorized(token) }
+		val response = this.client.get(urlV2(baseUrl, "matches/active")) { authorized(token) }
 		if (response.status == HttpStatusCode.NoContent) return null
 		return handle(response)
 	}
@@ -380,20 +415,20 @@ class ApiClient @Inject constructor(private val client: HttpClient, private val 
 
 	/** Grouped by tier - solve times are only comparable within one (feature-spec §8.4/§9.7). */
 	suspend fun playerStats(baseUrl: String, token: String, playerId: String): List<StatsEntryResponse> =
-		handle(this.client.get(url(baseUrl, "players/$playerId/stats")) { authorized(token) })
+		handle(this.client.get(urlV2(baseUrl, "players/$playerId/stats")) { authorized(token) })
 
 	/** Hints used are deliberately not exposed here (server-spec §9). */
 	suspend fun dailyLeaderboard(baseUrl: String, token: String, difficultyIndex: Int): List<LeaderboardEntryResponse> =
-		handle(this.client.get(url(baseUrl, "daily/leaderboard?difficulty=$difficultyIndex")) { authorized(token) })
+		handle(this.client.get(urlV2(baseUrl, "daily/leaderboard?difficulty=$difficultyIndex")) { authorized(token) })
 
 	/** "Returns the key only; the client generates the grid locally" - server-spec §9, matching §3.2's determinism. */
 	suspend fun getDailyKey(baseUrl: String, token: String): DailyResponse =
-		handle(this.client.get(url(baseUrl, "daily")) { authorized(token) })
+		handle(this.client.get(urlV2(baseUrl, "daily")) { authorized(token) })
 
 	/** server-spec §9.6: verified server-side by replaying [request]'s solve order against the regenerated puzzle. */
 	suspend fun submitDailyResult(baseUrl: String, token: String, request: DailyResultRequest): DailyResultResponse =
 		handle(
-			this.client.post(url(baseUrl, "daily/result")) {
+			this.client.post(urlV2(baseUrl, "daily/result")) {
 				authorized(token)
 				contentType(ContentType.Application.Json)
 				setBody(request)
@@ -426,7 +461,23 @@ class ApiClient @Inject constructor(private val client: HttpClient, private val 
 		header(HttpHeaders.Authorization, "Bearer $token")
 	}
 
+	/**
+	 * A `v1` route. Everything that carries neither a difficulty index nor a puzzle stays here for good:
+	 * authentication, presence, friends, devices and currency mean exactly what they always did.
+	 */
 	private fun url(baseUrl: String, path: String) = "${baseUrl.trimEnd('/')}/api/v1/$path"
+
+	/**
+	 * A `v2` route.
+	 *
+	 * The version is per call rather than per client because only *some* routes changed meaning. The
+	 * difficulty integer went from a `1..5` scale with Lisa at 6 to a real `1..15` band index, so every route
+	 * carrying one - the daily and its result, leaderboard and preference, match creation and lookup, the
+	 * statistics uploads and the new puzzle route - had to be re-versioned, while a heartbeat or a device
+	 * list would gain nothing but a second path to keep alive. The server serves both, and an older client
+	 * keeps working precisely because v1 is still there.
+	 */
+	private fun urlV2(baseUrl: String, path: String) = "${baseUrl.trimEnd('/')}/api/v2/$path"
 
 	/**
 	 * Every failure passes through [SessionGuard] before it is thrown, which is the only place that sees
@@ -445,5 +496,15 @@ class ApiClient @Inject constructor(private val client: HttpClient, private val 
 		val error = response.body<ErrorResponse>()
 		this.sessionGuard.onApiError(error.error)
 		throw ApiException(error.error, error.message)
+	}
+
+	companion object {
+
+		/**
+		 * How long a game start waits on the server before generating the puzzle itself - see
+		 * [requestPuzzle]. Generous next to a pooled hit, which is a decode and a write, and far short of
+		 * the seconds an unpooled band takes to generate: past this point the device is the faster answer.
+		 */
+		private const val PUZZLE_REQUEST_TIMEOUT_MILLIS = 2_500L
 	}
 }

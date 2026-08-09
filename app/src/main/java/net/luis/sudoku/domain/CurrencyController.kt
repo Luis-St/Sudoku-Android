@@ -1,5 +1,6 @@
 package net.luis.sudoku.domain
 
+import net.luis.sudoku.difficulty.Difficulty
 import java.time.LocalDate
 
 /**
@@ -80,6 +81,24 @@ class CurrencyController(
 		private val SIZE_FACTOR_TENTHS = mapOf(4 to 4, 6 to 6, 9 to 10, 12 to 15, 16 to 22)
 
 		/**
+		 * The weight of a tier, in tenths: the fifteen band index mapped back onto the `1..6` range the
+		 * economy was calibrated against.
+		 *
+		 * The award used to be linear in the difficulty index, and Lisa's index moved from `6` to `15` when
+		 * the scale went from six tiers to fifteen. Left alone, every award here would have inflated by up
+		 * to 2.5x while the server kept paying the old rate, so an honest player minting offline would drift
+		 * above the server's ceiling and be clamped on sync. This mirrors `CurrencyService.weightTenths` on
+		 * the server exactly; the two must move together or the drift comes straight back.
+		 */
+		private const val MIN_WEIGHT_TENTHS = 10L
+		private const val MAX_WEIGHT_TENTHS = 60L
+
+		private fun weightTenths(difficultyIndex: Int): Long {
+			val span = Difficulty.LISA.index() - Difficulty.ONE.index()
+			return MIN_WEIGHT_TENTHS + (difficultyIndex - Difficulty.ONE.index()) * (MAX_WEIGHT_TENTHS - MIN_WEIGHT_TENTHS) / span
+		}
+
+		/**
 		 * The award for one solved grid, before the daily bonus: the difficulty rate scaled by the size
 		 * factor, rounded half up so a tier does not silently pay a Rhubarb less than the factor says.
 		 *
@@ -88,7 +107,9 @@ class CurrencyController(
 		 */
 		fun baseAward(difficultyIndex: Int, edgeLength: Int): Long {
 			val factor = requireNotNull(SIZE_FACTOR_TENTHS[edgeLength]) { "No supported grid size with edge length $edgeLength" }
-			return (PER_DIFFICULTY_INDEX * difficultyIndex * factor + 5) / 10
+			// Two tenths-scaled terms, so the product is in hundredths and +50 is the half-up rounding that
+			// +5 was when only one term was scaled.
+			return (PER_DIFFICULTY_INDEX * weightTenths(difficultyIndex) * factor + 50) / 100
 		}
 	}
 }

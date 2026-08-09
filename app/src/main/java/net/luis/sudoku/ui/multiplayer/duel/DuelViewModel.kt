@@ -18,8 +18,9 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import net.luis.sudoku.core.CellSnapshot
 import net.luis.sudoku.core.GameSession
+import net.luis.sudoku.core.PuzzleProvider
 import net.luis.sudoku.data.local.ServerConfigStore
-import net.luis.sudoku.data.remote.dto.PuzzleKeyResponse
+import net.luis.sudoku.data.remote.dto.PuzzleResponse
 import net.luis.sudoku.data.remote.match.MatchOutcomeProbe
 import net.luis.sudoku.data.remote.match.MatchSocketClient
 import net.luis.sudoku.data.remote.match.MessageType
@@ -48,7 +49,8 @@ class DuelViewModel @AssistedInject constructor(
 	@Assisted("matchId") private val matchId: String,
 	private val socketClient: MatchSocketClient,
 	private val serverConfigStore: ServerConfigStore,
-	private val outcomeProbe: MatchOutcomeProbe
+	private val outcomeProbe: MatchOutcomeProbe,
+	private val puzzleProvider: PuzzleProvider
 ) : ViewModel() {
 
 	@AssistedFactory
@@ -254,16 +256,25 @@ class DuelViewModel @AssistedInject constructor(
 	}
 
 	private fun applyMatchState(payload: JsonObject) {
-		val keyResponse = payload["puzzleKey"]?.jsonObject ?: return
-		val key = PuzzleKeyResponse(
-			genVersion = keyResponse.intOrNull("genVersion") ?: 1,
-			size = keyResponse.intOrNull("size") ?: 9,
-			variant = keyResponse.stringOrNull("variant"),
-			difficulty = keyResponse.intOrNull("difficulty") ?: 3,
-			seed = keyResponse.stringOrNull("seed")
-		).toPuzzleKey()
+		// v2 names the field `puzzle` and carries the grid inside it; `puzzleKey` is still read so a server
+		// that has not moved yet keeps working, and it simply carries no givens.
+		val puzzleObject = (payload["puzzle"] ?: payload["puzzleKey"])?.jsonObject ?: return
+		val puzzle = PuzzleResponse(
+			genVersion = puzzleObject.intOrNull("genVersion") ?: 1,
+			size = puzzleObject.intOrNull("size") ?: 9,
+			variant = puzzleObject.stringOrNull("variant"),
+			difficulty = puzzleObject.intOrNull("difficulty") ?: 1,
+			seed = puzzleObject.stringOrNull("seed"),
+			// The snapshot may put the givens beside the puzzle rather than inside it; both are read, since
+			// either one saves this device a full generation.
+			givens = puzzleObject.stringOrNull("givens") ?: payload.stringOrNull("givens")
+		)
+		val key = puzzle.toPuzzleKey()
 
-		this.session = GameSession.generate(key)
+		// Already on the socket's Dispatchers.Default thread, and the grid arrived with the frame - so this
+		// is a decode, not a fetch, and it must stay synchronous: the whole snapshot is applied inside one
+		// Snapshot.withMutableSnapshot and suspending in the middle of it would break that atomicity.
+		this.session = this.puzzleProvider.localSession(key, puzzle.givens)
 		this.edgeLength = this.session.edgeLength
 		this.controllerUserId = payload.stringOrNull("controller")
 

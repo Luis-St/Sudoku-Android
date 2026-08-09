@@ -31,8 +31,11 @@ import net.luis.sudoku.R
 import net.luis.sudoku.data.local.ServerConfig
 import net.luis.sudoku.data.local.ThemeMode
 import net.luis.sudoku.difficulty.Difficulty
+import net.luis.sudoku.domain.DifficultyOptions
+import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.ui.app.AppViewModel
 import net.luis.sudoku.ui.common.DropdownTrigger
+import net.luis.sudoku.ui.common.difficultyLabel
 import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.common.SectionCard
 
@@ -85,8 +88,11 @@ fun SettingsScreen(
 		// tomorrow's difficulty are configuration, and configuring them meant opening today's puzzle first.
 		SectionCard(title = stringResource(R.string.settings_header_daily), modifier = Modifier.padding(top = 12.dp)) {
 			Column {
+				// The daily is played at the size the server configures (§8.1), and that size decides which
+				// bands exist at all - so the picker offers the daily's own set rather than all fifteen.
 				DailyDifficultyDropdown(
 					selected = appViewModel.pendingDailyDifficulty,
+					size = appViewModel.serverConfig.cachedDailySize?.let(GridSize::ofEdgeLength) ?: GridSize.NINE,
 					onSelect = appViewModel::setDailyDifficulty
 				)
 				Text(
@@ -222,22 +228,24 @@ private fun themeModeLabel(mode: ThemeMode): String = when (mode) {
 }
 
 @Composable
-private fun DailyDifficultyDropdown(selected: Difficulty, onSelect: (Difficulty) -> Unit, modifier: Modifier = Modifier) {
+private fun DailyDifficultyDropdown(
+	selected: Difficulty,
+	size: GridSize,
+	onSelect: (Difficulty) -> Unit,
+	modifier: Modifier = Modifier
+) {
 	LabelledDropdown(
 		label = stringResource(R.string.settings_daily_difficulty_label),
-		selectedLabel = dailyDifficultyLabel(selected),
-		// values(), not entries: Difficulty is a Java enum from shared-core.
-		options = Difficulty.values().toList(),
-		optionLabel = { dailyDifficultyLabel(it) },
+		// Shown snapped, because that is what the daily will actually be: a stored choice the configured
+		// size cannot produce is snapped by the generator anyway, and showing the unreachable one would let
+		// the setting read as ignored.
+		selectedLabel = difficultyLabel(DifficultyOptions.snap(size, selected)),
+		options = DifficultyOptions.supportedAt(size),
+		optionLabel = { difficultyLabel(it) },
 		onSelect = onSelect,
 		modifier = modifier
 	)
 }
-
-@Composable
-private fun dailyDifficultyLabel(difficulty: Difficulty): String =
-	if (difficulty.isLisa) stringResource(R.string.difficulty_lisa)
-	else stringResource(R.string.difficulty_tier, difficulty.index())
 
 /**
  * The daily reminder opt-in (daily item 1, feature-spec §8.3.2). minSdk 33, so `POST_NOTIFICATIONS` always

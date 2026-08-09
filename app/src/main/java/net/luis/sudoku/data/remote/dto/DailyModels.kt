@@ -2,8 +2,16 @@ package net.luis.sudoku.data.remote.dto
 
 import kotlinx.serialization.Serializable
 
+/**
+ * `GET /api/v2/daily`. The puzzle arrives as [puzzle] now, givens and all; [puzzleKey] is kept only so a
+ * server that has not moved to v2's field name still parses.
+ */
 @Serializable
-data class DailyResponse(val date: String? = null, val puzzleKey: PuzzleKeyResponse? = null)
+data class DailyResponse(
+	val date: String? = null,
+	val puzzle: PuzzleResponse? = null,
+	val puzzleKey: PuzzleKeyResponse? = null
+)
 
 /** server-spec §9.6: "the client submits its solve order for server-side verification." */
 @Serializable

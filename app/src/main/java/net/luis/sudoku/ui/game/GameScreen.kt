@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -100,10 +99,13 @@ fun GameScreen(
 		requestApplied = true
 	}
 
-	if (!viewModel.ready) {
-		Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-			CircularProgressIndicator()
-		}
+	// Two gates in one, and both are the same wait. `ready` covers the very first board of the process;
+	// `loading` covers every board after it, which used to have no gate at all - the puzzle was built on the
+	// main thread behind a board that was still on screen, so the app simply stopped answering for as long as
+	// generation took.
+	val loading = viewModel.loading
+	if (!viewModel.ready || loading != null) {
+		PuzzleLoadingScreen(loading ?: PuzzleLoading(), modifier = modifier)
 		return
 	}
 

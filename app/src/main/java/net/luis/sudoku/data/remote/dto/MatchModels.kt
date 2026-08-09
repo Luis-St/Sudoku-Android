@@ -55,6 +55,45 @@ data class PuzzleKeyResponse(val genVersion: Int, val size: Int, val variant: St
 	)
 }
 
+/**
+ * The v2 puzzle payload, which replaces [PuzzleKeyResponse] wherever a route carries a puzzle.
+ *
+ * Two things changed with `/api/v2`. [difficulty] is the real `1..15` band index rather than the old
+ * `1..5`-plus-Lisa scale, which is the whole reason the routes needed a second version: to a v1 client a `6`
+ * meant Lisa, and to a v2 one it means tier 6. And [givens] carries the finished grid, so a client decodes
+ * a puzzle in milliseconds instead of regenerating it in up to a second (see
+ * [net.luis.sudoku.sharecode.GivensCodec]).
+ *
+ * [givens] is nullable and must stay that way: a server older than the column, or a match created before it
+ * existed, answers without one, and the client's own generator is the fallback for exactly that case.
+ */
+@Serializable
+data class PuzzleResponse(
+	val genVersion: Int,
+	val size: Int,
+	val variant: String? = null,
+	val difficulty: Int,
+	val seed: String? = null,
+	val givens: String? = null
+) {
+
+	/** `seed` travels as a string on the wire (server-spec §9) - a 64-bit value doesn't survive a JSON double. */
+	fun toPuzzleKey(): PuzzleKey = PuzzleKey.of(
+		GridSize.ofEdgeLength(this.size),
+		this.variant?.let(Variant::valueOf) ?: Variant.CLASSIC,
+		Difficulty.ofIndex(this.difficulty),
+		this.seed?.toLong() ?: 0L
+	)
+}
+
+/** Body of `POST /api/v2/puzzles`: how a single-player puzzle is asked for now. */
+@Serializable
+data class PuzzleRequest(val size: Int, val variant: String, val difficulty: Int)
+
+/** What `POST /api/v2/puzzles` answers with - the puzzle, wrapped. */
+@Serializable
+data class PuzzleEnvelopeResponse(val puzzle: PuzzleResponse? = null)
+
 @Serializable
 data class ParticipantResponse(val userId: String, val displayName: String? = null, val result: String? = null)
 
@@ -63,6 +102,8 @@ data class MatchResponse(
 	val matchId: String,
 	val mode: String? = null,
 	val state: String? = null,
+	/** v2's field. [puzzleKey] is still read as a fallback, for a server that has not moved yet. */
+	val puzzle: PuzzleResponse? = null,
 	val puzzleKey: PuzzleKeyResponse? = null,
 	val livesEnabled: Boolean = false,
 	val hintsEnabled: Boolean = true,

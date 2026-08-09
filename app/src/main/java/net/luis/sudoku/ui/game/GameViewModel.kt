@@ -3,6 +3,7 @@ package net.luis.sudoku.ui.game
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -12,6 +13,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import net.luis.sudoku.core.CellSnapshot
 import net.luis.sudoku.core.GameSession
+import net.luis.sudoku.core.PuzzleOrigin
+import net.luis.sudoku.core.PuzzleProvider
 import net.luis.sudoku.data.local.CurrencyState
 import net.luis.sudoku.data.local.CurrencyStore
 import net.luis.sudoku.data.local.DailyResultQueueStore
@@ -57,7 +60,6 @@ import net.luis.sudoku.sharecode.ShareCodeCodec
 import net.luis.sudoku.sound.SoundEvent
 import net.luis.sudoku.sound.SoundPlayer
 import javax.inject.Inject
-import kotlin.random.Random
 
 enum class GameOutcome { WON, LOST }
 
@@ -86,6 +88,24 @@ data class GameSummary(
 )
 
 /**
+ * What the loading screen is waiting for.
+ *
+ * The three puzzle fields are nullable because the initial restore learns them from the saved row rather
+ * than being told: the wait starts before the key has been read, and a loading screen that guesses would be
+ * worse than one that stays quiet for a moment and then names the puzzle.
+ *
+ * [onDevice] is the part the player is actually owed. Fetching a finished grid from the server is over
+ * almost at once; generating one here is the slow path, and saying so is the difference between a wait with
+ * a reason and an app that has stopped responding.
+ */
+data class PuzzleLoading(
+	val size: GridSize? = null,
+	val variant: Variant? = null,
+	val difficulty: Difficulty? = null,
+	val onDevice: Boolean = false
+)
+
+/**
  * Owns one [GameSession] plus lives/hints/timer/undo and the A2 input model (feature-spec §4.4, §5, §6,
  * §7). Auto-resumes the `NORMAL` slot on creation; no daily/multiplayer selection yet (A7/A9).
  */
@@ -100,7 +120,8 @@ class GameViewModel @Inject constructor(
 	private val apiClient: ApiClient,
 	private val serverConfigStore: ServerConfigStore,
 	private val dailyResultQueueStore: DailyResultQueueStore,
-	private val gameResultUploader: GameResultUploader
+	private val gameResultUploader: GameResultUploader,
+	private val puzzleProvider: PuzzleProvider
 ) : ViewModel() {
 
 	private lateinit var session: GameSession
@@ -130,6 +151,17 @@ class GameViewModel @Inject constructor(
 	private var slot: SaveSlot = SaveSlot.NORMAL
 
 	var ready by mutableStateOf(false)
+		private set
+
+	/**
+	 * Non-null exactly while a puzzle is being fetched or built, which is what the loading screen renders.
+	 *
+	 * [ready] cannot do this job and never could: it is set once, when the first board is installed, and
+	 * never goes back to false - so every later puzzle (a new game, switching slots, opening the daily) was
+	 * built behind a board that was still on screen and still accepting taps, with the UI simply frozen for
+	 * however long generation took. At fifteen bands that is seconds.
+	 */
+	var loading by mutableStateOf<PuzzleLoading?>(null)
 		private set
 
 	val edgeLength: Int get() = this.session.edgeLength
@@ -243,14 +275,45 @@ class GameViewModel @Inject constructor(
 			this@GameViewModel.currencyController = CurrencyController(currency.balance, currency.normalGamesEarnedToday, currency.earnDate)
 			this@GameViewModel.preferences = this@GameViewModel.settingsStore.current()
 
-			val saved = this@GameViewModel.savedGameStore.load(SaveSlot.NORMAL)
+			// The restore is a puzzle build like any other, so it waits behind the loading screen rather than
+			// behind a frozen main thread - see [loading].
+			this@GameViewModel.loading = PuzzleLoading()
+			val saved = this@GameViewModel.savedGameStore.load(SaveSlot.NORMAL) { key, origin -> describeLoading(key, origin) }
 			if (saved != null) {
 				installSession(saved.session, saved.undoStack, saved.elapsedMillis, saved.livesRemaining, saved.hintsUsed)
 			} else {
-				installSession(GameSession.generate(DEFAULT_KEY), UndoStack(), 0L, 5, 0)
+				installSession(newSession(DEFAULT_KEY), UndoStack(), 0L, 5, 0)
 			}
+			this@GameViewModel.loading = null
 			this@GameViewModel.ready = true
 			startTimerTicker()
+		}
+	}
+
+	/**
+	 * Builds the puzzle [key] names, keeping the loading screen told about it.
+	 *
+	 * Every board this model installs comes through here or through [newSessionFor], so the "off the main
+	 * thread" rule is [PuzzleProvider]'s to keep and the "say what is happening" rule is this model's.
+	 */
+	private suspend fun newSession(key: PuzzleKey, givens: String? = null): GameSession =
+		this.puzzleProvider.forKey(key, givens) { describeLoading(key, it) }
+
+	/** The server-first path, for a puzzle that is only a shape so far and has no key yet. */
+	private suspend fun newSessionFor(size: GridSize, variant: Variant, difficulty: Difficulty): GameSession =
+		this.puzzleProvider.forNewGame(size, variant, difficulty) { origin ->
+			this.loading = PuzzleLoading(size, variant, difficulty, origin == PuzzleOrigin.DEVICE)
+		}
+
+	/**
+	 * Names the puzzle being waited for, and whether this device is building it.
+	 *
+	 * Called from [Dispatchers.Default], so the whole descriptor is replaced in one atomic write - the
+	 * loading screen reads all four fields in one sentence and must never compose between two of them.
+	 */
+	private fun describeLoading(key: PuzzleKey, origin: PuzzleOrigin) {
+		Snapshot.withMutableSnapshot {
+			this.loading = PuzzleLoading(key.size(), key.variant(), key.difficulty(), origin == PuzzleOrigin.DEVICE)
 		}
 	}
 
@@ -304,12 +367,14 @@ class GameViewModel @Inject constructor(
 			this@GameViewModel.slot = SaveSlot.NORMAL
 			this@GameViewModel.isDailyMode = false
 			this@GameViewModel.dailyLocked = false
-			val saved = this@GameViewModel.savedGameStore.load(SaveSlot.NORMAL)
+			this@GameViewModel.loading = PuzzleLoading()
+			val saved = this@GameViewModel.savedGameStore.load(SaveSlot.NORMAL) { key, origin -> describeLoading(key, origin) }
 			if (saved != null) {
 				installSession(saved.session, saved.undoStack, saved.elapsedMillis, saved.livesRemaining, saved.hintsUsed)
 			} else {
-				installSession(GameSession.generate(DEFAULT_KEY), UndoStack(), 0L, 5, 0)
+				installSession(newSession(DEFAULT_KEY), UndoStack(), 0L, 5, 0)
 			}
+			this@GameViewModel.loading = null
 			this@GameViewModel.timerController.start()
 		}
 	}
@@ -325,6 +390,7 @@ class GameViewModel @Inject constructor(
 		this.viewModelScope.launch {
 			this@GameViewModel.slot = SaveSlot.DAILY
 			this@GameViewModel.isDailyMode = true
+			this@GameViewModel.loading = PuzzleLoading()
 
 			// §8.3.1: normally connected, this uses the server's own serverId/timezone/size - so the daily is
 			// identical to what the server (and every other player at this tier) computes, not a different
@@ -351,12 +417,13 @@ class GameViewModel @Inject constructor(
 			this@GameViewModel.dailyLocked = !this@GameViewModel.dailyController.canPlay(rolled)
 			if (this@GameViewModel.dailyLocked) {
 				showFinishedDailySummary(rolled, dailySize)
+				this@GameViewModel.loading = null
 				return@launch
 			}
 
 			val difficulty = this@GameViewModel.dailyController.effectiveDifficulty(rolled)
 			val key = this@GameViewModel.dailyController.keyFor(rolled.date!!, dailySize, difficulty)
-			val saved = this@GameViewModel.savedGameStore.load(SaveSlot.DAILY)
+			val saved = this@GameViewModel.savedGameStore.load(SaveSlot.DAILY) { savedKey, origin -> describeLoading(savedKey, origin) }
 
 			if (saved != null && saved.session.key == key) {
 				installSession(saved.session, saved.undoStack, saved.elapsedMillis, saved.livesRemaining, saved.hintsUsed)
@@ -369,14 +436,37 @@ class GameViewModel @Inject constructor(
 				val started = this@GameViewModel.dailyController.recordAttemptStart(rolled)
 				this@GameViewModel.dailyStore.save(started)
 				this@GameViewModel.dailyRecord = started
-				installSession(GameSession.generate(key), UndoStack(), 0L, 5, 0)
+				installSession(newSession(key, dailyGivensFor(key)), UndoStack(), 0L, 5, 0)
 				// A fresh attempt starts from nothing, and takes the stored order with it - what is on disk
 				// belongs to the attempt that was just replaced.
 				this@GameViewModel.dailySolveOrder.clear()
 				this@GameViewModel.dailyStore.clearSolveOrder()
 				this@GameViewModel.dailyMistakes = 0
 			}
+			this@GameViewModel.loading = null
 			this@GameViewModel.timerController.start()
+		}
+	}
+
+	/**
+	 * The givens the server holds for today's daily, or null.
+	 *
+	 * The daily's key is *derived*, not fetched (§8.2), so this only asks for the grid that key already
+	 * names - and takes it only when the server names the same key. A mismatch means the two sides disagree
+	 * about which puzzle today is, which is exactly the case where trusting the server's grid would spend the
+	 * player's one attempt on a board their own submission is then verified against wrongly. Local
+	 * generation is the right answer there, and silence is the right answer to an unreachable server.
+	 */
+	private suspend fun dailyGivensFor(key: PuzzleKey): String? {
+		return try {
+			val config = this.serverConfigStore.current()
+			val baseUrl = config.serverUrl ?: return null
+			val token = config.sessionToken ?: return null
+			this.apiClient.getDailyKey(baseUrl, token).puzzle?.takeIf { it.toPuzzleKey() == key }?.givens
+		} catch (e: CancellationException) {
+			throw e
+		} catch (e: Exception) {
+			null
 		}
 	}
 
@@ -400,7 +490,7 @@ class GameViewModel @Inject constructor(
 		val stored = this.dailyStore.currentSummary()?.takeIf { it.date == date } ?: return
 
 		val key = this.dailyController.keyFor(date, size, this.dailyController.effectiveDifficulty(record))
-		val finished = GameSession.generate(key)
+		val finished = newSession(key, dailyGivensFor(key))
 		for (index in 0 until finished.cellCount) {
 			if (finished.snapshot(index).empty) finished.revealSolution(index)
 		}
@@ -826,20 +916,42 @@ class GameViewModel @Inject constructor(
 		return true
 	}
 
-	/** Starting a new normal puzzle over an existing save asks for confirmation (§7) - that's the caller's job. */
-	fun startNewGame(size: GridSize = GridSize.NINE, variant: Variant = Variant.CLASSIC, difficulty: Difficulty = Difficulty.THREE) {
-		startNewGame(PuzzleKey.of(size, variant, difficulty, Random.nextLong()))
+	/**
+	 * Starting a new normal puzzle over an existing save asks for confirmation (§7) - that's the caller's job.
+	 *
+	 * The shape is all that is decided here: the seed is the server's when it can be reached, since it
+	 * generates and rates the grid once for everybody, and is minted locally only when it cannot (see
+	 * [PuzzleProvider.forNewGame]).
+	 */
+	fun startNewGame(size: GridSize = GridSize.NINE, variant: Variant = Variant.CLASSIC, difficulty: Difficulty = Difficulty.FIVE) {
+		beginNewGame(PuzzleLoading(size, variant, difficulty)) { newSessionFor(size, variant, difficulty) }
 	}
 
 	private fun startNewGame(key: PuzzleKey) {
+		beginNewGame(PuzzleLoading(key.size(), key.variant(), key.difficulty())) { newSession(key) }
+	}
+
+	/**
+	 * The common half of starting a normal puzzle: claim the slot straight away, then build the board behind
+	 * the loading screen.
+	 *
+	 * The slot fields are set synchronously and the board asynchronously on purpose. They are what the rest
+	 * of the model reads to decide *which* game is in progress, and leaving them on the daily until a build
+	 * that may take seconds finishes would let a save land in the wrong slot in the meantime.
+	 */
+	private fun beginNewGame(loading: PuzzleLoading, build: suspend () -> GameSession) {
 		// Always a NORMAL-slot action, even mid-daily: the daily's content is only ever the deterministic
 		// per-day derivation (§8.2), never a manual size/difficulty pick or a share code.
 		this.slot = SaveSlot.NORMAL
 		this.isDailyMode = false
 		this.dailyLocked = false
-		installSession(GameSession.generate(key), UndoStack(), 0L, 5, 0)
-		this.timerController.start()
-		persist()
+		this.loading = loading
+		this.viewModelScope.launch {
+			this@GameViewModel.installSession(build(), UndoStack(), 0L, 5, 0)
+			this@GameViewModel.loading = null
+			this@GameViewModel.timerController.start()
+			this@GameViewModel.persist()
+		}
 	}
 
 	/**
@@ -877,7 +989,7 @@ class GameViewModel @Inject constructor(
 	}
 
 	private companion object {
-		val DEFAULT_KEY: PuzzleKey = PuzzleKey.of(GridSize.NINE, Variant.CLASSIC, Difficulty.THREE, 20260725L)
+		val DEFAULT_KEY: PuzzleKey = PuzzleKey.of(GridSize.NINE, Variant.CLASSIC, Difficulty.FIVE, 20260725L)
 
 		/** feature-spec §8.1: real size comes from server config; local/unconfigured mode picks 9x9. */
 		val DAILY_SIZE = GridSize.NINE

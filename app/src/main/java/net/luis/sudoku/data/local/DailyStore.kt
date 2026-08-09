@@ -109,8 +109,8 @@ class DailyStore @Inject constructor(@DailyDataStore private val dataStore: Data
 			solvedElapsedMillis = prefs[SOLVED_ELAPSED],
 			streak = prefs[STREAK] ?: 0,
 			lastCompletedDate = prefs[LAST_COMPLETED_DATE]?.let(LocalDate::parse),
-			activeDifficulty = prefs[ACTIVE_DIFFICULTY]?.let(Difficulty::valueOf) ?: Difficulty.THREE,
-			pendingDifficulty = prefs[PENDING_DIFFICULTY]?.let(Difficulty::valueOf),
+			activeDifficulty = prefs[ACTIVE_DIFFICULTY].toDifficulty() ?: DEFAULT_DIFFICULTY,
+			pendingDifficulty = prefs[PENDING_DIFFICULTY].toDifficulty(),
 			pendingEffectiveDate = prefs[PENDING_EFFECTIVE_DATE]?.let(LocalDate::parse)
 		)
 	}
@@ -155,6 +155,29 @@ class DailyStore @Inject constructor(@DailyDataStore private val dataStore: Data
 		// mean a schema bump and this database drops what it cannot migrate.
 		val PROGRESS_DATE = stringPreferencesKey("progress_date")
 		val PROGRESS_SOLVE_ORDER = stringPreferencesKey("progress_solve_order")
+
+		/**
+		 * The daily's difficulty when nothing has been stored, now the middle of fifteen bands rather than
+		 * the third of five. Tier 3 was a reasonable middle when there were five tiers and is close to
+		 * trivial out of fifteen.
+		 */
+		val DEFAULT_DIFFICULTY: Difficulty = Difficulty.FIVE
+	}
+}
+
+/**
+ * A stored band name, or null when it names nothing.
+ *
+ * `Difficulty.valueOf` **throws** on a name it does not know, and this is read on the way into the daily on
+ * every app start - so a stored name that a later version no longer has (a band renamed, or a value written
+ * by a build that had different ones) would take the daily down rather than fall back to a default. Nothing
+ * a preferences file holds is worth crashing over.
+ */
+private fun String?.toDifficulty(): Difficulty? = this?.let {
+	try {
+		Difficulty.valueOf(it)
+	} catch (e: IllegalArgumentException) {
+		null
 	}
 }
 

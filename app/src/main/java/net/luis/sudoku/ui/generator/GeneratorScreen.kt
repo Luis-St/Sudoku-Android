@@ -32,6 +32,10 @@ import net.luis.sudoku.R
 import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.grid.Variant
+import net.luis.sudoku.domain.DifficultyOptions
+import net.luis.sudoku.ui.common.difficultyLabel
+import net.luis.sudoku.ui.common.sizeLabel
+import net.luis.sudoku.ui.common.variantLabel
 import net.luis.sudoku.ui.common.DropdownTrigger
 import net.luis.sudoku.ui.common.GradientButton
 import net.luis.sudoku.ui.common.InfoDialog
@@ -53,12 +57,20 @@ fun GeneratorScreen(
 ) {
 	var size by remember { mutableStateOf(GridSize.NINE) }
 	var variant by remember { mutableStateOf(Variant.CLASSIC) }
-	var difficulty by remember { mutableStateOf(Difficulty.THREE) }
+	var difficulty by remember { mutableStateOf(Difficulty.FIVE) }
 	var info by remember { mutableStateOf<InfoTopic?>(null) }
 
 	// Not every variant exists at every size; a size change that orphans the selection resets it.
 	val supportedVariants = Variant.values().filter { it.isSupportedAt(size) }
 	if (variant !in supportedVariants) variant = supportedVariants.first()
+
+	// Nor does every size reach every band, and the reachable ones are not a run from one upwards - a 6x6
+	// grid makes 1, 2, 3, 7 and 8 and nothing between. Offering a band the size cannot produce would let the
+	// player ask for one thing and be handed another without a word, since the generator snaps the request
+	// onto what it can actually build. So the list is the size's own, and a size change re-snaps the
+	// selection onto it.
+	val supportedDifficulties = DifficultyOptions.supportedAt(size)
+	if (difficulty !in supportedDifficulties) difficulty = DifficultyOptions.snap(size, difficulty)
 
 	Column(
 		modifier = modifier
@@ -90,7 +102,7 @@ fun GeneratorScreen(
 				OptionDropdown(
 					label = stringResource(R.string.label_difficulty),
 					selectedLabel = difficultyLabel(difficulty),
-					options = Difficulty.values().toList(),
+					options = supportedDifficulties,
 					optionLabel = ::difficultyLabel,
 					onSelect = { difficulty = it },
 					onInfo = { info = InfoTopic.DIFFICULTY },
@@ -234,21 +246,6 @@ private fun <T> OptionDropdown(
 
 /** The one accent this whole screen uses - both dropdowns and the start button (new-puzzle items 1 and 2). */
 private val GENERATOR_ACCENT = ActionAccent.INDIGO
-
-@Composable
-private fun sizeLabel(size: GridSize): String = "${size.n()}×${size.n()}"
-
-@Composable
-private fun variantLabel(variant: Variant): String = when (variant) {
-	Variant.CLASSIC -> stringResource(R.string.variant_classic)
-	Variant.CHAOS -> stringResource(R.string.variant_chaos)
-	else -> variant.name.lowercase().replaceFirstChar(Char::uppercase)
-}
-
-@Composable
-private fun difficultyLabel(difficulty: Difficulty): String =
-	if (difficulty.isLisa) stringResource(R.string.difficulty_lisa)
-	else stringResource(R.string.difficulty_tier, difficulty.index())
 
 @Composable
 private fun sizeDetail(size: GridSize): String = stringResource(R.string.generator_info_size_detail, size.n(), size.n() * size.n())

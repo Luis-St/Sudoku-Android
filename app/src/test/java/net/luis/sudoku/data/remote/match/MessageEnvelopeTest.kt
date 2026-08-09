@@ -41,7 +41,7 @@ class MessageEnvelopeTest {
 
 	@Test
 	fun matchSocketUrl_convertsSchemeAndAddsToken() {
-		assertEquals("wss://example.com/ws/v1/matches/m1?token=tok", matchSocketUrl("https://example.com", "m1", "tok"))
-		assertEquals("ws://example.com/ws/v1/matches/m1?token=tok", matchSocketUrl("http://example.com", "m1", "tok"))
+		assertEquals("wss://example.com/ws/v2/matches/m1?token=tok", matchSocketUrl("https://example.com", "m1", "tok"))
+		assertEquals("ws://example.com/ws/v2/matches/m1?token=tok", matchSocketUrl("http://example.com", "m1", "tok"))
 	}
 }

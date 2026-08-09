@@ -33,7 +33,12 @@ import net.luis.sudoku.data.remote.dto.MatchMode
 import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.grid.Variant
+import net.luis.sudoku.domain.DifficultyOptions
+import net.luis.sudoku.ui.common.DropdownTrigger
 import net.luis.sudoku.ui.common.GradientButton
+import net.luis.sudoku.ui.common.difficultyLabel
+import net.luis.sudoku.ui.common.sizeLabel
+import net.luis.sudoku.ui.common.variantLabel
 import net.luis.sudoku.ui.common.SectionCard
 import net.luis.sudoku.ui.common.friendlyErrorMessage
 
@@ -71,15 +76,19 @@ fun CreateMatchScreen(
 	var mode by remember { mutableStateOf(OFFERED_MODES.first()) }
 	var size by remember { mutableStateOf(GridSize.NINE) }
 	var variant by remember { mutableStateOf(Variant.CLASSIC) }
-	var difficulty by remember { mutableStateOf(Difficulty.THREE) }
+	var difficulty by remember { mutableStateOf(Difficulty.FIVE) }
 	var livesEnabled by remember { mutableStateOf(true) }
 	var hintsEnabled by remember { mutableStateOf(true) }
 	var stakeText by remember { mutableStateOf("0") }
 
 	val supportedVariants = Variant.values().filter { it.isSupportedAt(size) }
-	// Lisa carries gameplay modifiers and is single-player/daily only (§4.3); the server rejects it for
-	// every multiplayer mode regardless (server-spec §10.1) - simplest to never offer it here at all.
-	val nonLisaDifficulties = Difficulty.values().filterNot { it.isLisa }
+	// Two filters, for two different reasons. Lisa carries gameplay modifiers and is single-player/daily
+	// only (§4.3), and the server rejects it for every mode regardless (server-spec §10.1). The rest is the
+	// size's own reachable set: a 6x6 board makes bands 1, 2, 3, 7 and 8 and nothing between, so a picker
+	// that offered 4 to 6 there would be offering puzzles that cannot be built. A size change re-snaps the
+	// selection rather than leaving an impossible one standing.
+	val offeredDifficulties = DifficultyOptions.multiplayerSupportedAt(size)
+	if (difficulty !in offeredDifficulties) difficulty = DifficultyOptions.snapForMultiplayer(size, difficulty)
 
 	Column(
 		modifier = modifier
@@ -118,7 +127,7 @@ fun CreateMatchScreen(
 								size = candidate
 								if (!variant.isSupportedAt(candidate)) variant = Variant.CLASSIC
 							},
-							label = { Text("${candidate.n()}×${candidate.n()}") },
+							label = { Text(sizeLabel(candidate)) },
 							modifier = Modifier.padding(end = 4.dp, top = 4.dp)
 						)
 					}
@@ -135,28 +144,28 @@ fun CreateMatchScreen(
 							FilterChip(
 								selected = variant == candidate,
 								onClick = { variant = candidate },
-								label = { Text(candidate.name.lowercase().replaceFirstChar(Char::uppercase)) },
+								label = { Text(variantLabel(candidate)) },
 								modifier = Modifier.padding(end = 4.dp, top = 4.dp)
 							)
 						}
 					}
 				}
 
+				// A dropdown, not a row of chips, and named tiers rather than bare numbers. Fourteen numbered
+				// chips is not a control anybody reads, and a bare index is a code: the player picks "Tier 7",
+				// the wire carries 7. Same labels the generator's picker uses, from one place.
 				Text(
 					text = stringResource(R.string.label_difficulty),
 					style = MaterialTheme.typography.labelLarge,
 					modifier = Modifier.padding(top = 12.dp)
 				)
-				FlowRow {
-					nonLisaDifficulties.forEach { candidate ->
-						FilterChip(
-							selected = difficulty == candidate,
-							onClick = { difficulty = candidate },
-							label = { Text(candidate.index().toString()) },
-							modifier = Modifier.padding(end = 4.dp, top = 4.dp)
-						)
-					}
-				}
+				DropdownTrigger(
+					selectedLabel = difficultyLabel(difficulty),
+					options = offeredDifficulties,
+					optionLabel = { difficultyLabel(it) },
+					onSelect = { difficulty = it },
+					modifier = Modifier.padding(top = 4.dp)
+				)
 
 				// A switch, not the bare checkbox this used to be: every other setting in the app is a switch,
 				// and a checkbox on its own line under a label read as an unlabelled box.

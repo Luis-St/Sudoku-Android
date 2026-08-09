@@ -9,6 +9,7 @@ import net.luis.sudoku.hint.HintCandidate
 import net.luis.sudoku.hint.HintEngine
 import net.luis.sudoku.hint.HintResult
 import net.luis.sudoku.key.PuzzleKey
+import net.luis.sudoku.sharecode.GivensCodec
 import net.luis.sudoku.solver.TechniqueReport
 import net.luis.sudoku.solver.TechniqueSolver
 
@@ -52,13 +53,35 @@ class GameSession private constructor(
 		}
 
 		/**
-		 * Regenerates the puzzle identified by [key] (byte-identical givens, feature-spec 3.2) and
-		 * replays a saved game's pen values and pencil marks onto it - the persistence format for
-		 * [net.luis.sudoku.data.local.SavedGameStore] (feature-spec §7) never stores the givens
-		 * themselves, only the key.
+		 * Rebuilds the puzzle [key] describes from givens that were generated elsewhere - the server's, or
+		 * this device's own from an earlier sitting.
+		 *
+		 * Milliseconds rather than up to a second: shared-core derives the region layout from the key and the
+		 * solution from the givens by plain backtracking, and proves the grid uniquely solvable on the way
+		 * (`PuzzleGenerator.fromGivens`). It is also the only *durable* way to rebuild a board, because the
+		 * givens describe a grid that is already fixed while a key only describes a recipe - and the recipe
+		 * changed when `GenVersion` went 1 to 2.
+		 *
+		 * @throws IllegalArgumentException if the givens do not match the key's size or do not describe a
+		 *   uniquely solvable puzzle
 		 */
-		fun restore(key: PuzzleKey, values: IntArray, pencilMarks: IntArray): GameSession {
-			val generated = PuzzleGenerator.generate(key)
+		fun fromGivens(key: PuzzleKey, givens: IntArray): GameSession {
+			val generated = PuzzleGenerator.fromGivens(key, givens)
+			return GameSession(generated.key(), generated.puzzle(), generated.solution(), generated.puzzle().copy())
+		}
+
+		/**
+		 * Replays a saved game's pen values and pencil marks onto the board [key] describes.
+		 *
+		 * [givens] is what makes this correct across a generator change, and it is why it exists at all.
+		 * Without it the board is regenerated from the key alone - and the generator does **not** branch on
+		 * the key's `genVersion`, so a game saved under generator 1 and reopened under generator 2 comes back
+		 * as a *different grid* with the player's digits replayed onto the wrong cells. A save written by this
+		 * version always carries givens; null is only the pre-2.0.0 case, which
+		 * [net.luis.sudoku.data.local.MIGRATION_3_4] deletes rather than restores wrongly.
+		 */
+		fun restore(key: PuzzleKey, values: IntArray, pencilMarks: IntArray, givens: IntArray? = null): GameSession {
+			val generated = if (givens != null) PuzzleGenerator.fromGivens(key, givens) else PuzzleGenerator.generate(key)
 			val puzzle = generated.puzzle()
 			val initialCopy = puzzle.copy()
 			for (i in 0 until puzzle.size().cellCount()) {
@@ -71,6 +94,15 @@ class GameSession private constructor(
 			return GameSession(generated.key(), puzzle, generated.solution(), initialCopy)
 		}
 	}
+
+	/**
+	 * This puzzle's givens as the compact string [net.luis.sudoku.data.local.SavedGameStore] persists and the
+	 * server ships (`GivensCodec`).
+	 *
+	 * Taken from the pristine copy made at generation time, so a half-played board encodes to exactly the
+	 * string the untouched one did - what is stored is the puzzle, never the progress.
+	 */
+	fun encodedGivens(): String = GivensCodec.encode(this.initialPuzzle)
 
 	/** Every cell's current pen value (0 = empty), for persistence (feature-spec §7). */
 	fun values(): IntArray = IntArray(this.cellCount) { this.puzzle.cell(it).value() }

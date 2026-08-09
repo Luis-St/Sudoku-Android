@@ -2,6 +2,7 @@ package net.luis.sudoku.data.local
 
 import androidx.room.Room
 import net.luis.sudoku.core.GameSession
+import net.luis.sudoku.core.testPuzzleProvider
 import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.domain.BoardEditor
 import net.luis.sudoku.domain.TapAction
@@ -32,7 +33,7 @@ class SavedGameStoreTest {
 		this.database = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), AppDatabase::class.java)
 			.allowMainThreadQueries()
 			.build()
-		this.store = SavedGameStore(this.database.savedGameDao())
+		this.store = SavedGameStore(this.database.savedGameDao(), testPuzzleProvider())
 	}
 
 	@After
