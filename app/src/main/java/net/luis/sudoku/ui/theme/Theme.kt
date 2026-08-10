@@ -33,6 +33,16 @@ private val LightColorScheme = lightColorScheme(
 	onSurface = OnSurfaceLight,
 	surfaceVariant = SurfaceVariantLight,
 	onSurfaceVariant = OnSurfaceVariantLight,
+	// Account item 1. Material draws a dialog, a menu and a bottom sheet on `surfaceContainerHigh`, not on
+	// `surface` - and a role this theme never assigned keeps Material's own baseline value, which is the
+	// lavender-grey of the default palette. That is why the link-code popup arrived as a grey panel on a
+	// screen whose every other surface is white: nothing had set it wrong, it had simply never been set.
+	// All five tones are pinned so no component can find an unstyled one.
+	surfaceContainerLowest = SurfaceLight,
+	surfaceContainerLow = SurfaceLight,
+	surfaceContainer = SurfaceLight,
+	surfaceContainerHigh = SurfaceLight,
+	surfaceContainerHighest = SurfaceLight,
 	outline = OutlineLight,
 	error = ErrorLight,
 	onError = OnErrorLight
@@ -57,6 +67,13 @@ private val DarkColorScheme = darkColorScheme(
 	onSurface = OnSurfaceDark,
 	surfaceVariant = SurfaceVariantDark,
 	onSurfaceVariant = OnSurfaceVariantDark,
+	// See the light scheme: the same roles, one tone up from the page instead of equal to it, because a
+	// dark dialog painted exactly [SurfaceDark] on a [SurfaceDark] page has no visible edge.
+	surfaceContainerLowest = SurfaceContainerDark,
+	surfaceContainerLow = SurfaceContainerDark,
+	surfaceContainer = SurfaceContainerDark,
+	surfaceContainerHigh = SurfaceContainerDark,
+	surfaceContainerHighest = SurfaceContainerDark,
 	outline = OutlineDark,
 	error = ErrorDark,
 	onError = OnErrorDark

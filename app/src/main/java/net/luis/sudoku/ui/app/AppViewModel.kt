@@ -231,6 +231,10 @@ class AppViewModel @Inject constructor(
 			}
 			val record = this@AppViewModel.dailyStore.current()
 			this@AppViewModel.dailyStore.save(controller.setDifficulty(record, difficulty))
+			// The daily difficulty is the account's, not this device's, so the other device has to hear
+			// about it. Queued rather than sent from here: this is a settings tap, it must not wait on a
+			// request, and a choice made with no signal would otherwise be undone by the next sync.
+			this@AppViewModel.serverConfigStore.setPendingDailyDifficultyPush(difficulty.index())
 		}
 	}
 

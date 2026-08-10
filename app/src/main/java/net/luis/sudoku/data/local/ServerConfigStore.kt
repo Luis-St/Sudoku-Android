@@ -49,7 +49,16 @@ data class ServerConfig(
 	 * A local note about what has already been said, not a second copy of the streak: it exists only so a
 	 * heartbeat with nothing new to report costs no request.
 	 */
-	val publishedStreak: Int = 0
+	val publishedStreak: Int = 0,
+	/**
+	 * A daily difficulty the player chose here that the server has not been told about yet, or null when
+	 * there is nothing outstanding.
+	 *
+	 * The preference belongs to the account, so [net.luis.sudoku.domain.AccountSync] adopts the server's
+	 * value on every sync - which would quietly undo a choice made while the server was unreachable. This
+	 * is what makes the local choice win until it has actually been delivered.
+	 */
+	val pendingDailyDifficultyPush: Int? = null
 ) {
 	val isConfigured: Boolean get() = this.serverUrl != null
 	val isAuthenticated: Boolean get() = this.sessionToken != null
@@ -74,7 +83,8 @@ class ServerConfigStore @Inject constructor(@ServerConfigDataStore private val d
 			emailVerificationPending = prefs[EMAIL_VERIFICATION_PENDING] ?: false,
 			emailVerified = prefs[EMAIL_VERIFIED] ?: false,
 			statsHistoryBackfilled = prefs[STATS_HISTORY_BACKFILLED] ?: false,
-			publishedStreak = prefs[PUBLISHED_STREAK] ?: 0
+			publishedStreak = prefs[PUBLISHED_STREAK] ?: 0,
+			pendingDailyDifficultyPush = prefs[PENDING_DAILY_DIFFICULTY_PUSH]
 		)
 	}
 
@@ -132,6 +142,15 @@ class ServerConfigStore @Inject constructor(@ServerConfigDataStore private val d
 		this.dataStore.edit { it[PUBLISHED_STREAK] = streak }
 	}
 
+	/** Queues a daily difficulty for delivery, so a choice made offline is not lost to the next sync. */
+	suspend fun setPendingDailyDifficultyPush(difficultyIndex: Int) {
+		this.dataStore.edit { it[PENDING_DAILY_DIFFICULTY_PUSH] = difficultyIndex }
+	}
+
+	suspend fun clearPendingDailyDifficultyPush() {
+		this.dataStore.edit { it.remove(PENDING_DAILY_DIFFICULTY_PUSH) }
+	}
+
 	/** Called right after a successful `/server-info` check (feature-spec §8.3.1's fallback cache). */
 	suspend fun cacheDailyConfig(serverId: String?, dailySize: Int, timezone: String?) {
 		this.dataStore.edit { prefs ->
@@ -159,6 +178,8 @@ class ServerConfigStore @Inject constructor(@ServerConfigDataStore private val d
 			// Whoever signs in next is owed their own answer here too: "already published" is a fact about
 			// one account, and keeping it would leave the next player's streak stranded on this device.
 			prefs.remove(PUBLISHED_STREAK)
+			// And the same for an undelivered preference: it was this account's choice, not the device's.
+			prefs.remove(PENDING_DAILY_DIFFICULTY_PUSH)
 		}
 	}
 
@@ -180,5 +201,6 @@ class ServerConfigStore @Inject constructor(@ServerConfigDataStore private val d
 		val EMAIL_VERIFIED = booleanPreferencesKey("email_verified")
 		val STATS_HISTORY_BACKFILLED = booleanPreferencesKey("stats_history_backfilled")
 		val PUBLISHED_STREAK = intPreferencesKey("published_streak")
+		val PENDING_DAILY_DIFFICULTY_PUSH = intPreferencesKey("pending_daily_difficulty_push")
 	}
 }

@@ -39,6 +39,11 @@ enum class SessionEndReason {
  * challenge/response handshake answers definitively: a new session means the account was fine and the
  * player is never told anything, `USER_REVOKED` means they were kicked.
  *
+ * **The silent handshake is safe now in a way it was not before.** A session used to be one per *user*, so
+ * this recovery could take the session away from the player's other device - whose own guard then took it
+ * straight back, every few seconds, for as long as both apps were open. Sessions are per device
+ * (server-spec §6.2), so the handshake below can only ever replace this device's own.
+ *
  * **Silence on a network failure is deliberate.** Only an answer *from the server* ends a session here.
  * Signing somebody out because their train went into a tunnel would be a worse bug than the one this
  * class fixes.
@@ -156,10 +161,22 @@ class SessionGuard @Inject constructor(
 		const val USER_REVOKED = "USER_REVOKED"
 
 		/**
+		 * This device signed in again somewhere and the token used here is the older one.
+		 *
+		 * Recoverable, deliberately, and not a message: a session is per *device* now, so the only thing
+		 * that can supersede this one is this same device - a re-authentication, or a recovery code
+		 * redeemed on it. Some other component of this app already holds the newer token; the handshake
+		 * below simply gets this one back in step. Another device signing in cannot produce this code at
+		 * all, which is why there is no "you signed in elsewhere" state to raise.
+		 */
+		const val SESSION_SUPERSEDED = "SESSION_SUPERSEDED"
+
+		/**
 		 * Whether this error code says anything about the session at all. Everything else belongs to the
 		 * caller that made the request.
 		 */
-		fun isAuthFailure(code: String): Boolean = code == UNAUTHORIZED || code == USER_REVOKED
+		fun isAuthFailure(code: String): Boolean =
+			code == UNAUTHORIZED || code == USER_REVOKED || code == SESSION_SUPERSEDED
 
 		/**
 		 * What to tell the player, given a code the *server* answered with.

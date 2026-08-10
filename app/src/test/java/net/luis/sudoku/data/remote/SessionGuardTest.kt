@@ -13,9 +13,19 @@ import org.junit.Test
 class SessionGuardTest {
 
 	@Test
-	fun isAuthFailure_acceptsBothCodesThatMeanTheSessionIsGone() {
+	fun isAuthFailure_acceptsEveryCodeThatMeansThisTokenNoLongerWorks() {
 		assertTrue(SessionGuard.isAuthFailure(SessionGuard.UNAUTHORIZED))
 		assertTrue(SessionGuard.isAuthFailure(SessionGuard.USER_REVOKED))
+		// The server distinguishes a replaced token from an unknown one now. Not recognising it would leave
+		// a component holding the older token failing forever, since nothing else retries.
+		assertTrue(SessionGuard.isAuthFailure(SessionGuard.SESSION_SUPERSEDED))
+	}
+
+	@Test
+	fun reasonFor_aSupersededSession_isNotAKick() {
+		// It is this same device having re-authenticated - sessions are per device (server-spec 6.2), so no
+		// other device can produce this code. Recovering from it is silent; only USER_REVOKED is a verdict.
+		assertEquals(SessionEndReason.SESSION_ENDED, SessionGuard.reasonFor(SessionGuard.SESSION_SUPERSEDED))
 	}
 
 	@Test

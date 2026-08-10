@@ -56,20 +56,27 @@ class HomeViewModel @Inject constructor(
 		private set
 
 	init {
-		refresh()
+		// Collected rather than read once. The streak and the balance are account state now, which means
+		// something other than this screen changes them: AccountSync adopts what another device earned, and
+		// it runs on the heartbeat - so a one-shot read would leave the card showing the old numbers for as
+		// long as the player stayed on the home screen.
+		this.viewModelScope.launch {
+			this@HomeViewModel.dailyStore.record.collect { record ->
+				this@HomeViewModel.streak = record.streak
+				this@HomeViewModel.dailySolvedToday = record.solved && record.date == today()
+			}
+		}
+		this.viewModelScope.launch {
+			this@HomeViewModel.currencyStore.state.collect { this@HomeViewModel.currencyBalance = it.balance }
+		}
+		this.viewModelScope.launch {
+			this@HomeViewModel.serverConfigStore.config.collect { this@HomeViewModel.restoreAvailable = it.isAuthenticated }
+		}
 	}
 
-	fun refresh() {
-		this.viewModelScope.launch {
-			val record = this@HomeViewModel.dailyStore.current()
-			val config = this@HomeViewModel.serverConfigStore.current()
-			val today = config.cachedTimezone?.let { LocalDate.now(ZoneId.of(it)) } ?: LocalDate.now()
-
-			this@HomeViewModel.streak = record.streak
-			this@HomeViewModel.dailySolvedToday = record.solved && record.date == today
-			this@HomeViewModel.currencyBalance = this@HomeViewModel.currencyStore.current().balance
-			this@HomeViewModel.restoreAvailable = config.isAuthenticated
-		}
+	private suspend fun today(): LocalDate {
+		val config = this.serverConfigStore.current()
+		return config.cachedTimezone?.let { LocalDate.now(ZoneId.of(it)) } ?: LocalDate.now()
 	}
 
 	/** Eligibility is fetched only when the player actually asks, never on every home-screen visit. */
@@ -102,7 +109,7 @@ class HomeViewModel @Inject constructor(
 		this.restorePreview = null
 	}
 
-	/** The POST response is authoritative, no follow-up GET - same precedent as the currency sync. */
+	/** The POST response is authoritative for the streak itself; the balance it cost is read back. */
 	fun restoreStreak() {
 		this.viewModelScope.launch {
 			val config = this@HomeViewModel.serverConfigStore.current()
@@ -111,15 +118,15 @@ class HomeViewModel @Inject constructor(
 			this@HomeViewModel.busy = true
 			try {
 				val streak = this@HomeViewModel.apiClient.restoreDailyStreak(baseUrl, token)
-				this@HomeViewModel.streak = streak.current
-
 				val record = this@HomeViewModel.dailyStore.current()
+				// The collector repaints `streak` from this write - it is no longer set by hand, or the
+				// store and the screen could disagree about a number that now comes from two places.
 				this@HomeViewModel.dailyStore.save(record.copy(streak = streak.current))
 
-				val currency = this@HomeViewModel.currencyStore.current()
-				val serverBalance = this@HomeViewModel.apiClient.syncCurrency(baseUrl, token, currency.balance).balance
-				this@HomeViewModel.currencyStore.save(currency.copy(balance = serverBalance))
-				this@HomeViewModel.currencyBalance = serverBalance
+				// A read, not a sync: the restore has just *spent* Rhubarb, so reporting the balance this
+				// device still remembers is precisely how the cost would be handed straight back.
+				val serverBalance = this@HomeViewModel.apiClient.currencyBalance(baseUrl, token).balance
+				this@HomeViewModel.currencyStore.adoptServerBalance(serverBalance)
 
 				this@HomeViewModel.restorePreview = null
 			} catch (e: ApiException) {

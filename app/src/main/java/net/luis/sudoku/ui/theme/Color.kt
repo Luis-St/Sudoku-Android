@@ -73,6 +73,15 @@ val OutlineDark = Color(0xFF918F9A)
 val ErrorDark = Color(0xFFFFB4AB)
 val OnErrorDark = Color(0xFF690005)
 
+/**
+ * What a popup is drawn on in dark mode - dialogs, menus, sheets (Material's `surfaceContainer*` roles).
+ * <p>
+ * Light mode pins all of them to plain white, because there the point is that no popup is a different
+ * shade from any other. Dark mode cannot do the same: a dialog painted [SurfaceDark] on a [SurfaceDark]
+ * page has no edge at all, so it gets one tone up, the same for every container role.
+ */
+val SurfaceContainerDark = Color(0xFF1F1F27)
+
 val BackgroundGradientTopDark = Color(0xFF1D1D2E)
 val BackgroundGradientBottomDark = Color(0xFF131318)
 

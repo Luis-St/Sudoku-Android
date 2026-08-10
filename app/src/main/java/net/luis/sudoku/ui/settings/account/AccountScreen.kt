@@ -43,6 +43,7 @@ import net.luis.sudoku.device.DeviceNames
 import net.luis.sudoku.ui.common.GradientButton
 import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.common.SectionCard
+import net.luis.sudoku.ui.common.dialogContainerColor
 import net.luis.sudoku.ui.common.friendlyErrorMessage
 import net.luis.sudoku.ui.common.isValidEmail
 import net.luis.sudoku.ui.settings.EmailVerificationState
@@ -108,6 +109,9 @@ fun AccountScreen(
 	viewModel.errorMessage?.let { message ->
 		AlertDialog(
 			onDismissRequest = viewModel::dismissError,
+			// Account item 1: the app's own popup surface, not Material's tonally elevated container. The
+			// theme pins that role too, so this is agreement rather than the only thing holding the colour up.
+			containerColor = dialogContainerColor(),
 			title = { Text(stringResource(R.string.dialog_error_title)) },
 			text = { Text(friendlyErrorMessage(viewModel.errorCode ?: "", message)) },
 			confirmButton = { TextButton(onClick = viewModel::dismissError) { Text(stringResource(R.string.action_ok)) } }
@@ -117,6 +121,7 @@ fun AccountScreen(
 	if (showGenVersionMismatch) {
 		AlertDialog(
 			onDismissRequest = { showGenVersionMismatch = false },
+			containerColor = dialogContainerColor(),
 			title = { Text(stringResource(R.string.dialog_update_required_title)) },
 			text = { Text(stringResource(R.string.dialog_update_required_body)) },
 			confirmButton = { TextButton(onClick = { showGenVersionMismatch = false }) { Text(stringResource(R.string.action_ok)) } }
@@ -126,6 +131,7 @@ fun AccountScreen(
 	viewModel.linkCode?.let { code ->
 		AlertDialog(
 			onDismissRequest = viewModel::dismissLinkCode,
+			containerColor = dialogContainerColor(),
 			title = { Text(stringResource(R.string.dialog_link_code_title)) },
 			text = { SelectionContainer { Text(code) } },
 			confirmButton = { TextButton(onClick = viewModel::dismissLinkCode) { Text(stringResource(R.string.action_done)) } }
@@ -609,6 +615,7 @@ private fun AccountStepContent(viewModel: SettingsViewModel, onServerStateChange
 						horizontalArrangement = Arrangement.SpaceBetween,
 						verticalAlignment = Alignment.CenterVertically
 					) {
+						// Only live devices reach this list - see SettingsViewModel.refreshDevices.
 						Text(
 							(device.label ?: stringResource(R.string.settings_unnamed_device)) +
 								if (device.current) stringResource(R.string.settings_this_device_suffix) else ""

@@ -213,6 +213,16 @@ class ApiClient @Inject constructor(private val client: HttpClient, private val 
 			}
 		)
 
+	/**
+	 * The account's authoritative balance, read without reporting anything.
+	 *
+	 * [syncCurrency] is the wrong call for a device that has minted nothing since it last reconciled: it
+	 * offers a number, and the server takes whichever is larger. On a second device that is how a balance
+	 * spent elsewhere gets pushed back up - see [net.luis.sudoku.domain.AccountSync].
+	 */
+	suspend fun currencyBalance(baseUrl: String, token: String): CurrencyResponse =
+		handle(this.client.get(url(baseUrl, "currency")) { authorized(token) })
+
 	suspend fun syncCurrency(baseUrl: String, token: String, reportedBalance: Long, gamesPlayed: Int? = null): CurrencyResponse =
 		handle(
 			this.client.post(url(baseUrl, "currency/sync")) {

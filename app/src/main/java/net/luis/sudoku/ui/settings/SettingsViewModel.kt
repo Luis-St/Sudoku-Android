@@ -9,13 +9,12 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import net.luis.sudoku.data.keystore.DeviceKeyManager
-import net.luis.sudoku.data.local.CurrencyStore
 import net.luis.sudoku.data.local.DailyResultQueueStore
 import net.luis.sudoku.data.local.isPermanentDailyRejection
 import net.luis.sudoku.data.local.ServerConfig
 import net.luis.sudoku.data.local.ServerConfigStore
 import net.luis.sudoku.data.local.StatisticsStore
-import net.luis.sudoku.domain.StreakPublisher
+import net.luis.sudoku.domain.AccountSync
 import net.luis.sudoku.data.remote.ApiClient
 import net.luis.sudoku.data.remote.ApiException
 import net.luis.sudoku.data.remote.dto.DeviceResponse
@@ -33,10 +32,9 @@ class SettingsViewModel @Inject constructor(
 	private val apiClient: ApiClient,
 	private val keyManager: DeviceKeyManager,
 	private val configStore: ServerConfigStore,
-	private val currencyStore: CurrencyStore,
 	private val statisticsStore: StatisticsStore,
 	private val dailyResultQueueStore: DailyResultQueueStore,
-	private val streakPublisher: StreakPublisher
+	private val accountSync: AccountSync
 ) : ViewModel() {
 
 	var config by mutableStateOf(ServerConfig.UNCONFIGURED)
@@ -307,17 +305,42 @@ class SettingsViewModel @Inject constructor(
 		this.errorCode = null
 	}
 
+	/**
+	 * The account's *live* devices. A revoked one is dropped here rather than rendered.
+	 *
+	 * `GET /devices` returns revoked devices too - they are the server's record of what this account has
+	 * ever had, and `DeviceResponse.revoked` says which is which. Ignoring that flag is what made revoking
+	 * look broken: the request succeeded, the row came straight back from the refresh looking untouched,
+	 * with its Revoke button still on it, and pressing that again was a silent no-op because the server
+	 * treats revoking an already-revoked device as idempotent.
+	 */
 	private suspend fun refreshDevices() {
 		val baseUrl = this.config.serverUrl ?: return
 		val token = this.config.sessionToken ?: return
-		this.devices = this.apiClient.devices(baseUrl, token)
+		this.devices = this.apiClient.devices(baseUrl, token).filterNot { it.revoked }
 	}
 
+	/**
+	 * Stores a session and then asks the server what it knows about the account behind it.
+	 *
+	 * The [refreshAccount] call is account item 2, and it is the whole of that fix. Verification state is a
+	 * property of the *account*, but the only place it is ever read is `GET /users/me`, and that used to
+	 * happen exactly once - in `init`, and only for a device that was already signed in when the screen
+	 * opened. So every sign-in that happened while the screen was open computed the panel from an empty
+	 * local store instead: a device that had just been linked to an account with a long-verified address
+	 * was told to set one up, from step 1 of 2, and typing it in really did put the account through the
+	 * whole round trip again (the server does not answer `EMAIL_TAKEN` for your own address).
+	 */
 	private suspend fun storeSession(token: String, userId: String, displayName: String, role: String) {
 		this.configStore.setSession(token, userId, displayName, role)
 		this.config = this.configStore.current()
 		this.emailState = EmailVerificationState.of(this.config)
+		refreshAccount()
 		flushQueuedDailyResults()
+		// Everything the account already has that this device does not: Rhubarb, the daily streak, the
+		// standing daily difficulty. A device that has just linked renders its own empty stores otherwise,
+		// which is precisely what "the new device does not fetch anything" was.
+		this.accountSync.sync()
 	}
 
 	/** feature-spec §8.3.1: "the result is queued locally and submitted on the next successful connection." */
@@ -335,7 +358,15 @@ class SettingsViewModel @Inject constructor(
 		}
 	}
 
-	/** Offline-to-online transition (§7/§9): local stats/currency are pushed once, right after first auth. */
+	/**
+	 * Offline-to-online transition (§7/§9): this device's local game history is pushed once, right after
+	 * first auth.
+	 *
+	 * Only the history. Rhubarb, the streak and the daily difficulty used to be reconciled here too, and
+	 * they belong to [AccountSync] now - they are two-way and they have to keep happening, while this is a
+	 * genuinely one-shot push of rows only this device has. [storeSession] runs the sync just before this,
+	 * so both still happen at sign-in.
+	 */
 	private suspend fun syncLocalHistory(baseUrl: String, token: String) {
 		val entries = this.statisticsStore.toSyncEntries()
 		if (entries.isNotEmpty()) this.apiClient.syncStats(baseUrl, token, entries)
@@ -343,18 +374,6 @@ class SettingsViewModel @Inject constructor(
 		// is what stops the per-game upload from sending them again one at a time: the server's counters
 		// only ever increment, so that would count this history twice.
 		this.statisticsStore.markAllUploaded()
-
-		val currency = this.currencyStore.current()
-		val serverBalance = this.apiClient.syncCurrency(baseUrl, token, currency.balance).balance
-		// The server's plausibility-checked balance is authoritative once connected (§6a) - no user-facing
-		// "your balance was adjusted" message, silently accepted.
-		this.currencyStore.save(currency.copy(balance = serverBalance))
-
-		// The streak is not part of that bulk merge and never has been - the server refuses to take one on
-		// trust from `/stats/sync` (server-spec §9). It has its own one-way endpoint, and this is the
-		// earliest moment it can be offered: a device that registers or links with days already on it would
-		// otherwise wait for the first heartbeat to report them.
-		this.streakPublisher.publish()
 	}
 
 	private fun runOrReportError(block: suspend () -> Unit) {

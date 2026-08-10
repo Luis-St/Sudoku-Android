@@ -407,11 +407,16 @@ fun ProgressRow(
  */
 /**
  * The one surface every popup shares - the info dialog, the share dialog (share item 2) and the generator's
- * dropdown menu (generator item 1). Plain surface, not Material's tonally elevated container: two popups on
- * the same screen must not be two different shades of white.
+ * dropdown menu (generator item 1). Two popups on the same screen must not be two different shades.
+ *
+ * Account item 1: this reads `surfaceContainerHigh` rather than `surface` now, and the theme pins that role
+ * (with the other four container tones) to the app's own surface colour. Naming the role Material actually
+ * defaults dialogs and menus to is what makes the popups that *do not* call this - twenty-one bare
+ * `AlertDialog`s across the app, the link-code one among them - come out the same colour as the three that
+ * do, instead of the lavender-grey of Material's unstyled baseline palette.
  */
 @Composable
-fun dialogContainerColor(): Color = MaterialTheme.colorScheme.surface
+fun dialogContainerColor(): Color = MaterialTheme.colorScheme.surfaceContainerHigh
 
 @Composable
 fun InfoDialog(title: String, body: String, onDismiss: () -> Unit) {

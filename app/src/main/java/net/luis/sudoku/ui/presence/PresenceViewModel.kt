@@ -17,7 +17,7 @@ import net.luis.sudoku.data.local.ServerConfigStore
 import net.luis.sudoku.data.remote.ApiClient
 import net.luis.sudoku.data.remote.dto.MatchRequestResponse
 import net.luis.sudoku.domain.GameResultUploader
-import net.luis.sudoku.domain.StreakPublisher
+import net.luis.sudoku.domain.AccountSync
 import javax.inject.Inject
 
 /**
@@ -41,7 +41,7 @@ class PresenceViewModel @Inject constructor(
 	private val serverConfigStore: ServerConfigStore,
 	private val dailyResultQueueStore: DailyResultQueueStore,
 	private val gameResultUploader: GameResultUploader,
-	private val streakPublisher: StreakPublisher
+	private val accountSync: AccountSync
 ) : ViewModel() {
 
 	/**
@@ -103,6 +103,9 @@ class PresenceViewModel @Inject constructor(
 	 */
 	suspend fun runHeartbeat() {
 		var intervalMs = DEFAULT_INTERVAL_MS
+		// Zero rather than "now": the first beat after the app comes to the front should sync, since that
+		// is the moment another device's changes are most likely to be waiting.
+		var lastAccountSyncAt = 0L
 		try {
 			while (true) {
 				val credentials = serverCredentials()
@@ -132,10 +135,19 @@ class PresenceViewModel @Inject constructor(
 					// that the server is back, so it is the only place a backlog can drain from - nothing
 					// else runs while the player is not on a screen that talks to the server.
 					this.gameResultUploader.flush()
-					// And the streak itself, for the days the server never saw earned - a queued daily that
-					// was dropped rather than submitted leaves the local count as the only record of them.
-					// Last, because it is the one that should reflect whatever the two flushes above landed.
-					this.streakPublisher.publish()
+					// And the account's own state, in both directions: the days the server never saw earned
+					// go up, and the Rhubarb, streak and daily difficulty that another device of this player
+					// changed come down. Last, because it is the one that should reflect whatever the two
+					// flushes above landed.
+					//
+					// On its own throttle rather than every beat. A beat is five seconds and exists to say
+					// "still here", which costs one request; this costs three, and account state that is at
+					// most half a minute stale is indistinguishable from live for anything the player looks
+					// at. The sign-in path syncs directly, so a freshly linked device never waits for this.
+					if (System.currentTimeMillis() - lastAccountSyncAt >= ACCOUNT_SYNC_INTERVAL_MS) {
+						lastAccountSyncAt = System.currentTimeMillis()
+						this.accountSync.sync()
+					}
 				} catch (e: CancellationException) {
 					throw e
 				} catch (e: Exception) {
@@ -265,6 +277,13 @@ class PresenceViewModel @Inject constructor(
 		 * letting a shorter TTL pull it lower.
 		 */
 		const val MIN_INTERVAL_MS = 5_000L
+
+		/**
+		 * How often the account's own state is reconciled, independently of the beat - see the call site.
+		 * Half a minute is well inside "the other device changed something and this one has not noticed",
+		 * and well outside the five second beat that only has to say this client is still here.
+		 */
+		const val ACCOUNT_SYNC_INTERVAL_MS = 30_000L
 
 		/** How often a signed-out loop re-checks for credentials. Costs one local read, no request. */
 		const val SIGNED_OUT_POLL_MS = 1_000L

@@ -41,4 +41,30 @@ class CurrencyStoreTest {
 		assertEquals(3, loaded.normalGamesEarnedToday)
 		assertEquals(date, loaded.earnDate)
 	}
+
+	@Test
+	fun adoptServerBalance_setsBothTheBalanceAndTheMarkItIsMeasuredAgainst() = runBlocking {
+		val store = newStore()
+
+		store.adoptServerBalance(300L)
+		val loaded = store.current()
+
+		assertEquals(300L, loaded.balance)
+		assertEquals(300L, loaded.reconciledBalance)
+	}
+
+	@Test
+	fun save_doesNotMoveTheReconciledBalance() = runBlocking {
+		// Awards earned since the last reconcile are exactly what the next sync may offer the server, so a
+		// local write must leave the mark where the server put it - the game screen builds its state from a
+		// controller that has never heard of it.
+		val store = newStore()
+		store.adoptServerBalance(300L)
+
+		store.save(CurrencyState(balance = 340L, normalGamesEarnedToday = 1, earnDate = LocalDate.of(2026, 8, 10)))
+		val loaded = store.current()
+
+		assertEquals(340L, loaded.balance)
+		assertEquals(300L, loaded.reconciledBalance)
+	}
 }

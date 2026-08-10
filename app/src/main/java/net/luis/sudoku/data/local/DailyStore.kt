@@ -7,7 +7,9 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.domain.DailyRecord
 import java.time.LocalDate
@@ -100,8 +102,18 @@ class DailyStore @Inject constructor(@DailyDataStore private val dataStore: Data
 		}
 	}
 
-	suspend fun current(): DailyRecord {
-		val prefs = this.dataStore.data.first()
+	/**
+	 * The stored record as it changes, for callers that must repaint when something *else* writes it.
+	 *
+	 * The home screen is the one that needs it: [net.luis.sudoku.domain.AccountSync] adopts a streak another
+	 * device earned while the player is sitting on that screen, and a one-shot read at construction shows
+	 * the old number until the destination is left and re-entered.
+	 */
+	val record: Flow<DailyRecord> = this.dataStore.data.map(::toRecord)
+
+	suspend fun current(): DailyRecord = toRecord(this.dataStore.data.first())
+
+	private fun toRecord(prefs: Preferences): DailyRecord {
 		return DailyRecord(
 			date = prefs[DATE]?.let(LocalDate::parse),
 			solved = prefs[SOLVED] ?: false,
