@@ -124,14 +124,16 @@ data class PuzzleLoading(
 }
 
 /**
- * The slow tail, drawn from the Q6 measurements in DIFFICULTY-15-HANDOFF §5 (2026-08-09). A phone is several
- * times slower again than the desktop JVM those numbers were taken on.
+ * The slow tail, drawn from generator measurements taken on a desktop JVM. A phone is several times slower
+ * again than the machine those numbers came from.
  *
- * **16x16 is slow at every band, and that is not a simplification.** Cost there is not monotone in the band:
- * measured averages run 24 ms at band 1, 1.6 s at band 4, **25.7 s at band 6** with a 306 s worst case, 20 s
- * at band 9 and 19.8 s at band 14, yet only 0.8 s at band 12 and 1.5 s at band 15. A threshold of the form
- * "band N and above" cannot describe that shape, so this does not try: at this size the honest answer is that
- * any band may take a long time.
+ * **16x16 warns at every band.** The 2026-08-09 numbers this was first written against - 25.7 s at band 6,
+ * 306 s worst case - were taken before `SolutionFiller` gained its node bound, and no longer hold: re-measured
+ * on 2026-08-10 at 32 seeds a band, 16x16 classic runs 0.4 to 3.3 s per band with a 7.2 s worst case, and
+ * 16x16 chaos is under a second. The blanket warning is kept anyway, for the reason it was chosen: the fill
+ * distribution at this size is heavy-tailed with no ceiling, so any band may still occasionally take far
+ * longer than its average, and cost is not monotone in the band. **Worth revisiting** - on the new numbers a
+ * narrower rule, or none at all at 16x16 chaos, would be defensible.
  *
  * **12x12 is never slow.** It measured as the strongest size of all, averaging 10 to 339 ms per puzzle with a
  * 1.5 s worst case, which is quick even after the phone penalty.

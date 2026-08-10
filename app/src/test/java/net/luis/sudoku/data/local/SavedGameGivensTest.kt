@@ -127,13 +127,19 @@ class SavedGameGivensTest {
 }
 
 /**
- * The 3 to 4 migration, run against a real version-3 database file.
+ * The saved-game migrations, run against a real version-3 database file and carried all the way to the
+ * current version.
  *
- * Two things have to hold and the second is the awkward one. The column has to arrive, and every existing
- * row has to be gone: a pre-2.0.0 save has no givens and cannot be restored correctly under generator 2, so
- * keeping it would mean handing the player a scrambled board rather than an empty slot. Room opening the
- * migrated file afterwards is the other half of the proof - it validates the result against the exported
- * schema, so a wrong `ALTER` fails here rather than on a phone.
+ * For 3 to 4, two things have to hold and the second is the awkward one. The column has to arrive, and every
+ * existing row has to be gone: a pre-2.0.0 save has no givens and cannot be restored correctly under
+ * generator 2, so keeping it would mean handing the player a scrambled board rather than an empty slot.
+ *
+ * For 4 to 5 the deletion is *selective*, which is the part worth a test of its own: generator 3 regrows a
+ * different jigsaw for the same key, so chaos saves have to go while classic saves - whose layout is the
+ * fixed box layout and therefore generator-independent - have to survive.
+ *
+ * Room opening the migrated file afterwards is the other half of the proof in both cases: it validates the
+ * result against the exported schema, so a wrong `ALTER` fails here rather than on a phone.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -156,7 +162,7 @@ class SavedGameMigrationTest {
 		createVersion3Database()
 
 		val database = Room.databaseBuilder(RuntimeEnvironment.getApplication(), AppDatabase::class.java, this.name)
-			.addMigrations(MIGRATION_2_3, MIGRATION_3_4)
+			.addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
 			.allowMainThreadQueries()
 			.build()
 
@@ -186,6 +192,53 @@ class SavedGameMigrationTest {
 			database.close()
 		}
 	}
+
+	@Test
+	fun migration4To5_dropsTheChaosSavesAndKeepsTheClassicOnes() {
+		createVersion3Database()
+
+		val database = Room.databaseBuilder(RuntimeEnvironment.getApplication(), AppDatabase::class.java, this.name)
+			.addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+			.allowMainThreadQueries()
+			.build()
+
+		try {
+			runBlocking {
+				database.savedGameDao().upsert(save(SaveSlot.NORMAL, "CLASSIC"))
+				database.savedGameDao().upsert(save(SaveSlot.DAILY, "CHAOS"))
+
+				// The migration has already run by now, so it is re-run by hand against the same rows: what is
+				// being proven is the statement, not the moment it fires.
+				MIGRATION_4_5.migrate(database.openHelper.writableDatabase)
+
+				assertNotNull(
+					"a classic save is described by its givens alone and must survive a generator bump",
+					database.savedGameDao().get(SaveSlot.NORMAL.name)
+				)
+				assertNull(
+					"a chaos save's layout is regrown from the key, so generator 3 would restore it onto a different jigsaw",
+					database.savedGameDao().get(SaveSlot.DAILY.name)
+				)
+			}
+		} finally {
+			database.close()
+		}
+	}
+
+	private fun save(slot: SaveSlot, variant: String) = SavedGameEntity(
+		slot = slot.name,
+		size = "NINE",
+		variant = variant,
+		difficulty = "ONE",
+		seed = 1L,
+		valuesJson = "[]",
+		pencilMarksJson = "[]",
+		elapsedMillis = 0L,
+		livesRemaining = 5,
+		hintsUsed = 0,
+		undoStackJson = kotlinx.serialization.json.Json.encodeToString(UndoStack().toPersisted()),
+		givens = "AAAA"
+	)
 
 	/** The exact version-3 schema, taken from `app/schemas/.../3.json`, plus one saved game to be thrown away. */
 	private fun createVersion3Database() {

@@ -182,7 +182,7 @@ class PuzzleProvider @Inject constructor(
 		 * Lisa included, at every grid size that band is reachable at.
 		 *
 		 * This is a decision, not a leftover. When generation moved onto the server the question was left open
-		 * (DIFFICULTY-15-HANDOFF §4, Q4b) whether the fallback should be cut back to the cheap bands, because
+		 * whether the fallback should be cut back to the cheap bands, because
 		 * the hard tail is genuinely slow to build on a phone: measured on a desktop JVM, 9x9 chaos peaks near
 		 * 4.7 s and 16x16 band 11 near 10.8 s, and a phone is several times slower again. The owner ruled for
 		 * all fifteen on 2026-08-09: a player who picked a tier and then lost their connection would otherwise

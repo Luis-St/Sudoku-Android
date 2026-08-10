@@ -33,6 +33,7 @@ import net.luis.sudoku.data.local.ThemeMode
 import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.domain.DifficultyOptions
 import net.luis.sudoku.grid.GridSize
+import net.luis.sudoku.grid.Variant
 import net.luis.sudoku.ui.app.AppViewModel
 import net.luis.sudoku.ui.common.DropdownTrigger
 import net.luis.sudoku.ui.common.difficultyLabel
@@ -239,8 +240,9 @@ private fun DailyDifficultyDropdown(
 		// Shown snapped, because that is what the daily will actually be: a stored choice the configured
 		// size cannot produce is snapped by the generator anyway, and showing the unreachable one would let
 		// the setting read as ignored.
-		selectedLabel = difficultyLabel(DifficultyOptions.snap(size, selected)),
-		options = DifficultyOptions.supportedAt(size),
+		// Classic, always: the daily variant is fixed server-side and is not a setting (server-spec §3).
+		selectedLabel = difficultyLabel(DifficultyOptions.snap(size, Variant.CLASSIC, selected)),
+		options = DifficultyOptions.supportedAt(size, Variant.CLASSIC),
 		optionLabel = { difficultyLabel(it) },
 		onSelect = onSelect,
 		modifier = modifier

@@ -84,11 +84,12 @@ fun CreateMatchScreen(
 	val supportedVariants = Variant.values().filter { it.isSupportedAt(size) }
 	// Two filters, for two different reasons. Lisa carries gameplay modifiers and is single-player/daily
 	// only (§4.3), and the server rejects it for every mode regardless (server-spec §10.1). The rest is the
-	// size's own reachable set: a 6x6 board makes bands 1, 2, 3, 7 and 8 and nothing between, so a picker
-	// that offered 4 to 6 there would be offering puzzles that cannot be built. A size change re-snaps the
-	// selection rather than leaving an impossible one standing.
-	val offeredDifficulties = DifficultyOptions.multiplayerSupportedAt(size)
-	if (difficulty !in offeredDifficulties) difficulty = DifficultyOptions.snapForMultiplayer(size, difficulty)
+	// grid's own reachable set: a 6x6 board makes bands 1, 2, 3, 7 and 8 and nothing between, and a 16x16
+	// jigsaw stops at band 8, so a picker that offered the rest would be offering puzzles that cannot be
+	// built. A change to the size or the variant re-snaps the selection rather than leaving an impossible one
+	// standing.
+	val offeredDifficulties = DifficultyOptions.multiplayerSupportedAt(size, variant)
+	if (difficulty !in offeredDifficulties) difficulty = DifficultyOptions.snapForMultiplayer(size, variant, difficulty)
 
 	Column(
 		modifier = modifier

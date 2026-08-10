@@ -64,13 +64,13 @@ fun GeneratorScreen(
 	val supportedVariants = Variant.values().filter { it.isSupportedAt(size) }
 	if (variant !in supportedVariants) variant = supportedVariants.first()
 
-	// Nor does every size reach every band, and the reachable ones are not a run from one upwards - a 6x6
-	// grid makes 1, 2, 3, 7 and 8 and nothing between. Offering a band the size cannot produce would let the
-	// player ask for one thing and be handed another without a word, since the generator snaps the request
-	// onto what it can actually build. So the list is the size's own, and a size change re-snaps the
-	// selection onto it.
-	val supportedDifficulties = DifficultyOptions.supportedAt(size)
-	if (difficulty !in supportedDifficulties) difficulty = DifficultyOptions.snap(size, difficulty)
+	// Nor does every grid reach every band, and the reachable ones are not a run from one upwards - a 6x6
+	// grid makes 1, 2, 3, 7 and 8 and nothing between, and a 16x16 jigsaw stops at 8 where a 16x16 classic
+	// reaches all fifteen. Offering a band the grid cannot produce would let the player ask for one thing and
+	// be handed another without a word, since the generator snaps the request onto what it can actually
+	// build. So the list is this size and variant's own, and a change to either re-snaps the selection.
+	val supportedDifficulties = DifficultyOptions.supportedAt(size, variant)
+	if (difficulty !in supportedDifficulties) difficulty = DifficultyOptions.snap(size, variant, difficulty)
 
 	Column(
 		modifier = modifier

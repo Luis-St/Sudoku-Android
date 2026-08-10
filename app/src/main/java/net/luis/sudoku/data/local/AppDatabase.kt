@@ -13,7 +13,7 @@ import net.luis.sudoku.data.local.entity.SavedGameEntity
 
 @Database(
 	entities = [SavedGameEntity::class, GameResultEntity::class, PendingDailyResultEntity::class],
-	version = 4,
+	version = 5,
 	exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -67,5 +67,28 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
 	override fun migrate(db: SupportSQLiteDatabase) {
 		db.execSQL("ALTER TABLE saved_games ADD COLUMN givens TEXT")
 		db.execSQL("DELETE FROM saved_games")
+	}
+}
+
+/**
+ * Drops the saved **chaos** games, and only those, for generator 3.
+ *
+ * The givens column added in version 4 is what normally makes a save survive a generator change, and for a
+ * classic board it does exactly that: the region layout is the fixed box layout of the size, so the same
+ * givens describe the same board under any generator. A jigsaw board is not described by its givens alone.
+ * Its layout is grown from the key's own random stream, that stream is derived from the key *including* its
+ * `genVersion`, and a save stores no `genVersion` - so the key is rebuilt at whatever version is current and
+ * generator 3 grows a different jigsaw for it. The stored givens then belong to regions that no longer exist:
+ * at best the rebuild fails its uniqueness check and the player silently gets a fresh board, at worst their
+ * pen values and pencil marks are replayed into cells that mean something else.
+ *
+ * So the chaos rows go and the classic rows stay. Losing an unfinished jigsaw across one upgrade is a far
+ * smaller loss than one that comes back scrambled, and there is nothing stored that could reconstruct the old
+ * layout. Finished games, statistics, streaks and currency live in other tables and are untouched.
+ */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+
+	override fun migrate(db: SupportSQLiteDatabase) {
+		db.execSQL("DELETE FROM saved_games WHERE variant = 'CHAOS'")
 	}
 }

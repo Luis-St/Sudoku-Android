@@ -55,7 +55,7 @@ class PuzzleLoadingTest {
 	@Test
 	fun slowOnDevice_smallGridAtEveryBandItReaches_isNeverSlow() {
 		for (size in listOf(GridSize.FOUR, GridSize.SIX)) {
-			for (difficulty in DifficultyOptions.supportedAt(size)) {
+			for (difficulty in DifficultyOptions.supportedAt(size, Variant.CLASSIC)) {
 				assertFalse("$size band ${difficulty.index()}", loading(size, difficulty).slowOnDevice)
 			}
 		}

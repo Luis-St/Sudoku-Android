@@ -10,6 +10,7 @@ import dagger.hilt.components.SingletonComponent
 import net.luis.sudoku.data.local.AppDatabase
 import net.luis.sudoku.data.local.MIGRATION_2_3
 import net.luis.sudoku.data.local.MIGRATION_3_4
+import net.luis.sudoku.data.local.MIGRATION_4_5
 import net.luis.sudoku.data.local.dao.PendingDailyResultDao
 import net.luis.sudoku.data.local.dao.SavedGameDao
 import net.luis.sudoku.data.local.dao.StatisticsDao
@@ -27,8 +28,9 @@ object DatabaseModule {
 			// see MIGRATION_2_3. Version 4 is migrated for the opposite reason: it deliberately clears
 			// saved_games, and destructive fallback would take the history down with it. The fallback stays
 			// for the versions before them, which nothing was released on and which are not worth writing
-			// migrations backwards for.
-			.addMigrations(MIGRATION_2_3, MIGRATION_3_4)
+			// migrations backwards for. Version 5 clears the saved *chaos* games for generator 3 and keeps
+			// the classic ones, which is a distinction destructive fallback could not make.
+			.addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
 			.fallbackToDestructiveMigration(true)
 			.build()
 

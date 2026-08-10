@@ -216,7 +216,9 @@ class PuzzleProviderTest {
 		// The offline range narrows nothing a picker can offer: every band any size supports is in it, so no
 		// selection a player can make becomes unbuildable the moment the server goes away.
 		for (size in GridSize.values()) {
-			assertTrue("$size", PuzzleProvider.OFFLINE_BANDS.containsAll(DifficultyOptions.supportedAt(size)))
+			for (variant in Variant.values().filter { it.isSupportedAt(size) }) {
+				assertTrue("$size/$variant", PuzzleProvider.OFFLINE_BANDS.containsAll(DifficultyOptions.supportedAt(size, variant)))
+			}
 		}
 	}
 
