@@ -103,7 +103,53 @@ data class PuzzleLoading(
 	val variant: Variant? = null,
 	val difficulty: Difficulty? = null,
 	val onDevice: Boolean = false
-)
+) {
+
+	/**
+	 * True when this device is building one of the combinations that is known to take a long time, so the
+	 * loading screen can set the expectation before the player forms their own.
+	 *
+	 * This is the other half of the ruling behind [net.luis.sudoku.core.PuzzleProvider.OFFLINE_BANDS]. The
+	 * fallback may build all fifteen bands, which means it may also make a player wait ten seconds or more on
+	 * a phone; the answer to "is that acceptable" was yes, but only because the wait gets explained. A
+	 * ten-second silence under a spinner reads as a frozen app, and the player's next move is to kill it,
+	 * which loses the puzzle that was almost finished.
+	 *
+	 * Deliberately not a cost model. The generator's own timings are a search, not a formula, and a predicted
+	 * number of seconds would be wrong often enough to be worth less than nothing - the copy therefore says
+	 * "longer", never how long, and this only has to sort the slow tail from the rest.
+	 */
+	val slowOnDevice: Boolean
+		get() = this.onDevice && this.size != null && this.difficulty != null && isSlowToGenerate(this.size, this.difficulty)
+}
+
+/**
+ * The slow tail, drawn from the Q6 measurements in DIFFICULTY-15-HANDOFF §5 (2026-08-09). A phone is several
+ * times slower again than the desktop JVM those numbers were taken on.
+ *
+ * **16x16 is slow at every band, and that is not a simplification.** Cost there is not monotone in the band:
+ * measured averages run 24 ms at band 1, 1.6 s at band 4, **25.7 s at band 6** with a 306 s worst case, 20 s
+ * at band 9 and 19.8 s at band 14, yet only 0.8 s at band 12 and 1.5 s at band 15. A threshold of the form
+ * "band N and above" cannot describe that shape, so this does not try: at this size the honest answer is that
+ * any band may take a long time.
+ *
+ * **12x12 is never slow.** It measured as the strongest size of all, averaging 10 to 339 ms per puzzle with a
+ * 1.5 s worst case, which is quick even after the phone penalty.
+ *
+ * 9x9 keeps its line at band 11, where the first genuine chains start and where the measured chaos peak of
+ * 4.7 s sits. 4x4 and 6x6 are instant at every band they can reach.
+ *
+ * An earlier version of this predicate put 12x12 and 16x16 together at "band 8 and above", reasoning from the
+ * 9x9 numbers before the large grids had been measured. That was wrong twice: it warned on 12x12, which never
+ * needs it, and stayed silent on 16x16 bands 4 and 6, which are among the very worst. This is a copy decision
+ * and nothing downstream depends on it, so the cost of being wrong is a sentence shown once too often or once
+ * too rarely, never a wrong puzzle.
+ */
+private fun isSlowToGenerate(size: GridSize, difficulty: Difficulty): Boolean = when (size) {
+	GridSize.FOUR, GridSize.SIX, GridSize.TWELVE -> false
+	GridSize.NINE -> difficulty.index() >= 11
+	GridSize.SIXTEEN -> true
+}
 
 /**
  * Owns one [GameSession] plus lives/hints/timer/undo and the A2 input model (feature-spec §4.4, §5, §6,

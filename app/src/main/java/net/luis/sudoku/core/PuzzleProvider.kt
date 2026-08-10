@@ -39,8 +39,8 @@ enum class PuzzleOrigin { SERVER, DEVICE }
  * (`GivensCodec`), and rebuilding from that costs milliseconds against up to a second of local generation.
  * So the order is: ask the server, decode what it sends, and generate locally only when there is nothing to
  * decode. Local generation is not a degraded puzzle - it is the same generator the server runs, and it may
- * claim all fifteen bands - it is only the slow way to the same place, which is why callers are told about
- * it through [PuzzleOrigin] rather than left watching an unexplained spinner.
+ * claim all fifteen bands ([OFFLINE_BANDS]) - it is only the slow way to the same place, which is why callers
+ * are told about it through [PuzzleOrigin] rather than left watching an unexplained spinner.
  */
 @Singleton
 class PuzzleProvider @Inject constructor(
@@ -135,6 +135,7 @@ class PuzzleProvider @Inject constructor(
 				return session
 			}
 		}
+		// Nothing is filtered here, and that is the ruling rather than an omission: see [OFFLINE_BANDS].
 		onOrigin(PuzzleOrigin.DEVICE)
 		return GameSession.generate(key)
 	}
@@ -172,5 +173,34 @@ class PuzzleProvider @Inject constructor(
 		this.toPuzzleKey()
 	} catch (e: IllegalArgumentException) {
 		null
+	}
+
+	companion object {
+
+		/**
+		 * Every band the offline fallback is allowed to produce, which is every band there is: all fifteen,
+		 * Lisa included, at every grid size that band is reachable at.
+		 *
+		 * This is a decision, not a leftover. When generation moved onto the server the question was left open
+		 * (DIFFICULTY-15-HANDOFF §4, Q4b) whether the fallback should be cut back to the cheap bands, because
+		 * the hard tail is genuinely slow to build on a phone: measured on a desktop JVM, 9x9 chaos peaks near
+		 * 4.7 s and 16x16 band 11 near 10.8 s, and a phone is several times slower again. The owner ruled for
+		 * all fifteen on 2026-08-09: a player who picked a tier and then lost their connection would otherwise
+		 * be told the tier they chose is unavailable, and a refused puzzle is a worse failure than a slow one.
+		 * The fallback is also rare now, since it only runs when the server cannot be reached or sends no
+		 * givens.
+		 *
+		 * The rejected alternative was a restricted offline range, and the trap it carries is that the
+		 * restriction is invisible: the generator snaps an unsupported request onto the nearest band it will
+		 * build, so a capped fallback does not refuse tier 13, it silently hands out tier 9 and says nothing.
+		 * There is deliberately no flag and no filter to go with this constant - the whole point is that there
+		 * is nothing to configure - so the price is paid in waiting instead, and the wait is explained to the
+		 * player by [net.luis.sudoku.ui.game.PuzzleLoading.slowOnDevice].
+		 *
+		 * What a *size* can produce is a separate and older limit, measured by shared-core and surfaced by
+		 * [net.luis.sudoku.domain.DifficultyOptions]: a 4x4 grid is band 1 whether the puzzle is fetched or
+		 * built here. This constant narrows nothing beyond that.
+		 */
+		val OFFLINE_BANDS: Set<Difficulty> = Difficulty.values().toSet()
 	}
 }

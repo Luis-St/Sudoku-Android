@@ -425,6 +425,7 @@
 	<string name="puzzle_loading_from_server">Fetching a fresh grid from the server.</string>
 	<string name="puzzle_loading_on_device">The server could not be reached, so your device is building the puzzle itself.</string>
 	<string name="puzzle_loading_on_device_note">That takes longer than fetching one, and the harder tiers take the longest. The puzzle is exactly the same either way.</string>
+	<string name="puzzle_loading_on_device_slow">This is one of the slower ones to build, on this board size at this tier, so it takes noticeably longer than usual. Nothing has gone wrong, please keep the app open. The puzzle is exactly the same either way.</string>
 	<string name="puzzle_loading_puzzle">Coming up: %1$s, %2$s, %3$s</string>
 
 </resources>

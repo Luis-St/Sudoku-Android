@@ -38,6 +38,8 @@ import net.luis.sudoku.ui.theme.ActionAccent
  * board is generated on the phone instead, and at the hard end of fifteen bands that takes seconds. A
  * spinner says only "something is happening", which for a several-second wait reads as a stuck app - so this
  * says which puzzle is coming and, when it applies, that the device is building it and why that is slower.
+ * A known-slow size and band together ([PuzzleLoading.slowOnDevice]) get their own line, since that is the
+ * wait long enough to be mistaken for a hung app.
  *
  * Built from the app's own pieces ([SectionCard], the accent gradients) rather than Material's defaults, so
  * a screen the player sees on the way into every game belongs to the same app as the one after it.
@@ -75,9 +77,13 @@ fun PuzzleLoadingScreen(loading: PuzzleLoading, modifier: Modifier = Modifier) {
 					)
 				}
 
+				// The slow line replaces the ordinary one rather than joining it: both say "this is slower than
+				// fetching", and the second sentence of a two-sentence card is where a player stops reading.
 				if (loading.onDevice) {
 					Text(
-						text = stringResource(R.string.puzzle_loading_on_device_note),
+						text = stringResource(
+							if (loading.slowOnDevice) R.string.puzzle_loading_on_device_slow else R.string.puzzle_loading_on_device_note
+						),
 						style = MaterialTheme.typography.bodySmall,
 						color = MaterialTheme.colorScheme.onSurfaceVariant,
 						modifier = Modifier.padding(top = 8.dp)

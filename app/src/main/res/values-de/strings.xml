@@ -393,6 +393,7 @@
 	<string name="puzzle_loading_from_server">Ein frisches Gitter wird vom Server geladen.</string>
 	<string name="puzzle_loading_on_device">Der Server ist nicht erreichbar, dein Gerät erstellt das Rätsel deshalb selbst.</string>
 	<string name="puzzle_loading_on_device_note">Das dauert länger als das Laden, bei den schweren Stufen am längsten. Das Rätsel ist in beiden Fällen genau dasselbe.</string>
+	<string name="puzzle_loading_on_device_slow">Diese Kombination aus Feldgröße und Stufe gehört zu den aufwendigsten, deshalb dauert es spürbar länger als sonst. Es ist nichts schiefgelaufen, lass die App bitte offen. Das Rätsel ist in beiden Fällen genau dasselbe.</string>
 	<string name="puzzle_loading_puzzle">Es kommt: %1$s, %2$s, %3$s</string>
 
 </resources>

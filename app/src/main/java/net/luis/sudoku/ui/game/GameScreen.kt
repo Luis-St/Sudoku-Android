@@ -42,7 +42,6 @@ import net.luis.sudoku.ui.input.NumberPad
 import net.luis.sudoku.ui.navigation.PlayMode
 import net.luis.sudoku.ui.navigation.PlayRequest
 import net.luis.sudoku.ui.theme.ActionAccent
-import net.luis.sudoku.ui.theme.BoardThemeCatalog
 import net.luis.sudoku.ui.theme.LocalBoardPalette
 
 /**
@@ -109,13 +108,10 @@ fun GameScreen(
 		return
 	}
 
-	// Lisa's board theme is difficulty-driven, not a player cosmetic choice (feature-spec §4.3) - it
-	// overrides whatever board theme the shop has selected, for the duration of a Lisa puzzle only.
-	val palette = if (viewModel.isLisa) {
-		if (isDark()) BoardThemeCatalog.LISA.dark else BoardThemeCatalog.LISA.light
-	} else {
-		LocalBoardPalette.current
-	}
+	// Lisa used to override the board palette with a red look of its own. It no longer does, at the owner's
+	// instruction: Lisa is a set of gameplay modifiers (feature-spec §4.3), and the board it is played on
+	// looks like every other board, so the player's selected board theme holds on every difficulty.
+	val palette = LocalBoardPalette.current
 	val lockedDigit = (viewModel.lock.target as? LockTarget.Digit)?.digit
 	val darkTheme = isDark()
 

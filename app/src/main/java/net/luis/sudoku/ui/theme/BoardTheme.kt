@@ -5,8 +5,8 @@ import androidx.compose.ui.graphics.Color
 
 /**
  * Cosmetic colors for the board itself - separate from Material's light/dark [androidx.compose.material3.ColorScheme]
- * (system setting, feature-spec 12/§328 - light and dark only) and from Lisa's distinct board look
- * (difficulty-driven, feature-spec 4.3). This is the seam the owner wants for the currency shop: for now
+ * (system setting, feature-spec 12/§328 - light and dark only). Nothing else overrides them: the difficulty
+ * never changes how the board is drawn. This is the seam the owner wants for the currency shop: for now
  * [BoardThemeCatalog] has exactly one entry and it is free and always owned. Adding a purchasable one
  * later is a new catalog entry plus an unlock check against the player's Rhubarb balance - not a
  * restructuring of the board, which only ever reads [LocalBoardPalette].
@@ -135,63 +135,10 @@ object BoardThemeCatalog {
 		)
 	)
 
-	/**
-	 * Lisa's distinct board look (feature-spec §4.3) - not purchasable, not in [ALL]: it's driven by the
-	 * selected difficulty, the same axis [BoardPalette.conflict] etc. serve for the shop, but a different
-	 * concern entirely (recognizability, not cosmetic choice).
-	 */
-	val LISA = BoardTheme(
-		id = "lisa",
-		displayName = "Lisa",
-		priceInRhubarb = 0,
-		ownedByDefault = true,
-		light = BoardPalette(
-			gridLine = Color(0xFF8A7A7A),
-			regionLine = Color(0xFF5C1A1A),
-			given = Color(0xFF1C0E0E),
-			penEntry = Color(0xFF5C1A1A),
-			pencilMark = Color(0xFF7A5A5A),
-			error = Color(0xFFBA1A1A),
-			// Classic's selection, at the owner's instruction, and for the same reason the marked digit below
-			// is Classic's orange: a tap means the same thing on every board, so it looks the same on every
-			// board. Lisa stays recognizable through its inks, lines and region tint, which is what the red
-			// board was for - the selection was never the part carrying that.
-			selectedCell = Color(0xFFE4DFF7),
-			peerHighlight = Color(0xFFF1EEFB),
-			// Classic's orange, at the owner's instruction: the marked digit means the same thing on every
-			// board, so it is the same colour on every board and a player moving between difficulties is not
-			// relearning what the mark looks like.
-			//
-			// This board's inks are reds rather than Classic's violet-blacks, so orange is a nearer hue here
-			// than it is there - the separation rests on value (5.4:1 from [given]'s near-black red, and the
-			// glyph is bold) rather than on the hue distance Classic gets for free. It was a cyan for exactly
-			// that reason; one colour for one meaning won.
-			sameValuePen = Color(0xFFEF6C00),
-			sameValuePencil = Color(0xFFEF6C00),
-			conflict = Color(0xFFFFB4AB),
-			hintCandidate = Color(0xFFFFC400),
-			// Classic's accent too: this is the same selection, composited over a chaos region tint instead of
-			// drawn on white, so a Lisa-specific red here would reintroduce the difference the fills just lost.
-			tintHighlight = Color(0xFF4C4ED9)
-		),
-		dark = BoardPalette(
-			gridLine = Color(0xFF6B4A4A),
-			regionLine = Color(0xFFE0A8A8),
-			given = Color(0xFFF3D9D9),
-			penEntry = Color(0xFFE0A8A8),
-			pencilMark = Color(0xFFA87A7A),
-			error = Color(0xFFFFB4AB),
-			// Classic's, as in light mode. The lifted violet reads as a selection against this board's dark
-			// reds as readily as it does against Classic's, and it is the same colour the player already knows.
-			selectedCell = Color(0xFF3A3646),
-			peerHighlight = Color(0xFF2B2836),
-			sameValuePen = Color(0xFF4DD9E0),
-			sameValuePencil = Color(0xFF4DD9E0),
-			conflict = Color(0xFF93000A),
-			hintCandidate = Color(0xFF9A6E00),
-			tintHighlight = Color(0xFFC1C1FF)
-		)
-	)
+	// Lisa used to have a board look of its own here, a red variant the game screen swapped in for the
+	// duration of a Lisa puzzle. It is gone at the owner's instruction: Lisa differs in how it plays (two
+	// lives, no hints, no auto candidates - see `ModifierSet.LISA`), not in how the board is drawn, so it
+	// renders with whatever board theme the player has selected, exactly like every other difficulty.
 
 	/** Catalog order is shop display order. Only [CLASSIC] exists until A5/A6 wire up the shop. */
 	val ALL = listOf(CLASSIC)

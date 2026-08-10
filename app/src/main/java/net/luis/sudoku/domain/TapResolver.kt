@@ -20,8 +20,8 @@ sealed interface TapAction {
  * `pencilMarks`). Nothing draws that bit while the cell is filled ([net.luis.sudoku.ui.board.CellView] shows
  * the value instead of the notes), and the toggle also suppressed the focus move, so the tap was invisible
  * twice over: players reported that cells they had filled themselves could not be selected while cells the
- * puzzle came with could. The stash is still kept and still restored by undo - it is just no longer
- * reachable by tapping a filled cell.
+ * puzzle came with could. The stash is still kept and is still restored when the cell is cleared - it is
+ * just not reachable by tapping a filled cell.
  */
 fun resolveTap(cell: CellSnapshot, lock: LockState, activeIndex: Int? = null): Pair<TapAction, LockState> {
 	// Game item 4: a second tap on the cell that is already marked takes the mark off, whichever kind of

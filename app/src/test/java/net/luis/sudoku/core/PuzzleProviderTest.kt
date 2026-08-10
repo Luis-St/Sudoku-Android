@@ -4,6 +4,7 @@ import io.ktor.client.request.HttpRequestData
 import io.ktor.http.HttpMethod
 import kotlinx.coroutines.runBlocking
 import net.luis.sudoku.difficulty.Difficulty
+import net.luis.sudoku.domain.DifficultyOptions
 import net.luis.sudoku.generation.PuzzleGenerator
 import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.grid.Variant
@@ -189,6 +190,48 @@ class PuzzleProviderTest {
 		// would mean the request was waited out rather than abandoned.
 		assertNotEquals(wouldHaveBeenServed, session.encodedGivens())
 		assertEquals(this@PuzzleProviderTest.difficulty, session.key.difficulty())
+		assertEquals(listOf(PuzzleOrigin.DEVICE), origins)
+	}
+
+	/**
+	 * The offline policy, pinned. All fifteen bands are permitted offline by ruling (see
+	 * [PuzzleProvider.OFFLINE_BANDS]), so the failure this exists to catch is somebody deciding later that the
+	 * slow bands are not worth generating on a phone and quietly cutting the range: that change looks harmless
+	 * and is not, because the generator snaps an unbuildable request onto the nearest band instead of refusing
+	 * it, so a capped fallback hands the player a different tier without a word.
+	 *
+	 * The expected set is written out rather than derived from [Difficulty], so a narrowing fails here instead
+	 * of narrowing both sides of the assertion at once.
+	 */
+	@Test
+	fun offlineBands_areAllFifteen() {
+		assertEquals(
+			setOf(
+				Difficulty.ONE, Difficulty.TWO, Difficulty.THREE, Difficulty.FOUR, Difficulty.FIVE,
+				Difficulty.SIX, Difficulty.SEVEN, Difficulty.EIGHT, Difficulty.NINE, Difficulty.TEN,
+				Difficulty.ELEVEN, Difficulty.TWELVE, Difficulty.THIRTEEN, Difficulty.FOURTEEN, Difficulty.LISA
+			),
+			PuzzleProvider.OFFLINE_BANDS
+		)
+		// The offline range narrows nothing a picker can offer: every band any size supports is in it, so no
+		// selection a player can make becomes unbuildable the moment the server goes away.
+		for (size in GridSize.values()) {
+			assertTrue("$size", PuzzleProvider.OFFLINE_BANDS.containsAll(DifficultyOptions.supportedAt(size)))
+		}
+	}
+
+	@Test
+	fun forNewGame_serverUnreachableAtTheTopBand_stillGeneratesThatBandOnDevice() = runBlocking {
+		// The behavioural half of the policy, and the one case a restricted fallback would have refused: the
+		// hardest band there is, on a size that genuinely reaches it, with no server to ask. Asserting the band
+		// on the returned key rather than the request is what catches a silent snap down to something cheaper.
+		val provider = unreachableServerPuzzleProvider()
+		val origins = mutableListOf<PuzzleOrigin>()
+
+		val session = provider.forNewGame(GridSize.NINE, Variant.CLASSIC, Difficulty.LISA) { origins.add(it) }
+
+		assertEquals(Difficulty.LISA, session.key.difficulty())
+		assertEquals(GridSize.NINE, session.key.size())
 		assertEquals(listOf(PuzzleOrigin.DEVICE), origins)
 	}
 

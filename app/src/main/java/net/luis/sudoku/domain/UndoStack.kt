@@ -17,7 +17,19 @@ class Command internal constructor(internal val edits: List<CellEdit>) {
 	internal fun redo(session: GameSession) = this.edits.forEach { session.cellForUndo(it.index).restoreFrom(it.after) }
 }
 
-/** Lock changes and mode toggles are never commands (feature-spec 5.7) - only [Command] goes here. */
+/**
+ * The command history. Lock changes and mode toggles are never commands (feature-spec 5.7) - only
+ * [Command] goes here.
+ *
+ * **The undo and redo controls were removed from the UI because nobody used them** (feature-spec 5.7):
+ * a wrong pen value is already taken back automatically against a life, and pencil marks are quick to
+ * retype, so two permanent buttons bought very little. Nothing in the app calls [undo] or [redo] any
+ * more - only tests do.
+ *
+ * The stack is still recorded and still persisted with a saved game, because [Command] holds each cell's
+ * full previous state and that is what makes the pencil stash of feature-spec 5.6 free. Keep that in mind
+ * before deleting it: the history is dead, the state it captures is not.
+ */
 class UndoStack {
 	private val undone = ArrayDeque<Command>()
 	private val redone = ArrayDeque<Command>()
