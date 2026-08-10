@@ -12,6 +12,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -104,14 +105,21 @@ fun PuzzleLoadingScreen(loading: PuzzleLoading, modifier: Modifier = Modifier) {
  * Indeterminate on purpose. Neither a fetch nor a generation can report how far along it is - generation is
  * a bounded search whose attempt count says nothing about the time left - so a bar that filled steadily
  * would be inventing a promise.
+ *
+ * The fill only ever grows: each pass runs from empty to full and the next one starts over ([RepeatMode.Restart]).
+ * Reversing the sweep instead made the bar retreat, which reads as progress being lost rather than as an
+ * indicator marking time.
  */
 @Composable
 private fun IndeterminateAccentBar(modifier: Modifier = Modifier) {
 	val transition = rememberInfiniteTransition(label = "puzzle-loading")
 	val sweep by transition.animateFloat(
-		initialValue = 0.12f,
-		targetValue = 0.92f,
-		animationSpec = infiniteRepeatable(tween(durationMillis = 1_100), RepeatMode.Reverse),
+		initialValue = 0f,
+		targetValue = 1f,
+		animationSpec = infiniteRepeatable(
+			tween(durationMillis = 1_400, easing = LinearEasing),
+			RepeatMode.Restart
+		),
 		label = "puzzle-loading-sweep"
 	)
 

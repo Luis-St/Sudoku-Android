@@ -85,7 +85,10 @@ object BoardThemeCatalog {
 			gridLine = Color(0xFFB0AEB8),
 			regionLine = Color(0xFF3A3646),
 			given = Color(0xFF1C1B1F),
-			penEntry = Color(0xFF3A3646),
+			// Deliberately identical to [given]: a placed digit is a placed digit, and the owner does not want
+			// the board to say who put it there. The only recolouring a value glyph ever gets is the
+			// same-value mark ([sameValuePen]) and the mistake red ([error]).
+			penEntry = Color(0xFF1C1B1F),
 			pencilMark = Color(0xFF6F6A7C),
 			error = Color(0xFFBA1A1A),
 			selectedCell = Color(0xFFE4DFF7),
@@ -116,13 +119,15 @@ object BoardThemeCatalog {
 			gridLine = Color(0xFF4A4658),
 			regionLine = Color(0xFFCCC2DC),
 			given = Color(0xFFE8E2F5),
-			penEntry = Color(0xFFD0BCFF),
+			// Same as [given], like light mode. This used to be the Material violet #D0BCFF, which made an
+			// entered digit visibly a different colour from a clue on a dark board only.
+			penEntry = Color(0xFFE8E2F5),
 			pencilMark = Color(0xFF9C96AC),
 			error = Color(0xFFFFB4AB),
 			selectedCell = Color(0xFF3A3646),
 			peerHighlight = Color(0xFF2B2836),
-			// The light mode's teal, lifted for a dark board. A light indigo would sit right on top of
-			// penEntry's #D0BCFF and the mark would be invisible.
+			// The light mode's teal, lifted for a dark board. It has to separate by hue from the near-white
+			// #E8E2F5 every value glyph is drawn in; a light indigo or violet would read as the same ink.
 			sameValuePen = Color(0xFF4DD9E0),
 			sameValuePencil = Color(0xFF4DD9E0),
 			conflict = Color(0xFF93000A),
