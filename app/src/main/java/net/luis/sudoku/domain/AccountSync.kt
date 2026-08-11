@@ -5,9 +5,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import net.luis.sudoku.data.local.CurrencyStore
 import net.luis.sudoku.data.local.DailyStore
+import net.luis.sudoku.data.local.LearnProgressStore
+import net.luis.sudoku.data.local.entity.LearnProgressEntity
 import net.luis.sudoku.data.local.ServerConfig
 import net.luis.sudoku.data.local.ServerConfigStore
 import net.luis.sudoku.data.remote.ApiClient
+import net.luis.sudoku.data.remote.dto.LearnProgressEntry
 import net.luis.sudoku.difficulty.Difficulty
 import java.time.LocalDate
 import java.time.ZoneId
@@ -34,6 +37,10 @@ import javax.inject.Singleton
  *   solved, which [StreakPublisher] offers. The longer of the two wins, which is what both sides already do.
  * - **The daily difficulty** - the account's standing choice, so the server owns it, except for a change
  *   made here that has not been delivered yet.
+ * - **Learn area progress** - both directions, merged by *better state* rather than by newer row. What a
+ *   device has finished is offered, what the account holds is adopted, and a solve never loses to a
+ *   partial: two devices may both work offline for as long as they like, so "the latest upload wins" would
+ *   silently un-earn an achievement the player has already been shown.
  * - **Statistics** - deliberately *not* pulled. The per-tier aggregates are read straight from the server
  *   wherever they are shown (the stats screen, a player profile), and the local Room history is the record
  *   of games played *on this device*, which no server field can reconstruct. Writing one from the other
@@ -49,7 +56,8 @@ class AccountSync @Inject constructor(
 	private val serverConfigStore: ServerConfigStore,
 	private val currencyStore: CurrencyStore,
 	private val dailyStore: DailyStore,
-	private val streakPublisher: StreakPublisher
+	private val streakPublisher: StreakPublisher,
+	private val learnProgressStore: LearnProgressStore
 ) {
 
 	private val mutex = Mutex()
@@ -70,6 +78,7 @@ class AccountSync @Inject constructor(
 			syncCurrency(config)
 			syncDailyDifficulty(config)
 			syncStreak(config)
+			syncLearnProgress(config)
 		}
 	}
 
@@ -93,6 +102,59 @@ class AccountSync @Inject constructor(
 				this.apiClient.currencyBalance(baseUrl, token).balance
 			}
 			this.currencyStore.adoptServerBalance(balance)
+		} catch (e: CancellationException) {
+			throw e
+		} catch (e: Exception) {
+			// Left as it was - see the class comment.
+		}
+	}
+
+	/**
+	 * Offers what this device has finished in the learn area, then adopts what the account holds.
+	 *
+	 * Everything sent in one call rather than a delta: there are at most nine rows per technique, the
+	 * server keeps whichever state is further along whatever arrives, and a full set removes the one thing
+	 * a delta sync always needs, which is a cursor both sides agree on.
+	 *
+	 * A device with nothing to report still calls, unlike the currency sync: there is no "larger of the
+	 * two" rule here that a stale report could win, so an empty offer costs nothing and the response is
+	 * how a freshly linked device learns what the account has already mastered.
+	 */
+	private suspend fun syncLearnProgress(config: ServerConfig) {
+		try {
+			val baseUrl = config.serverUrl ?: return
+			val token = config.sessionToken ?: return
+
+			// The resets go first, and they have to: a reset only exists on the server once this call lands,
+			// and offering the rows before it would be offering rows against a technique that is about to be
+			// cleared.
+			for (marker in this.learnProgressStore.pendingResets()) {
+				this.apiClient.resetLearnTechnique(baseUrl, token, marker.technique)
+				this.learnProgressStore.clearResetMarker(marker.technique)
+			}
+
+			val pending = this.learnProgressStore.notUploaded()
+			val response = this.apiClient.syncLearnProgress(
+				baseUrl,
+				token,
+				pending.map { LearnProgressEntry(it.technique, it.level, it.subLevel, it.state) }
+			)
+			// Marked only once the server has answered: a row marked before the request lands is a row
+			// nothing will ever offer again if the request then fails.
+			pending.forEach { this.learnProgressStore.markUploaded(it) }
+
+			this.learnProgressStore.merge(
+				response.entries.map {
+					LearnProgressEntity(
+						technique = it.technique,
+						level = it.level,
+						subLevel = it.subLevel,
+						state = it.state,
+						updatedAt = System.currentTimeMillis(),
+						uploaded = true
+					)
+				}
+			)
 		} catch (e: CancellationException) {
 			throw e
 		} catch (e: Exception) {

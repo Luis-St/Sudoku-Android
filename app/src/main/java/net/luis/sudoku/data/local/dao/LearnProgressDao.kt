@@ -34,6 +34,9 @@ interface LearnProgressDao {
 	@Query("UPDATE learn_progress SET uploaded = 1 WHERE technique = :technique AND level = :level AND subLevel = :subLevel")
 	suspend fun markUploaded(technique: String, level: Int, subLevel: Int)
 
+	@Query("DELETE FROM learn_progress WHERE technique = :technique AND level = :level AND state = :state")
+	suspend fun deleteMarker(technique: String, level: Int, state: String)
+
 	@Query("DELETE FROM learn_progress WHERE technique = :technique")
 	suspend fun clearTechnique(technique: String)
 

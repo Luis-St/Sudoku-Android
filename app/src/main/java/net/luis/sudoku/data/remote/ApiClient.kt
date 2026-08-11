@@ -18,6 +18,9 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import net.luis.sudoku.data.remote.dto.AccountResponse
+import net.luis.sudoku.data.remote.dto.LearnProgressEntry
+import net.luis.sudoku.data.remote.dto.LearnProgressResponse
+import net.luis.sudoku.data.remote.dto.LearnSyncRequest
 import net.luis.sudoku.data.remote.dto.ChallengeRequest
 import net.luis.sudoku.data.remote.dto.ChallengeResponse
 import net.luis.sudoku.data.remote.dto.ChangeRoleRequest
@@ -231,6 +234,28 @@ class ApiClient @Inject constructor(private val client: HttpClient, private val 
 				setBody(CurrencySyncRequest(reportedBalance, gamesPlayed))
 			}
 		)
+
+	/**
+	 * Reports what this device has finished in the learn area and takes on what the account holds.
+	 *
+	 * Safe to repeat: the server keeps whichever state is further along, so sending the same rows again
+	 * says nothing new rather than doing anything twice.
+	 */
+	suspend fun syncLearnProgress(baseUrl: String, token: String, entries: List<LearnProgressEntry>): LearnProgressResponse =
+		handle(
+			this.client.post(url(baseUrl, "learn/sync")) {
+				authorized(token)
+				contentType(ContentType.Application.Json)
+				setBody(LearnSyncRequest(entries))
+			}
+		)
+
+	suspend fun learnProgress(baseUrl: String, token: String): LearnProgressResponse =
+		handle(this.client.get(url(baseUrl, "learn/progress")) { authorized(token) })
+
+	/** Clears one technique's training on the server, which is what a local reset syncs. */
+	suspend fun resetLearnTechnique(baseUrl: String, token: String, technique: String): LearnProgressResponse =
+		handle(this.client.delete(url(baseUrl, "learn/$technique")) { authorized(token) })
 
 	suspend fun syncStats(baseUrl: String, token: String, entries: List<SyncEntry>) {
 		handleUnit(

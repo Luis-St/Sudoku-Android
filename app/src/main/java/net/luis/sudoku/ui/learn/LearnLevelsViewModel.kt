@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import net.luis.sudoku.data.local.LearnProgressStore
+import net.luis.sudoku.domain.AccountSync
 import net.luis.sudoku.domain.TechniqueProgress
 import net.luis.sudoku.solver.Technique
 import net.luis.sudoku.ui.navigation.Routes
@@ -23,6 +24,7 @@ import javax.inject.Inject
 @HiltViewModel
 class LearnLevelsViewModel @Inject constructor(
 	private val progressStore: LearnProgressStore,
+	private val accountSync: AccountSync,
 	savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -55,6 +57,9 @@ class LearnLevelsViewModel @Inject constructor(
 		this.confirmingReset = false
 		this.viewModelScope.launch {
 			this@LearnLevelsViewModel.progressStore.reset(this@LearnLevelsViewModel.technique)
+			// Told to the server now if it can be reached, and left queued as a marker if it cannot: the
+			// screen never waits for either, because the reset has already happened where it matters.
+			this@LearnLevelsViewModel.accountSync.sync()
 		}
 	}
 }

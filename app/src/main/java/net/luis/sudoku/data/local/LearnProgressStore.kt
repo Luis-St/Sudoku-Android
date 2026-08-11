@@ -68,9 +68,33 @@ class LearnProgressStore @Inject constructor(
 	 * the wrong one. The rows are deleted rather than marked, so the technique reads as untouched, exactly as
 	 * it did before it was ever opened.
 	 */
-	suspend fun reset(technique: Technique) = this.dao.clearTechnique(technique.name)
+	suspend fun reset(technique: Technique) {
+		this.dao.clearTechnique(technique.name)
+		// The marker is what makes a reset survive being offline. Without it the next sync would pull back
+		// exactly what the player asked to clear, since the server still holds it.
+		this.dao.upsert(
+			LearnProgressEntity(
+				technique = technique.name,
+				level = LearnProgressEntity.RESET_LEVEL,
+				subLevel = 0,
+				state = LearnProgressEntity.RESET,
+				updatedAt = System.currentTimeMillis(),
+				uploaded = false
+			)
+		)
+	}
 
-	suspend fun notUploaded(): List<LearnProgressEntity> = this.dao.notUploaded()
+	/** The techniques reset locally that the server has not been told about yet. */
+	suspend fun pendingResets(): List<LearnProgressEntity> =
+		this.dao.notUploaded().filter { it.state == LearnProgressEntity.RESET }
+
+	/** Drops a reset marker once the server has carried it out. */
+	suspend fun clearResetMarker(technique: String) =
+		this.dao.deleteMarker(technique, LearnProgressEntity.RESET_LEVEL, LearnProgressEntity.RESET)
+
+	/** What this device has finished and not yet reported, which never includes a reset marker. */
+	suspend fun notUploaded(): List<LearnProgressEntity> =
+		this.dao.notUploaded().filter { it.state != LearnProgressEntity.RESET }
 
 	suspend fun markUploaded(row: LearnProgressEntity) =
 		this.dao.markUploaded(row.technique, row.level, row.subLevel)
@@ -83,8 +107,12 @@ class LearnProgressStore @Inject constructor(
 	 * achievement the player has already been shown.
 	 */
 	suspend fun merge(rows: List<LearnProgressEntity>) {
-		val local = this.dao.all().associateBy { Triple(it.technique, it.level, it.subLevel) }
-		val better = rows.filter { row ->
+		val all = this.dao.all()
+		// A technique the player has just reset takes nothing back until the server has been told, or the
+		// merge would hand them the very rows they asked to clear.
+		val resetting = all.filter { it.state == LearnProgressEntity.RESET }.map { it.technique }.toSet()
+		val local = all.associateBy { Triple(it.technique, it.level, it.subLevel) }
+		val better = rows.filter { it.technique !in resetting }.filter { row ->
 			val current = local[Triple(row.technique, row.level, row.subLevel)]
 			current == null || (current.state != LearnProgressEntity.SOLVED && row.state == LearnProgressEntity.SOLVED)
 		}

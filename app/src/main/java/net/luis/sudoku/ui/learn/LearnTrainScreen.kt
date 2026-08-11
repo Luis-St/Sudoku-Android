@@ -173,9 +173,22 @@ fun LearnTrainScreen(
 @Composable
 private fun OutcomeCard(outcome: TrainOutcome, onFinished: () -> Unit, viewModel: LearnTrainViewModel) {
 	val solved = outcome == TrainOutcome.SOLVED
-	SectionCard(title = stringResource(if (solved) R.string.learn_train_solved_title else R.string.learn_train_partial_title)) {
+	val mastered = viewModel.masteredNow
+	SectionCard(
+		title = stringResource(
+			when {
+				mastered -> R.string.learn_achievement_unlocked
+				solved -> R.string.learn_train_solved_title
+				else -> R.string.learn_train_partial_title
+			}
+		)
+	) {
 		Text(
-			text = stringResource(if (solved) R.string.learn_train_solved_message else R.string.learn_train_partial_message),
+			text = when {
+				mastered -> stringResource(R.string.learn_achievement_message, stringResource(stringsOf(viewModel.technique).name))
+				solved -> stringResource(R.string.learn_train_solved_message)
+				else -> stringResource(R.string.learn_train_partial_message)
+			},
 			style = MaterialTheme.typography.bodyMedium
 		)
 		Box(modifier = Modifier.size(12.dp))

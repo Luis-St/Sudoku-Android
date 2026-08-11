@@ -93,6 +93,15 @@ class LearnTrainViewModel @Inject constructor(
 	var confirmingGeneration by mutableStateOf(false)
 		private set
 
+	/**
+	 * Set when this exercise was the one that completed the technique.
+	 *
+	 * Read once, at the moment it happens: an achievement told about three screens later, on a stats row the
+	 * player was not looking at, is an achievement they never got.
+	 */
+	var masteredNow by mutableStateOf(false)
+		private set
+
 	init {
 		this.viewModelScope.launch {
 			try {
@@ -191,6 +200,8 @@ class LearnTrainViewModel @Inject constructor(
 				this@LearnTrainViewModel.subLevel,
 				outcome == TrainOutcome.SOLVED
 			)
+			this@LearnTrainViewModel.masteredNow = this@LearnTrainViewModel.progressStore
+				.progressOf(this@LearnTrainViewModel.technique).isMastered
 		}
 	}
 

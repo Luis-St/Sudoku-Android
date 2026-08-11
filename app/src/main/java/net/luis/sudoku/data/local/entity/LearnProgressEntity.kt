@@ -38,5 +38,21 @@ data class LearnProgressEntity(
 
 		const val SOLVED = "SOLVED"
 		const val PARTIAL = "PARTIAL"
+
+		/**
+		 * A reset the server has not been told about yet.
+		 *
+		 * A reset that only deleted rows would be undone by the next sync: the server would still hold what
+		 * was cleared and hand it straight back. So the reset leaves one marker behind, the sync turns it
+		 * into the server call, and the merge refuses to take anything back for a technique that still has
+		 * one.
+		 *
+		 * It is written at [RESET_LEVEL], which is outside the training, so it can never collide with a real
+		 * exercise or be read as one: every screen looks up levels 1 and up.
+		 */
+		const val RESET = "RESET"
+
+		/** The level a [RESET] marker is written at, deliberately below the first real one. */
+		const val RESET_LEVEL = 0
 	}
 }
