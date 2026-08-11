@@ -60,6 +60,14 @@ fun StatsScreen(modifier: Modifier = Modifier, viewModel: StatsViewModel = hiltV
 			}
 		}
 
+		SectionCard(title = stringResource(R.string.learn_stat_mastered), modifier = Modifier.padding(top = 12.dp)) {
+			ProgressRow(
+				label = stringResource(R.string.learn_stat_mastered),
+				value = stringResource(R.string.learn_mastered_counter, viewModel.techniquesMastered, viewModel.techniqueCount),
+				fraction = if (viewModel.techniqueCount > 0) viewModel.techniquesMastered.toFloat() / viewModel.techniqueCount else 0f
+			)
+		}
+
 		if (viewModel.serverStatsByTier.isNotEmpty()) {
 			SectionCard(title = stringResource(R.string.stats_by_tier_header), modifier = Modifier.padding(top = 12.dp)) {
 				Column {

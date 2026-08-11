@@ -84,6 +84,10 @@ import net.luis.sudoku.ui.navigation.Routes
 import net.luis.sudoku.ui.settings.SettingsScreen
 import net.luis.sudoku.ui.settings.account.AccountScreen
 import net.luis.sudoku.ui.shop.ShopScreen
+import net.luis.sudoku.ui.learn.LearnLevelsScreen
+import net.luis.sudoku.ui.learn.LearnScreen
+import net.luis.sudoku.ui.learn.LearnTrainScreen
+import net.luis.sudoku.ui.learn.LearnTechniqueScreen
 import net.luis.sudoku.ui.stats.StatsScreen
 import net.luis.sudoku.ui.theme.BoardThemeCatalog
 import net.luis.sudoku.ui.theme.SudokuAndroidTheme
@@ -471,6 +475,7 @@ private fun titleFor(route: String?): String = when (route) {
 	Routes.ENTER_CODE -> stringResource(R.string.tab_enter_code)
 	Routes.SHOP -> stringResource(R.string.tab_shop)
 	Routes.STATS -> stringResource(R.string.tab_stats)
+	Routes.LEARN -> stringResource(R.string.learn_title)
 	Routes.SETTINGS -> stringResource(R.string.tab_settings)
 	Routes.ACCOUNT -> stringResource(R.string.settings_open_account)
 	Routes.FRIENDS -> stringResource(R.string.tab_friends)
@@ -504,6 +509,8 @@ private fun AppNavHost(
 				onOpenStats = { navController.navigate(Routes.STATS) },
 				// The hub, not a match: creating and joining are separate destinations now (multiplayer item 2).
 				onOpenMultiplayer = { navController.navigate(Routes.MULTIPLAYER_HUB) },
+				// Deliberately not gated on a configured server: the learn area is bundled and local.
+				onOpenLearn = { navController.navigate(Routes.LEARN) },
 				onContinue = { navController.navigate(Routes.play(PlayMode.NORMAL)) }
 			)
 		}
@@ -557,6 +564,37 @@ private fun AppNavHost(
 
 		composable(Routes.SHOP) { ShopScreen() }
 		composable(Routes.STATS) { StatsScreen() }
+		composable(Routes.LEARN) {
+			LearnScreen(onOpenTechnique = { technique -> navController.navigate(Routes.learnTechnique(technique.name)) })
+		}
+		composable(
+			route = Routes.LEARN_TECHNIQUE,
+			arguments = listOf(navArgument(Routes.ARG_TECHNIQUE) { type = NavType.StringType })
+		) { entry ->
+			val technique = entry.arguments?.getString(Routes.ARG_TECHNIQUE).orEmpty()
+			LearnTechniqueScreen(onStartTraining = { navController.navigate(Routes.learnLevels(technique)) })
+		}
+		composable(
+			route = Routes.LEARN_LEVELS,
+			arguments = listOf(navArgument(Routes.ARG_TECHNIQUE) { type = NavType.StringType })
+		) { entry ->
+			val technique = entry.arguments?.getString(Routes.ARG_TECHNIQUE).orEmpty()
+			LearnLevelsScreen(
+				onOpenExercise = { level, subLevel -> navController.navigate(Routes.learnTrain(technique, level, subLevel)) }
+			)
+		}
+		composable(
+			route = Routes.LEARN_TRAIN,
+			arguments = listOf(
+				navArgument(Routes.ARG_TECHNIQUE) { type = NavType.StringType },
+				navArgument(Routes.ARG_LEVEL) { type = NavType.StringType },
+				navArgument(Routes.ARG_SUB_LEVEL) { type = NavType.StringType }
+			)
+		) {
+			// Back to the levels screen rather than onwards to the next exercise: the levels screen is where
+			// the player sees what the exercise just did to their progress.
+			LearnTrainScreen(onFinished = { navController.popBackStack() })
+		}
 		composable(Routes.FRIENDS) {
 			// Invite item 3: the waiting invitations come from the Activity-scoped presence view model, since
 			// only one heartbeat runs and it is that one - a screen-scoped model would see nothing.

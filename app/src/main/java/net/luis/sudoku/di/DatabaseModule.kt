@@ -11,6 +11,8 @@ import net.luis.sudoku.data.local.AppDatabase
 import net.luis.sudoku.data.local.MIGRATION_2_3
 import net.luis.sudoku.data.local.MIGRATION_3_4
 import net.luis.sudoku.data.local.MIGRATION_4_5
+import net.luis.sudoku.data.local.MIGRATION_5_6
+import net.luis.sudoku.data.local.dao.LearnProgressDao
 import net.luis.sudoku.data.local.dao.PendingDailyResultDao
 import net.luis.sudoku.data.local.dao.SavedGameDao
 import net.luis.sudoku.data.local.dao.StatisticsDao
@@ -29,8 +31,9 @@ object DatabaseModule {
 			// saved_games, and destructive fallback would take the history down with it. The fallback stays
 			// for the versions before them, which nothing was released on and which are not worth writing
 			// migrations backwards for. Version 5 clears the saved *chaos* games for generator 3 and keeps
-			// the classic ones, which is a distinction destructive fallback could not make.
-			.addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+			// the classic ones, which is a distinction destructive fallback could not make. Version 6 adds
+			// the learn area's progress, which nothing else could rebuild once it exists.
+			.addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
 			.fallbackToDestructiveMigration(true)
 			.build()
 
@@ -42,4 +45,7 @@ object DatabaseModule {
 
 	@Provides
 	fun providePendingDailyResultDao(database: AppDatabase): PendingDailyResultDao = database.pendingDailyResultDao()
+
+	@Provides
+	fun provideLearnProgressDao(database: AppDatabase): LearnProgressDao = database.learnProgressDao()
 }

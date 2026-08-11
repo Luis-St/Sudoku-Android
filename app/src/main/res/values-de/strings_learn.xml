@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The learn area (learn items 2 and 3). Its own file rather than a section of strings.xml: the wiki
+     body text is longer than everything else in the app put together, and burying the rest of the UI under
+     it would make both harder to edit. Android merges every file under res/values, so these are ordinary
+     R.string entries; the learn_ prefix is what keeps the names unique across the two files. -->
+<resources>
+
+	<!-- Screen chrome. -->
+	<string name="learn_home_button">Lernen</string>
+	<string name="learn_title">Techniken</string>
+	<string name="learn_subtitle">Lerne eine Lösetechnik und übe sie danach</string>
+	<string name="learn_mastered_counter">%1$d von %2$d Techniken gemeistert</string>
+	<string name="learn_level_group">Stufe %1$d</string>
+	<string name="learn_progress_sub_levels">%1$d von %2$d Übungen</string>
+	<string name="learn_progress_mastered">Gemeistert</string>
+	<string name="learn_progress_untouched">Noch nicht begonnen</string>
+	<string name="learn_search_hint">Techniken suchen</string>
+	<string name="learn_section_description">Worum es geht</string>
+	<string name="learn_section_pattern">So erkennst du es</string>
+	<string name="learn_section_examples">Beispiele</string>
+	<string name="learn_example_counter">Beispiel %1$d von %2$d</string>
+	<string name="learn_example_replay">Nochmal abspielen</string>
+	<string name="learn_example_next_step">Nächster Schritt</string>
+	<string name="learn_start_training">Training starten</string>
+	<string name="learn_continue_training">Training fortsetzen</string>
+	<string name="learn_levels_title">Training</string>
+	<string name="learn_level_title">Stufe %1$d</string>
+	<string name="learn_level_1_hint">Finde das Muster, mit Hilfe, die die Zellen Schritt für Schritt markiert</string>
+	<string name="learn_level_2_hint">Hinweise auf Anfrage, die nur Zellen markieren</string>
+	<string name="learn_level_3_hint">Nur die Beschreibung, wende die Technik selbst an</string>
+	<string name="learn_level_locked">Schließe die vorherige Stufe ab, um diese freizuschalten</string>
+	<string name="learn_sub_level">Übung %1$d</string>
+	<string name="learn_sub_level_partial">Ohne die Technik gelöst</string>
+	<string name="learn_sub_level_solved">Gelöst</string>
+	<string name="learn_show_me">Zeig es mir</string>
+	<string name="learn_hint_request">Gib mir einen Hinweis</string>
+	<string name="learn_train_solved_title">Gut gemacht</string>
+	<string name="learn_train_solved_message">Du hast die Technik richtig angewendet.</string>
+	<string name="learn_train_continue">Nächste Übung</string>
+	<string name="learn_train_keep_solving">Weiter lösen</string>
+	<string name="learn_train_stop">Erstmal aufhören</string>
+	<string name="learn_train_partial_title">Übung beendet</string>
+	<string name="learn_train_partial_message">Du hast das ohne die Technik gelöst, deshalb zählt es nicht für den Erfolg. Versuche die Übung nochmal oder erzeuge ein neues Rätsel, um ihn zu bekommen.</string>
+	<string name="learn_generate_new">Neues Rätsel</string>
+	<string name="learn_generate_confirm_title">Neues Rätsel erzeugen</string>
+	<string name="learn_generate_confirm_message">Ein Rätsel rund um diese Technik wird auf deinem Gerät gesucht. Das kann ein paar Sekunden dauern.</string>
+	<string name="learn_generate_confirm_action">Erzeugen</string>
+	<string name="learn_generate_running">Rätsel wird gesucht</string>
+	<string name="learn_generate_failed">Es wurde rechtzeitig kein Rätsel für diese Technik gefunden. Bitte versuche es nochmal.</string>
+	<string name="learn_achievement_unlocked">Technik gemeistert</string>
+	<string name="learn_achievement_message">Du hast jede Übung für %1$s abgeschlossen.</string>
+	<string name="learn_stat_mastered">Gemeisterte Techniken</string>
+
+	<!-- The narration under an animated example. See the English file for why these are per step kind. -->
+	<string name="learn_reset">Training zurücksetzen</string>
+	<string name="learn_reset_confirm_title">Training zurücksetzen</string>
+	<string name="learn_reset_confirm_message">Alle Übungen dieser Technik beginnen wieder von vorn und der Erfolg wird abgegeben. Deine anderen Techniken bleiben unberührt.</string>
+	<string name="learn_reset_confirm_action">Zurücksetzen</string>
+	<string name="learn_examples_unavailable">Die Beispiele für diese Technik konnten nicht geladen werden.</string>
+	<string name="learn_step_focus_digit">Sieh dir die Ziffer %1$d an.</string>
+	<string name="learn_step_focus_unit">Sieh dir %1$s an.</string>
+	<string name="learn_step_pattern">Diese Zellen bilden das Muster.</string>
+	<string name="learn_step_link">Diese Zellen sind verbunden, eine schließt die andere aus.</string>
+	<string name="learn_step_implication">Wie es auch ausgeht, es folgt dasselbe.</string>
+	<string name="learn_step_elimination">Die durchgestrichenen Kandidaten können also weg.</string>
+	<string name="learn_step_placement">Diese Zelle muss also die %1$d enthalten.</string>
+	<string name="learn_unit_row">Zeile %1$d</string>
+	<string name="learn_unit_column">Spalte %1$d</string>
+	<string name="learn_unit_region">Block %1$d</string>
+	<string name="learn_unit_separator">, </string>
+
+	<!-- One name, one plain description and one spotting hint per technique, in the shared
+	     core's difficulty order. The enum constant is never shown to the player, only these. -->
+
+	<string name="learn_technique_full_house_name">Volles Haus</string>
+	<string name="learn_technique_full_house_description">Eine Zeile, Spalte oder ein Block mit nur noch einer leeren Zelle kann nur noch eine Ziffer vermissen, und die gehört in diese Zelle. Du brauchst dafür keine Notizen, du liest einfach ab, welche Ziffer noch fehlt.</string>
+	<string name="learn_technique_full_house_pattern">Suche eine Einheit mit acht gefüllten und einer leeren Zelle. Nach ein paar Eintragungen kurz nach fast vollen Blöcken zu schauen, findet sie am schnellsten.</string>
+
+	<string name="learn_technique_last_digit_name">Letzte Ziffer</string>
+	<string name="learn_technique_last_digit_description">Wenn eine Ziffer in jedem Block außer einem steht, bleibt im ganzen Gitter nur noch eine Zelle übrig, die sie aufnehmen kann. Allein die Anzahl erzwingt die Eintragung, Notizen brauchst du nicht.</string>
+	<string name="learn_technique_last_digit_pattern">Nimm eine Ziffer und zähle, wie oft sie schon vorkommt. Bei acht von neun suchst du den Block, dem sie fehlt, und darin die einzige Zelle, die sie noch erreichen kann.</string>
+
+	<string name="learn_technique_naked_single_name">Nacktes Single</string>
+	<string name="learn_technique_naked_single_description">Wenn Zeile, Spalte und Block einer Zelle zusammen schon jede Ziffer bis auf eine zeigen, bleibt genau diese eine übrig und muss dort stehen. Das ist die direkteste Schlussfolgerung im ganzen Spiel.</string>
+	<string name="learn_technique_naked_single_pattern">Suche Zellen, in denen nur noch eine Notiz steht. Ohne Notizen schaust du dort, wo eine volle Zeile und eine volle Spalte sich kreuzen, denn dort gehen die Möglichkeiten zuerst aus.</string>
+
+	<string name="learn_technique_hidden_single_region_name">Verstecktes Single im Block</string>
+	<string name="learn_technique_hidden_single_region_description">Jede Ziffer muss einmal in jedem Block stehen. Wenn alle anderen Zellen des Blocks durch dieselbe Ziffer in einer kreuzenden Zeile oder Spalte blockiert sind, muss die übrige Zelle sie aufnehmen, auch wenn dort noch andere Notizen stehen.</string>
+	<string name="learn_technique_hidden_single_region_pattern">Nimm eine Ziffer und einen Block. Streiche jede Zelle des Blocks, die eine Zeile oder Spalte mit dieser Ziffer teilt. Bleibt genau eine übrig, ist das die Eintragung.</string>
+
+	<string name="learn_technique_hidden_single_line_name">Verstecktes Single in der Linie</string>
+	<string name="learn_technique_hidden_single_line_description">Dasselbe Argument wie im Block, nur entlang einer Zeile oder Spalte: Kann eine Ziffer dort nur in eine Zelle, gehört sie dorthin. Das ist schwerer zu sehen, weil eine Linie über das ganze Gitter verteilt ist statt kompakt zu liegen.</string>
+	<string name="learn_technique_hidden_single_line_pattern">Gehe eine Zeile nach der anderen durch und frage dich für eine einzelne Ziffer, welche leeren Zellen sie noch aufnehmen könnten. Nur eine Möglichkeit bedeutet eine Eintragung.</string>
+
+	<string name="learn_technique_pointing_name">Zeigendes Paar</string>
+	<string name="learn_technique_pointing_description">Liegen alle Stellen, an die eine Ziffer in einem Block noch kann, auf einer Zeile oder Spalte, dann steht die Ziffer sicher irgendwo auf dieser Linie innerhalb des Blocks. Aus dem Rest der Linie außerhalb des Blocks kann sie deshalb weg.</string>
+	<string name="learn_technique_pointing_pattern">Schau dir eine Ziffer in einem Block an. Teilen sich ihre zwei oder drei Restzellen eine Zeile oder Spalte, dann räumst du die Ziffer auf dieser Linie außerhalb des Blocks weg.</string>
+
+	<string name="learn_technique_claiming_name">Beanspruchen</string>
+	<string name="learn_technique_claiming_description">Das Spiegelbild des zeigenden Paares: Liegen alle Stellen, an die eine Ziffer auf einer Zeile oder Spalte kann, in einem einzigen Block, dann gehört die Ziffer diesem Block auf dieser Linie, und kann aus dem Rest des Blocks weg.</string>
+	<string name="learn_technique_claiming_pattern">Nimm eine Ziffer und eine Linie. Fallen alle ihre Kandidatenzellen dort in einen Block, räumst du die Ziffer aus den übrigen Zellen dieses Blocks.</string>
+
+	<string name="learn_technique_naked_pair_name">Nacktes Paar</string>
+	<string name="learn_technique_naked_pair_description">Zwei Zellen derselben Einheit mit genau denselben zwei Kandidaten verbrauchen beide Ziffern unter sich, egal wie herum. Keine andere Zelle dieser Einheit kann eine der beiden noch nehmen.</string>
+	<string name="learn_technique_naked_pair_pattern">Suche in einer Einheit zwei Zellen mit je genau zwei Notizen und prüfe, ob es dieselben zwei sind. Dann räumst du diese Ziffern aus dem Rest der Einheit.</string>
+
+	<string name="learn_technique_hidden_pair_name">Verstecktes Paar</string>
+	<string name="learn_technique_hidden_pair_description">Wenn zwei Ziffern nur in dieselben zwei Zellen einer Einheit können, sind diese beiden Zellen für sie reserviert. Alle anderen Notizen in diesen Zellen können weg, obwohl das Paar vorher hinter ihnen versteckt war.</string>
+	<string name="learn_technique_hidden_pair_pattern">Zähle für jede Ziffer einer Einheit, in wie viele Zellen sie noch kann. Zwei Ziffern mit denselben zwei Kandidatenzellen sind ein verstecktes Paar. Räume die beiden Zellen auf diese Ziffern zusammen.</string>
+
+	<string name="learn_technique_naked_triple_name">Nacktes Tripel</string>
+	<string name="learn_technique_naked_triple_description">Drei Zellen einer Einheit, die zusammen nur drei verschiedene Kandidaten benutzen, müssen diese drei Ziffern aufnehmen. Die Ziffern sind damit verbraucht, keine andere Zelle der Einheit bekommt eine davon. Eine Zelle darf auch nur zwei der drei enthalten.</string>
+	<string name="learn_technique_naked_triple_pattern">Suche drei Zellen in einer Einheit, deren Notizen zusammen nur drei verschiedene Ziffern ergeben, und räume diese Ziffern aus dem Rest der Einheit.</string>
+
+	<string name="learn_technique_hidden_triple_name">Verstecktes Tripel</string>
+	<string name="learn_technique_hidden_triple_description">Drei Ziffern, die nur in dieselben drei Zellen einer Einheit passen, besitzen diese Zellen. Jede andere Notiz in diesen drei Zellen kann weg, und genau das bringt die Stellung meist ins Rollen.</string>
+	<string name="learn_technique_hidden_triple_pattern">Notiere für jede Ziffer einer Einheit ihre Kandidatenzellen. Drei Ziffern, deren Zellen zusammen nur drei Positionen abdecken, sind ein verstecktes Tripel.</string>
+
+	<string name="learn_technique_x_wing_name">X-Wing</string>
+	<string name="learn_technique_x_wing_description">Nimm eine Ziffer und zwei Zeilen, in denen sie nur in dieselben zwei Spalten kann. Wie sie in diesen Zeilen auch fällt, beide Spalten bekommen sie innerhalb des Rechtecks. Also kann die Ziffer sonst nirgends in diesen beiden Spalten stehen.</string>
+	<string name="learn_technique_x_wing_pattern">Nimm eine Ziffer und suche zwei Zeilen, in denen sie genau zwei Kandidatenzellen hat, die in denselben zwei Spalten liegen. Die vier Zellen bilden ein Rechteck. Mit vertauschten Zeilen und Spalten geht es genauso.</string>
+
+	<string name="learn_technique_skyscraper_name">Wolkenkratzer</string>
+	<string name="learn_technique_skyscraper_description">Zwei Zeilen, in denen eine Ziffer genau zwei Kandidatenzellen hat und die sich eine Spalte teilen, bilden eine Kette: Eines der beiden fernen Enden muss die Ziffer tragen. Jede Zelle, die beide fernen Enden sieht, verliert sie deshalb.</string>
+	<string name="learn_technique_skyscraper_pattern">Finde zwei Zeilen mit je nur zwei Kandidaten einer Ziffer, von denen je einer in derselben Spalte liegt. Schau dann auf die beiden übrigen Enden und auf die Zellen, die beide sehen.</string>
+
+	<string name="learn_technique_two_string_kite_name">Doppelschnur-Drachen</string>
+	<string name="learn_technique_two_string_kite_description">Eine Zeile und eine Spalte, in denen eine Ziffer nur zwei Kandidatenzellen hat und deren nahe Enden im selben Block liegen, hängen zusammen. Eines der beiden fernen Enden trägt die Ziffer, also verliert die Zelle, die beide sieht, sie.</string>
+	<string name="learn_technique_two_string_kite_pattern">Suche ein Zeilenpaar und ein Spaltenpaar derselben Ziffer, deren nahe Enden in einem gemeinsamen Block landen. Die Streichung liegt dort, wo ferne Zeile und ferne Spalte sich kreuzen.</string>
+
+	<string name="learn_technique_swordfish_name">Schwertfisch</string>
+	<string name="learn_technique_swordfish_description">Der X-Wing eine Nummer größer: Drei Zeilen, in denen eine Ziffer auf dieselben drei Spalten beschränkt ist, sperren sie in diese Spalten, also kann sie dort überall sonst weg. Eine Zeile darf auch nur zwei der drei Spalten benutzen.</string>
+	<string name="learn_technique_swordfish_pattern">Nimm eine Ziffer und suche drei Zeilen, deren Kandidatenzellen dafür in nur drei Spalten fallen, und räume die Ziffer in allen anderen Zeilen aus diesen Spalten.</string>
+
+	<string name="learn_technique_bug_plus_one_name">BUG+1</string>
+	<string name="learn_technique_bug_plus_one_description">Haben alle ungelösten Zellen bis auf eine genau zwei Kandidaten, ist das Gitter einen Schritt von einer Stellung mit zwei Lösungen entfernt, die ein richtiges Rätsel nicht haben darf. Die Zelle mit dem zusätzlichen Kandidaten muss deshalb genau diese Ziffer nehmen.</string>
+	<string name="learn_technique_bug_plus_one_pattern">Prüfe spät im Rätsel, ob alle übrigen Zellen zwei Notizen haben, bis auf eine einzige mit drei. Die überzählige Ziffer dort ist die Lösung.</string>
+
+	<string name="learn_technique_crane_name">Kranich</string>
+	<string name="learn_technique_crane_description">Ein Verwandter des Wolkenkratzers: Zwei Zeilen, in denen die Ziffer je zwei Kandidaten hat, verbunden über eine dritte Linie, sodass eines der beiden fernen Enden die Ziffer tragen muss. Zellen, die beide Enden sehen, verlieren sie.</string>
+	<string name="learn_technique_crane_pattern">Suche die Form des Wolkenkratzers, aber mit zwei starken Linien, die über eine dritte Linie verbunden sind statt sich einen Block zu teilen.</string>
+
+	<string name="learn_technique_xy_wing_name">XY-Wing</string>
+	<string name="learn_technique_xy_wing_description">Drei Zellen mit je zwei Kandidaten: ein Drehpunkt mit X und Y, ein Flügel mit X und Z, ein zweiter mit Y und Z, beide vom Drehpunkt gesehen. Welche Ziffer der Drehpunkt auch nimmt, ein Flügel endet als Z. Also kann keine Zelle, die beide Flügel sieht, Z sein.</string>
+	<string name="learn_technique_xy_wing_pattern">Suche eine Zelle mit zwei Kandidaten, die zwei weitere Zweierzellen sieht, die je eine Ziffer mit ihr und eine dritte miteinander teilen. Die Streichung liegt dort, wohin beide Flügel schauen.</string>
+
+	<string name="learn_technique_unique_rectangle_1_name">Eindeutiges Rechteck Typ 1</string>
+	<string name="learn_technique_unique_rectangle_1_description">Vier Zellen, die über zwei Blöcke ein Rechteck bilden und dieselben zwei Ziffern tragen, gäben dem Rätsel zwei Lösungen. Da ein richtiges Rätsel genau eine hat, muss die vierte Zelle einen ihrer zusätzlichen Kandidaten nehmen, und die beiden geteilten Ziffern können dort weg.</string>
+	<string name="learn_technique_unique_rectangle_1_pattern">Suche drei Ecken eines Rechtecks mit identischen zwei Notizen und eine vierte Ecke, die diese zwei plus weitere trägt. Die zwei geteilten Ziffern verlassen die vierte Ecke.</string>
+
+	<string name="learn_technique_unique_rectangle_2_name">Eindeutiges Rechteck Typ 2</string>
+	<string name="learn_technique_unique_rectangle_2_description">Dasselbe tödliche Rechteck, aber mit einem zusätzlichen Kandidaten in zwei Ecken. Diese Ziffer muss in einer der beiden stehen, sonst hätte das Rätsel zwei Lösungen. Jede Zelle, die beide Ecken sieht, verliert sie deshalb.</string>
+	<string name="learn_technique_unique_rectangle_2_pattern">Finde ein Rechteck aus zwei Ziffern, bei dem zwei Ecken ein und denselben zusätzlichen Kandidaten tragen. Räume diese Ziffer aus den Zellen, die beide Ecken sehen.</string>
+
+	<string name="learn_technique_xyz_wing_name">XYZ-Wing</string>
+	<string name="learn_technique_xyz_wing_description">Wie der XY-Wing, aber der Drehpunkt trägt drei Kandidaten, X, Y und Z, und beide Flügel tragen Z. Eine der drei Zellen muss Z sein, also kann keine Zelle, die alle drei sieht, Z sein.</string>
+	<string name="learn_technique_xyz_wing_pattern">Suche einen Drehpunkt mit drei Kandidaten und zwei Zweierzellen, die er sieht, wobei alle drei eine gemeinsame Ziffer haben. Die Streichung muss Drehpunkt und beide Flügel sehen.</string>
+
+	<string name="learn_technique_w_wing_name">W-Wing</string>
+	<string name="learn_technique_w_wing_description">Zwei weit auseinander liegende Zellen mit denselben zwei Kandidaten, verbunden über eine Linie, auf der eine dieser Ziffern nur zwei Plätze hat. Diese Verbindung zwingt eine der beiden Zellen zur anderen Ziffer, also verlieren Zellen, die beide sehen, sie.</string>
+	<string name="learn_technique_w_wing_pattern">Suche zwei identische Zweierzellen und prüfe, ob eine ihrer Ziffern eine Linie mit nur zwei Plätzen hat, die sie verbindet.</string>
+
+	<string name="learn_technique_finned_x_wing_name">X-Wing mit Flosse</string>
+	<string name="learn_technique_finned_x_wing_description">Ein X-Wing, den ein einzelner zusätzlicher Kandidat stört, die Flosse, die im selben Block wie eine Ecke liegt. Der Schluss gilt weiterhin, aber nur für die Zellen, die auch die Flosse sehen.</string>
+	<string name="learn_technique_finned_x_wing_pattern">Suche einen fast fertigen X-Wing, bei dem eine Zeile einen dritten Kandidaten hat. Teilt diese Zelle sich einen Block mit einer Ecke, kannst du innerhalb dieses Blocks trotzdem streichen.</string>
+
+	<string name="learn_technique_naked_quad_name">Nacktes Quadrupel</string>
+	<string name="learn_technique_naked_quad_description">Vier Zellen einer Einheit, die zusammen nur vier verschiedene Kandidaten benutzen, nehmen diese vier Ziffern. Keine andere Zelle der Einheit kann eine davon halten. Zellen mit nur zwei oder drei der vier zählen mit.</string>
+	<string name="learn_technique_naked_quad_pattern">Suche vier Zellen in einer Einheit, deren Notizen zusammen nur vier Ziffern ergeben. Am leichtesten geht es, wenn mindestens zwei davon nur zwei Notizen haben.</string>
+
+	<string name="learn_technique_hidden_quad_name">Verstecktes Quadrupel</string>
+	<string name="learn_technique_hidden_quad_description">Vier Ziffern, die auf dieselben vier Zellen einer Einheit beschränkt sind, besitzen diese Zellen, also kann jeder andere Kandidat darin weg. Es ist selten und meist leichter als das nackte Gegenstück zu sehen, das es hinterlässt.</string>
+	<string name="learn_technique_hidden_quad_pattern">Liste für jede Ziffer einer Einheit ihre Kandidatenzellen. Vier Ziffern, deren Zellen nur vier Positionen abdecken, bilden das Quadrupel.</string>
+
+	<string name="learn_technique_unique_rectangle_3_name">Eindeutiges Rechteck Typ 3</string>
+	<string name="learn_technique_unique_rectangle_3_description">Ein tödliches Rechteck, bei dem zwei Ecken zusätzliche Kandidaten tragen. Diese Zusätze verhalten sich zusammen mit einer weiteren Zelle der Einheit wie eine kleine nackte Gruppe, deren Ziffern aus dem Rest der Einheit weg können.</string>
+	<string name="learn_technique_unique_rectangle_3_pattern">Finde das Rechteck, nimm die zusätzlichen Kandidaten der beiden Dachzellen als Menge und suche Zellen derselben Einheit, die daraus ein nacktes Paar oder Tripel machen.</string>
+
+	<string name="learn_technique_unique_rectangle_4_name">Eindeutiges Rechteck Typ 4</string>
+	<string name="learn_technique_unique_rectangle_4_description">Ein tödliches Rechteck, in dem eine der beiden geteilten Ziffern auf die Dachlinie festgelegt ist. Das drängt die andere geteilte Ziffer aus beiden Dachzellen, denn sonst entstünde das mehrdeutige Rechteck.</string>
+	<string name="learn_technique_unique_rectangle_4_pattern">Finde ein Rechteck aus zwei Ziffern und prüfe, ob eine davon auf ihrer Linie nur in die beiden Dachzellen kann. Dann entfernst du die andere Ziffer aus diesen Dachzellen.</string>
+
+	<string name="learn_technique_empty_rectangle_name">Leeres Rechteck</string>
+	<string name="learn_technique_empty_rectangle_description">Eine Ziffer, die in einem Block nur eine Zeile und eine Spalte belegt, bildet ein Kreuz. Zusammen mit einer Linie, auf der dieselbe Ziffer nur zwei Plätze hat, drängt das die Ziffer aus der Zelle, in der beide Argumente sich treffen.</string>
+	<string name="learn_technique_empty_rectangle_pattern">Suche einen Block, in dem die Kandidaten einer Ziffer alle auf einer Zeile und einer Spalte liegen, und dann eine Linie mit genau zwei Kandidaten dieser Ziffer, die darauf zeigt.</string>
+
+	<string name="learn_technique_finned_swordfish_name">Schwertfisch mit Flosse</string>
+	<string name="learn_technique_finned_swordfish_description">Ein Schwertfisch, den ein zusätzlicher Kandidat stört. Die Streichungen gelten weiterhin, aber nur in dem Block, in dem die Flosse liegt.</string>
+	<string name="learn_technique_finned_swordfish_pattern">Suche einen fast fertigen Schwertfisch, bei dem eine Linie einen überzähligen Kandidaten hat, und prüfe, ob dieser sich einen Block mit den Zellen teilt, die du streichen wolltest.</string>
+
+	<string name="learn_technique_sashimi_swordfish_name">Sashimi-Schwertfisch</string>
+	<string name="learn_technique_sashimi_swordfish_description">Ein Schwertfisch mit Flosse, dem eine seiner Ecken fehlt. Das Muster sieht unvollständig aus, aber das Argument über die Flosse funktioniert genau gleich.</string>
+	<string name="learn_technique_sashimi_swordfish_pattern">Wie beim Schwertfisch mit Flosse, nur dass eine der Grundlinien innerhalb der Deckspalten nur noch einen einzigen Kandidaten hat.</string>
+
+	<string name="learn_technique_jellyfish_name">Quallenfisch</string>
+	<string name="learn_technique_jellyfish_description">Der Fisch noch eine Nummer größer: Vier Zeilen, in denen eine Ziffer auf dieselben vier Spalten beschränkt ist, sperren sie dort ein, also kann sie in allen anderen Zeilen aus diesen Spalten weg.</string>
+	<string name="learn_technique_jellyfish_pattern">Nimm eine Ziffer und suche vier Zeilen, deren Kandidaten alle in vier Spalten fallen. Alles Kleinere ist ein Schwertfisch oder ein X-Wing.</string>
+
+	<string name="learn_technique_simple_colouring_name">Einfaches Färben</string>
+	<string name="learn_technique_simple_colouring_description">Verfolge eine Ziffer über die Linien, auf denen sie genau zwei Plätze hat, und färbe die beiden Enden abwechselnd. Taucht eine Farbe zweimal in einer Einheit auf, ist sie falsch, also stimmt die andere. Zellen, die beide Farben sehen, verlieren die Ziffer.</string>
+	<string name="learn_technique_simple_colouring_pattern">Nimm eine Ziffer, finde ihre Linien mit zwei Kandidaten und färbe die Kette. Suche dann eine Farbe, die sich in einer Einheit wiederholt, oder Zellen, die beide Farben sehen.</string>
+
+	<string name="learn_technique_wxyz_wing_name">WXYZ-Wing</string>
+	<string name="learn_technique_wxyz_wing_description">Die Wing-Familie auf vier Zellen und vier Kandidaten erweitert. Eine gemeinsame Ziffer muss in der Gruppe landen, also können Zellen, die jede Zelle mit dieser Ziffer sehen, sie verlieren.</string>
+	<string name="learn_technique_wxyz_wing_pattern">Suche vier Zellen in zwei Einheiten, deren Kandidaten zusammen vier Ziffern ergeben, von denen eine in allen Zellen vorkommt, die eine Zielzelle sieht.</string>
+
+	<string name="learn_technique_x_chain_name">X-Kette</string>
+	<string name="learn_technique_x_chain_description">Eine Kette in einer einzigen Ziffer, die zwischen Gliedern wechselt, die wahr sein müssen, und solchen, die falsch sein müssen. Können beide Enden nicht gleichzeitig falsch sein, verliert jede Zelle, die beide sieht, die Ziffer.</string>
+	<string name="learn_technique_x_chain_pattern">Folge einer Ziffer über Linien, auf denen sie nur zwei Plätze hat, und prüfe dann die Zellen, die beide Enden der Kette sehen.</string>
+
+	<string name="learn_technique_xy_chain_name">XY-Kette</string>
+	<string name="learn_technique_xy_chain_description">Eine Kette aus Zellen mit je zwei Kandidaten, von denen jede eine Ziffer mit der nächsten teilt. Können beide Enden dieselbe Ziffer anbieten, kann keine Zelle, die beide sieht, sie halten.</string>
+	<string name="learn_technique_xy_chain_pattern">Beginne bei einer Zweierzelle und gehe zu einem Nachbarn, der eine ihrer Ziffern teilt, bis ein Ende die Ziffer anbietet, mit der du gestartet bist.</string>
+
+	<string name="learn_technique_aic_name">Alternierende Kette</string>
+	<string name="learn_technique_aic_description">Eine Kette, die zwischen starken Gliedern, bei denen mindestens ein Ende wahr ist, und schwachen Gliedern, bei denen höchstens eines wahr ist, wechselt. Wie die Enden auch aussehen, eines ist wahr, was die Ziffer aus allem ausschließt, was beide sieht.</string>
+	<string name="learn_technique_aic_pattern">Baue eine Kette, die über beliebige Ziffern hinweg zwischen starken und schwachen Gliedern wechselt, und prüfe dann, was beide Enden sehen.</string>
+
+	<string name="learn_technique_als_xz_name">ALS-XZ</string>
+	<string name="learn_technique_als_xz_description">Zwei Zellgruppen, denen je eine Ziffer zum Abschluss fehlt, mit einer gemeinsamen Ziffer, die nur in einer der beiden liegen kann. Diese Verbindung zwingt eine zweite gemeinsame Ziffer in eine der Gruppen, also verlieren Zellen, die all ihre Plätze sehen, sie.</string>
+	<string name="learn_technique_als_xz_pattern">Finde zwei fast abgeschlossene Mengen, prüfe, ob eine gemeinsame Ziffer nur in einer davon sitzen kann, und streiche die andere gemeinsame Ziffer dort, wo beide Mengen hinsehen.</string>
+
+	<string name="learn_technique_sue_de_coq_name">Sue de Coq</string>
+	<string name="learn_technique_sue_de_coq_description">Dort, wo ein Block und eine Linie sich kreuzen, lassen die geteilten Zellen sich manchmal in zwei abgeschlossene Mengen teilen, eine für die Linie und eine für den Block. Dann verlieren sowohl der Rest der Linie als auch der Rest des Blocks diese Ziffern.</string>
+	<string name="learn_technique_sue_de_coq_pattern">Schau dir die zwei oder drei Zellen an, die ein Block und eine Linie teilen, und prüfe, ob ihre Kandidaten sauber in eine Menge der Linie und eine des Blocks zerfallen.</string>
+
+	<string name="learn_technique_medusa_3d_name">3D-Medusa</string>
+	<string name="learn_technique_medusa_3d_description">Einfaches Färben über alle Ziffern gleichzeitig, wobei Kandidaten statt Zellen gefärbt werden. Es gelten dieselben Widersprüche, und sie treten viel häufiger auf, weil die Kette innerhalb einer Zelle zwischen Ziffern springen kann.</string>
+	<string name="learn_technique_medusa_3d_pattern">Färbe einen Kandidaten und dann alles, was daraus folgt: den anderen Kandidaten einer Zweierzelle und das andere Ende einer Linie mit zwei Plätzen. Suche eine Farbe, die zweimal in einer Einheit steht.</string>
+
+	<string name="learn_technique_grouped_aic_name">Gruppierte Kette</string>
+	<string name="learn_technique_grouped_aic_description">Eine alternierende Kette, deren Glieder ganze Kandidatengruppen in einem Block sein dürfen statt einzelner Zellen. Eine Gruppe als einen Knoten zu behandeln, erreicht Schlüsse, die keine Kette aus Einzelzellen erreicht.</string>
+	<string name="learn_technique_grouped_aic_pattern">Baue eine Kette wie sonst auch, erlaube einem Knoten aber, alle Kandidaten einer Ziffer innerhalb einer Blockzeile oder Blockspalte zu sein.</string>
+
+	<string name="learn_technique_als_chain_name">ALS-Kette</string>
+	<string name="learn_technique_als_chain_description">Mehrere fast abgeschlossene Mengen hintereinander gehängt, wobei je zwei benachbarte eine Ziffer teilen, die nur in einer von beiden liegen kann. Die Kette wirkt wie ein einziges langes Argument, und die Ziffer, die ihre Enden teilen, kann dann gestrichen werden.</string>
+	<string name="learn_technique_als_chain_pattern">Verkette fast abgeschlossene Mengen über eingeschränkte gemeinsame Ziffern und streiche die Ziffer, die beide Enden teilen, aus den Zellen, die all ihre Plätze sehen.</string>
+</resources>

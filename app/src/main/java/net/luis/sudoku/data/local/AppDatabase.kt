@@ -4,22 +4,25 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import net.luis.sudoku.data.local.dao.LearnProgressDao
 import net.luis.sudoku.data.local.dao.PendingDailyResultDao
 import net.luis.sudoku.data.local.dao.SavedGameDao
 import net.luis.sudoku.data.local.dao.StatisticsDao
 import net.luis.sudoku.data.local.entity.GameResultEntity
+import net.luis.sudoku.data.local.entity.LearnProgressEntity
 import net.luis.sudoku.data.local.entity.PendingDailyResultEntity
 import net.luis.sudoku.data.local.entity.SavedGameEntity
 
 @Database(
-	entities = [SavedGameEntity::class, GameResultEntity::class, PendingDailyResultEntity::class],
-	version = 5,
+	entities = [SavedGameEntity::class, GameResultEntity::class, PendingDailyResultEntity::class, LearnProgressEntity::class],
+	version = 6,
 	exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
 	abstract fun savedGameDao(): SavedGameDao
 	abstract fun statisticsDao(): StatisticsDao
 	abstract fun pendingDailyResultDao(): PendingDailyResultDao
+	abstract fun learnProgressDao(): LearnProgressDao
 }
 
 /**
@@ -90,5 +93,29 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
 
 	override fun migrate(db: SupportSQLiteDatabase) {
 		db.execSQL("DELETE FROM saved_games WHERE variant = 'CHAOS'")
+	}
+}
+
+/**
+ * Adds the learn area's progress table.
+ *
+ * Written out rather than left to destructive migration for the same reason `game_results` was: by the time
+ * a later version arrives this table holds every technique the player has mastered, and there is nothing
+ * anywhere else to rebuild it from. It is created empty, which is exactly right - no progress is the honest
+ * starting state for a feature that did not exist before this version.
+ */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+
+	override fun migrate(db: SupportSQLiteDatabase) {
+		db.execSQL(
+			"CREATE TABLE IF NOT EXISTS learn_progress (" +
+				"technique TEXT NOT NULL, " +
+				"level INTEGER NOT NULL, " +
+				"subLevel INTEGER NOT NULL, " +
+				"state TEXT NOT NULL, " +
+				"updatedAt INTEGER NOT NULL, " +
+				"uploaded INTEGER NOT NULL DEFAULT 0, " +
+				"PRIMARY KEY(technique, level, subLevel))"
+		)
 	}
 }

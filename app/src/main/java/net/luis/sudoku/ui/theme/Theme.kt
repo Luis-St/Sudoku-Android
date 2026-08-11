@@ -130,7 +130,8 @@ enum class ActionAccent(val start: Color, val end: Color) {
 	ROSE(GradientRoseStart, GradientRoseEnd),
 	TEAL(GradientTealStart, GradientTealEnd),
 	VIOLET(GradientVioletStart, GradientVioletEnd),
-	SKY(GradientSkyStart, GradientSkyEnd);
+	SKY(GradientSkyStart, GradientSkyEnd),
+	LIME(GradientLimeStart, GradientLimeEnd);
 
 	fun brush(): Brush = Brush.horizontalGradient(listOf(this.start, this.end))
 }

@@ -26,6 +26,41 @@ object Routes {
 	const val ACCOUNT = "settings/account"
 	const val FRIENDS = "friends"
 
+	/**
+	 * The technique wiki: every technique the shared core can teach, with the player's progress on each
+	 * (learn item 2). The entry point of the learn area, and the only one reachable from the home screen -
+	 * a technique's training is always entered through its wiki page, never directly, because the
+	 * description is what the third training level leaves the player with.
+	 */
+	const val LEARN = "learn"
+
+	const val ARG_TECHNIQUE = "technique"
+	const val ARG_LEVEL = "level"
+	const val ARG_SUB_LEVEL = "subLevel"
+
+	/**
+	 * One technique explained: what it proves, how to spot it, worked examples, and the way into its
+	 * training. The technique travels as its enum name, which is a fixed identifier rather than user text.
+	 */
+	const val LEARN_TECHNIQUE = "learn/{$ARG_TECHNIQUE}"
+
+	/** The three levels of a technique's training, with the sub-levels of each and their state. */
+	const val LEARN_LEVELS = "learn/{$ARG_TECHNIQUE}/levels"
+
+	/**
+	 * One training puzzle. The level decides how much help is available, so it has to travel with the
+	 * route rather than be looked up: a level 1 board and a level 3 board are the same screen under two
+	 * different sets of rules.
+	 */
+	const val LEARN_TRAIN = "learn/{$ARG_TECHNIQUE}/train/{$ARG_LEVEL}/{$ARG_SUB_LEVEL}"
+
+	fun learnTechnique(technique: String): String = "learn/$technique"
+
+	fun learnLevels(technique: String): String = "learn/$technique/levels"
+
+	fun learnTrain(technique: String, level: Int, subLevel: Int): String =
+		"learn/$technique/train/$level/$subLevel"
+
 	const val ARG_MODE = "mode"
 	const val ARG_SIZE = "size"
 	const val ARG_VARIANT = "variant"

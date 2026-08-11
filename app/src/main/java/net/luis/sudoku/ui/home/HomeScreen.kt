@@ -53,6 +53,7 @@ fun HomeScreen(
 	onOpenShop: () -> Unit,
 	onOpenStats: () -> Unit,
 	onOpenMultiplayer: () -> Unit,
+	onOpenLearn: () -> Unit,
 	onContinue: () -> Unit,
 	modifier: Modifier = Modifier,
 	viewModel: HomeViewModel = hiltViewModel()
@@ -112,6 +113,16 @@ fun HomeScreen(
 						modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 					)
 				}
+				// Learn item 1: below multiplayer, and deliberately not gated on a server. The whole learn area
+				// runs off bundled puzzles and on-device generation, so gating it would hide a feature that
+				// works perfectly well with no account at all.
+				GradientButton(
+					text = stringResource(R.string.learn_home_button),
+					onClick = onOpenLearn,
+					iconPainter = painterResource(R.drawable.ic_learn),
+					accent = ActionAccent.LIME,
+					modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+				)
 			}
 		}
 

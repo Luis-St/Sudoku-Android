@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The learn area (learn items 2 and 3). Its own file rather than a section of strings.xml: the wiki
+     body text is longer than everything else in the app put together, and burying the rest of the UI under
+     it would make both harder to edit. Android merges every file under res/values, so these are ordinary
+     R.string entries; the learn_ prefix is what keeps the names unique across the two files. -->
+<resources>
+
+	<!-- Screen chrome. -->
+	<string name="learn_home_button">Learn</string>
+	<string name="learn_title">Techniques</string>
+	<string name="learn_subtitle">Learn a solving technique, then practise it</string>
+	<string name="learn_mastered_counter">%1$d of %2$d techniques mastered</string>
+	<string name="learn_level_group">Level %1$d</string>
+	<string name="learn_progress_sub_levels">%1$d of %2$d exercises</string>
+	<string name="learn_progress_mastered">Mastered</string>
+	<string name="learn_progress_untouched">Not started</string>
+	<string name="learn_search_hint">Search techniques</string>
+	<string name="learn_section_description">What it is</string>
+	<string name="learn_section_pattern">How to spot it</string>
+	<string name="learn_section_examples">Examples</string>
+	<string name="learn_example_counter">Example %1$d of %2$d</string>
+	<string name="learn_example_replay">Play again</string>
+	<string name="learn_example_next_step">Next step</string>
+	<string name="learn_start_training">Start training</string>
+	<string name="learn_continue_training">Continue training</string>
+	<string name="learn_levels_title">Training</string>
+	<string name="learn_level_title">Level %1$d</string>
+	<string name="learn_level_1_hint">Find the pattern, with help marking the cells step by step</string>
+	<string name="learn_level_2_hint">Hints on request, marking cells only</string>
+	<string name="learn_level_3_hint">Only the description, apply the technique yourself</string>
+	<string name="learn_level_locked">Finish the previous level to unlock this one</string>
+	<string name="learn_sub_level">Exercise %1$d</string>
+	<string name="learn_sub_level_partial">Solved without the technique</string>
+	<string name="learn_sub_level_solved">Solved</string>
+	<string name="learn_show_me">Show me</string>
+	<string name="learn_hint_request">Give me a hint</string>
+	<string name="learn_train_solved_title">Well done</string>
+	<string name="learn_train_solved_message">You applied the technique correctly.</string>
+	<string name="learn_train_continue">Next exercise</string>
+	<string name="learn_train_keep_solving">Keep solving</string>
+	<string name="learn_train_stop">Stop for now</string>
+	<string name="learn_train_partial_title">Exercise done</string>
+	<string name="learn_train_partial_message">You solved this without using the technique, so it does not count towards the achievement. Try the exercise again, or generate a new puzzle, to earn it.</string>
+	<string name="learn_generate_new">New puzzle</string>
+	<string name="learn_generate_confirm_title">Generate a new puzzle</string>
+	<string name="learn_generate_confirm_message">A puzzle built around this technique is searched for on your device. This can take a few seconds.</string>
+	<string name="learn_generate_confirm_action">Generate</string>
+	<string name="learn_generate_running">Searching for a puzzle</string>
+	<string name="learn_generate_failed">No puzzle was found for this technique in time. Please try again.</string>
+	<string name="learn_achievement_unlocked">Technique mastered</string>
+	<string name="learn_achievement_message">You finished every exercise for %1$s.</string>
+	<string name="learn_stat_mastered">Techniques mastered</string>
+
+	<!-- The narration under an animated example. One sentence per step kind, never one per technique:
+	     the shared core emits beats rather than text, and forty-one sets of sentences saying the same
+	     handful of things is forty-one places for them to drift apart. -->
+	<string name="learn_reset">Reset this training</string>
+	<string name="learn_reset_confirm_title">Reset this training</string>
+	<string name="learn_reset_confirm_message">Every exercise for this technique goes back to the start, and the achievement is given up. Your other techniques are not touched.</string>
+	<string name="learn_reset_confirm_action">Reset</string>
+	<string name="learn_examples_unavailable">The examples for this technique could not be loaded.</string>
+	<string name="learn_step_focus_digit">Look at the digit %1$d.</string>
+	<string name="learn_step_focus_unit">Look at %1$s.</string>
+	<string name="learn_step_pattern">These cells form the pattern.</string>
+	<string name="learn_step_link">These cells are linked, so one of them rules out the other.</string>
+	<string name="learn_step_implication">Whichever way it falls, the same thing follows.</string>
+	<string name="learn_step_elimination">So the crossed out candidates can go.</string>
+	<string name="learn_step_placement">So this cell has to hold %1$d.</string>
+	<string name="learn_unit_row">row %1$d</string>
+	<string name="learn_unit_column">column %1$d</string>
+	<string name="learn_unit_region">box %1$d</string>
+	<string name="learn_unit_separator">, </string>
+
+	<!-- One name, one plain description and one spotting hint per technique, in the shared
+	     core's difficulty order. The enum constant is never shown to the player, only these. -->
+
+	<string name="learn_technique_full_house_name">Full House</string>
+	<string name="learn_technique_full_house_description">A row, column or box that has only one empty cell left can only be missing one digit, and that digit has to go in that cell. No candidate work is needed at all, you just read off which digit the unit does not have yet.</string>
+	<string name="learn_technique_full_house_pattern">Look for any unit that is eight cells full and one cell empty. Scanning for almost complete boxes after every few placements is the quickest way to find them.</string>
+
+	<string name="learn_technique_last_digit_name">Last Digit</string>
+	<string name="learn_technique_last_digit_description">When a digit has been placed in every box but one, there is only one cell left in the whole grid that can still take it. The count alone forces the placement, so you do not have to look at candidates.</string>
+	<string name="learn_technique_last_digit_pattern">Pick a digit and count how often it already appears. At eight out of nine, find the box that is missing it and look for the single cell in that box the digit can still reach.</string>
+
+	<string name="learn_technique_naked_single_name">Naked Single</string>
+	<string name="learn_technique_naked_single_description">A cell whose row, column and box between them already show every digit but one has only that digit left, so it must hold it. This is the most direct deduction in the game.</string>
+	<string name="learn_technique_naked_single_pattern">Look for cells with only one pencil mark left. Without pencil marks, check cells sitting where a full row and a full column cross, they run out of options first.</string>
+
+	<string name="learn_technique_hidden_single_region_name">Hidden Single in a Box</string>
+	<string name="learn_technique_hidden_single_region_description">A digit has to appear once in every box. If everything else in the box is blocked by the same digit in a crossing row or column, the one cell left over must hold it, even if that cell still has other pencil marks.</string>
+	<string name="learn_technique_hidden_single_region_pattern">Take one digit and one box. Cross out every cell of the box that shares a row or column with that digit elsewhere. If exactly one cell survives, that is the placement.</string>
+
+	<string name="learn_technique_hidden_single_line_name">Hidden Single in a Line</string>
+	<string name="learn_technique_hidden_single_line_description">The same argument as in a box, made along a row or a column: if a digit can only go in one cell of that line, it goes there. It is harder to see because a line is spread across the grid rather than sitting in one square block.</string>
+	<string name="learn_technique_hidden_single_line_pattern">Walk one row at a time and ask, for a single digit, which of its empty cells could still take it. Only one candidate cell means a placement.</string>
+
+	<string name="learn_technique_pointing_name">Pointing Pair</string>
+	<string name="learn_technique_pointing_description">If every place a digit could still go inside a box lies on one row or one column, then that digit is definitely somewhere on that line inside the box. It can therefore be removed from the rest of the line outside the box.</string>
+	<string name="learn_technique_pointing_pattern">Look at one digit inside one box. If its two or three remaining cells all share a row or a column, look along that line outside the box and clear the digit there.</string>
+
+	<string name="learn_technique_claiming_name">Claiming</string>
+	<string name="learn_technique_claiming_description">The mirror image of the pointing pair: if every place a digit could go on a row or column lies inside a single box, the digit belongs to that box on that line, so it can be removed from the rest of the box.</string>
+	<string name="learn_technique_claiming_pattern">Take one digit and one line. If all of its candidate cells on that line fall inside one box, clear the digit from the other cells of that box.</string>
+
+	<string name="learn_technique_naked_pair_name">Naked Pair</string>
+	<string name="learn_technique_naked_pair_description">Two cells of the same unit that both hold exactly the same two candidates will use up both of those digits between them, whichever way round they fall. No other cell of that unit can take either digit.</string>
+	<string name="learn_technique_naked_pair_pattern">Scan a unit for two cells with exactly two pencil marks each, and check whether the two marks are identical. Then clear those two digits from the rest of the unit.</string>
+
+	<string name="learn_technique_hidden_pair_name">Hidden Pair</string>
+	<string name="learn_technique_hidden_pair_description">If two digits can only go in the same two cells of a unit, those two cells are reserved for them. Every other pencil mark in those two cells can go, even though the pair was hidden behind them.</string>
+	<string name="learn_technique_hidden_pair_pattern">Count, for each digit of a unit, how many cells could take it. Two digits with the same two candidate cells are a hidden pair. Clean the two cells out down to just those digits.</string>
+
+	<string name="learn_technique_naked_triple_name">Naked Triple</string>
+	<string name="learn_technique_naked_triple_description">Three cells of a unit that between them use only three different candidates must hold those three digits. The digits are used up, so no other cell of the unit can take any of them. A cell may hold only two of the three, that still counts.</string>
+	<string name="learn_technique_naked_triple_pattern">Look for a group of three cells in one unit whose pencil marks together add up to just three different digits, then clear those digits from the rest of the unit.</string>
+
+	<string name="learn_technique_hidden_triple_name">Hidden Triple</string>
+	<string name="learn_technique_hidden_triple_description">Three digits that can only be placed in the same three cells of a unit own those cells. Any other candidate in those three cells can be removed, which is what usually breaks the position open.</string>
+	<string name="learn_technique_hidden_triple_pattern">For each digit in a unit, note its candidate cells. Three digits whose candidate cells together cover only three cells are a hidden triple.</string>
+
+	<string name="learn_technique_x_wing_name">X-Wing</string>
+	<string name="learn_technique_x_wing_description">Take one digit and two rows in which it can only go in the same two columns. Whichever way the digit falls in those rows, both of those columns get it inside the rectangle, so the digit cannot appear anywhere else in those two columns.</string>
+	<string name="learn_technique_x_wing_pattern">Pick a digit and look for two rows where it has exactly two candidate cells that line up in the same two columns. The four cells form a rectangle. It works with rows and columns swapped as well.</string>
+
+	<string name="learn_technique_skyscraper_name">Skyscraper</string>
+	<string name="learn_technique_skyscraper_description">Two rows in which a digit has exactly two candidate cells, sharing one column, form a chain: one of the two far ends must hold the digit. Any cell that sees both far ends can therefore lose it.</string>
+	<string name="learn_technique_skyscraper_pattern">Find two rows where a digit has just two candidates each, with one candidate of each in the same column. Then look at the two remaining ends and at the cells that see both.</string>
+
+	<string name="learn_technique_two_string_kite_name">Two-String Kite</string>
+	<string name="learn_technique_two_string_kite_description">A row and a column in which a digit has only two candidate cells, with one end of each meeting in the same box, chain together. One of the two far ends holds the digit, so the cell that sees both loses it.</string>
+	<string name="learn_technique_two_string_kite_pattern">Look for a row pair and a column pair of one digit whose near ends land in a common box. The elimination sits where the far row cell and the far column cell cross.</string>
+
+	<string name="learn_technique_swordfish_name">Swordfish</string>
+	<string name="learn_technique_swordfish_description">The X-Wing idea one size larger: three rows in which a digit is confined to the same three columns lock the digit into those columns, so it can be cleared from them everywhere else. A row may use only two of the three columns.</string>
+	<string name="learn_technique_swordfish_pattern">Pick a digit and look for three rows whose candidate cells for it fall within a set of just three columns, then clear the digit from those columns in every other row.</string>
+
+	<string name="learn_technique_bug_plus_one_name">BUG+1</string>
+	<string name="learn_technique_bug_plus_one_description">If every unsolved cell but one has exactly two candidates, the grid is one step away from a position with two solutions, which a proper puzzle cannot have. The cell with the extra candidate has to take that extra digit to prevent it.</string>
+	<string name="learn_technique_bug_plus_one_pattern">Late in a puzzle, check whether all remaining cells have two pencil marks except a single cell with three. The odd digit out in that cell is the answer.</string>
+
+	<string name="learn_technique_crane_name">Crane</string>
+	<string name="learn_technique_crane_description">A relative of the skyscraper: two rows where the digit has two candidates each, and a third line linking them, so that one of the two far ends must hold the digit. Cells that see both ends can lose it.</string>
+	<string name="learn_technique_crane_pattern">Look for the skyscraper shape but with the two strong lines joined through a third line rather than sharing a box.</string>
+
+	<string name="learn_technique_xy_wing_name">XY-Wing</string>
+	<string name="learn_technique_xy_wing_description">Three cells with two candidates each: a pivot holding X and Y, one wing holding X and Z, another holding Y and Z, both seen by the pivot. Whichever digit the pivot takes, one wing ends up as Z, so any cell seeing both wings cannot be Z.</string>
+	<string name="learn_technique_xy_wing_pattern">Hunt for a two-candidate cell that sees two other two-candidate cells sharing one digit with it each and a third digit with each other. The elimination is where the two wings both look.</string>
+
+	<string name="learn_technique_unique_rectangle_1_name">Unique Rectangle Type 1</string>
+	<string name="learn_technique_unique_rectangle_1_description">Four cells forming a rectangle across two boxes, holding the same two digits, would give the puzzle two solutions. Since a proper puzzle has exactly one, the fourth cell must take one of its extra candidates, so the two shared digits can go from it.</string>
+	<string name="learn_technique_unique_rectangle_1_pattern">Look for three cells of a rectangle with the identical two pencil marks and a fourth corner holding those two plus extras. The two shared digits leave the fourth corner.</string>
+
+	<string name="learn_technique_unique_rectangle_2_name">Unique Rectangle Type 2</string>
+	<string name="learn_technique_unique_rectangle_2_description">The same deadly rectangle, but with one extra candidate appearing in two of the corners. That extra digit has to be placed in one of them, otherwise the puzzle would have two solutions, so every cell seeing both corners loses it.</string>
+	<string name="learn_technique_unique_rectangle_2_pattern">Find a rectangle of two digits where two corners carry one and the same extra candidate. Clear that extra digit from the cells both corners see.</string>
+
+	<string name="learn_technique_xyz_wing_name">XYZ-Wing</string>
+	<string name="learn_technique_xyz_wing_description">Like the XY-Wing but the pivot holds three candidates, X, Y and Z, and both wings hold Z. One of the three cells has to be Z, so any cell seeing all three of them cannot be Z.</string>
+	<string name="learn_technique_xyz_wing_pattern">Find a three-candidate pivot with two two-candidate wings it sees, all three sharing one common digit. The elimination has to see the pivot and both wings.</string>
+
+	<string name="learn_technique_w_wing_name">W-Wing</string>
+	<string name="learn_technique_w_wing_description">Two cells far apart holding the same two candidates, joined by a line on which one of those digits has only two places. That link forces one of the two cells to take the other digit, so cells seeing both lose it.</string>
+	<string name="learn_technique_w_wing_pattern">Look for two identical two-candidate cells, then check whether one of their digits has a two-cell line linking them.</string>
+
+	<string name="learn_technique_finned_x_wing_name">Finned X-Wing</string>
+	<string name="learn_technique_finned_x_wing_description">An X-Wing spoiled by one extra candidate, the fin, sitting in the same box as one corner. The conclusion still holds, but only for the cells that also see the fin.</string>
+	<string name="learn_technique_finned_x_wing_pattern">Find an almost X-Wing where one row has a third candidate. If that extra cell shares a box with a corner, you can still eliminate inside that box.</string>
+
+	<string name="learn_technique_naked_quad_name">Naked Quad</string>
+	<string name="learn_technique_naked_quad_description">Four cells of a unit using only four different candidates between them take those four digits, so no other cell of the unit can hold any of them. Cells with two or three of the four still count.</string>
+	<string name="learn_technique_naked_quad_pattern">Look for four cells in one unit whose pencil marks together make up only four digits. It is easiest when at least two of them have just two marks.</string>
+
+	<string name="learn_technique_hidden_quad_name">Hidden Quad</string>
+	<string name="learn_technique_hidden_quad_description">Four digits restricted to the same four cells of a unit own those cells, so every other candidate in them can be removed. It is rare, and usually easier to spot as the naked subset it leaves behind.</string>
+	<string name="learn_technique_hidden_quad_pattern">For each digit of a unit, list its candidate cells. Four digits whose cells cover only four positions form the quad.</string>
+
+	<string name="learn_technique_unique_rectangle_3_name">Unique Rectangle Type 3</string>
+	<string name="learn_technique_unique_rectangle_3_description">A deadly rectangle where two corners carry extra candidates. Those extras behave like a small naked subset together with another cell of the unit, so that subset\'s digits can be cleared from the rest of the unit.</string>
+	<string name="learn_technique_unique_rectangle_3_pattern">Find the rectangle, take the extra candidates of the two roof cells as a set, and look for cells in the same unit that complete it into a naked pair or triple.</string>
+
+	<string name="learn_technique_unique_rectangle_4_name">Unique Rectangle Type 4</string>
+	<string name="learn_technique_unique_rectangle_4_description">A deadly rectangle in which one of the two shared digits is locked into the roof line. That forces the other shared digit out of both roof cells, since otherwise the ambiguous rectangle would appear.</string>
+	<string name="learn_technique_unique_rectangle_4_pattern">Find a rectangle of two digits and check whether one of them can only go in the two roof cells of its line. Then remove the other digit from those roof cells.</string>
+
+	<string name="learn_technique_empty_rectangle_name">Empty Rectangle</string>
+	<string name="learn_technique_empty_rectangle_description">A digit inside a box that occupies only one row and one column forms a cross. Combined with a two-cell line of the same digit elsewhere, it forces the digit out of the cell where the two arguments meet.</string>
+	<string name="learn_technique_empty_rectangle_pattern">Look for a box where a digit\'s candidates all sit on one row and one column, then find a line with exactly two candidates of the digit pointing into it.</string>
+
+	<string name="learn_technique_finned_swordfish_name">Finned Swordfish</string>
+	<string name="learn_technique_finned_swordfish_description">A swordfish with one extra candidate spoiling it. The eliminations still stand, but only in the box that the fin sits in.</string>
+	<string name="learn_technique_finned_swordfish_pattern">Find an almost swordfish where one line has a spare candidate, and check whether that spare shares a box with the cells you wanted to eliminate.</string>
+
+	<string name="learn_technique_sashimi_swordfish_name">Sashimi Swordfish</string>
+	<string name="learn_technique_sashimi_swordfish_description">A finned swordfish missing one of its corners. The pattern looks incomplete, but the argument through the fin works exactly the same way.</string>
+	<string name="learn_technique_sashimi_swordfish_pattern">As the finned swordfish, except that one of the base lines has only a single candidate left inside the cover columns.</string>
+
+	<string name="learn_technique_jellyfish_name">Jellyfish</string>
+	<string name="learn_technique_jellyfish_description">The fish one size larger again: four rows in which a digit is confined to the same four columns lock it into those columns, so it can be cleared from them in every other row.</string>
+	<string name="learn_technique_jellyfish_pattern">Pick a digit and look for four rows whose candidates all fall inside a set of four columns. Anything smaller is a swordfish or an X-Wing.</string>
+
+	<string name="learn_technique_simple_colouring_name">Simple Colouring</string>
+	<string name="learn_technique_simple_colouring_description">Follow one digit through the lines where it has exactly two places, painting the two ends in alternating colours. If a colour appears twice in one unit it is wrong, so the other colour is true. Cells that see both colours lose the digit.</string>
+	<string name="learn_technique_simple_colouring_pattern">Pick a digit, find its two-candidate lines and colour the chain. Then look for a colour repeating in a unit, or for cells seeing both colours.</string>
+
+	<string name="learn_technique_wxyz_wing_name">WXYZ-Wing</string>
+	<string name="learn_technique_wxyz_wing_description">The wing family extended to four cells and four candidates. One shared digit has to end up in the group, so cells that see every cell holding that digit can lose it.</string>
+	<string name="learn_technique_wxyz_wing_pattern">Look for four cells within two units whose candidates total four digits, one of which appears in all the cells that a target cell sees.</string>
+
+	<string name="learn_technique_x_chain_name">X-Chain</string>
+	<string name="learn_technique_x_chain_description">A chain in a single digit, alternating between links that must be true and links that must be false. If both ends of the chain cannot be false at the same time, any cell seeing both ends loses the digit.</string>
+	<string name="learn_technique_x_chain_pattern">Follow one digit through lines where it has only two places, then check the cells that see both ends of the chain.</string>
+
+	<string name="learn_technique_xy_chain_name">XY-Chain</string>
+	<string name="learn_technique_xy_chain_description">A chain of two-candidate cells, each sharing a digit with the next. If both ends can offer the same digit, any cell seeing both ends cannot hold it.</string>
+	<string name="learn_technique_xy_chain_pattern">Start from a two-candidate cell and step to a peer that shares one of its digits, continuing until an end offers the digit you started from.</string>
+
+	<string name="learn_technique_aic_name">Alternating Inference Chain</string>
+	<string name="learn_technique_aic_description">A chain that alternates between strong links, where at least one end is true, and weak links, where at most one end is true. Whatever the chain\'s two ends are, one of them is true, which rules the digit out of anything seeing both.</string>
+	<string name="learn_technique_aic_pattern">Build a chain that alternates strong and weak links across any digits, then check what both ends of it see.</string>
+
+	<string name="learn_technique_als_xz_name">ALS-XZ</string>
+	<string name="learn_technique_als_xz_description">Two groups of cells that are one digit short of being locked, sharing a digit that can only be in one of the two groups. That link forces a second shared digit into one of them, so cells seeing all of its places lose it.</string>
+	<string name="learn_technique_als_xz_pattern">Find two almost locked sets, check that one common digit can only sit in one of them, then eliminate the other common digit where both sets can see.</string>
+
+	<string name="learn_technique_sue_de_coq_name">Sue de Coq</string>
+	<string name="learn_technique_sue_de_coq_description">Where a box and a line cross, the shared cells can sometimes be split into two locked sets, one belonging to the line and one to the box. Both the rest of the line and the rest of the box then lose those digits.</string>
+	<string name="learn_technique_sue_de_coq_pattern">Look at the two or three cells a box and a line share, and check whether their candidates split cleanly into a set the line covers and a set the box covers.</string>
+
+	<string name="learn_technique_medusa_3d_name">3D Medusa</string>
+	<string name="learn_technique_medusa_3d_description">Simple colouring done over all digits at once, colouring candidates rather than cells. The same contradictions apply, and they turn up far more often because the chain can hop between digits inside a cell.</string>
+	<string name="learn_technique_medusa_3d_pattern">Colour a candidate, then colour everything forced by it: the other candidate of a two-candidate cell, and the other end of a two-place line. Look for a colour twice in one unit.</string>
+
+	<string name="learn_technique_grouped_aic_name">Grouped Chain</string>
+	<string name="learn_technique_grouped_aic_description">An alternating chain whose links may be whole groups of candidates in a box rather than single cells. Treating a group as one node reaches conclusions no single-cell chain can.</string>
+	<string name="learn_technique_grouped_aic_pattern">Build a chain as usual, but allow a node to be all the candidates of a digit inside one box row or box column.</string>
+
+	<string name="learn_technique_als_chain_name">ALS Chain</string>
+	<string name="learn_technique_als_chain_description">Several almost locked sets joined one after another, each pair sharing a digit that can only be in one of them. The chain behaves like one long argument, and its two ends share a digit that can then be eliminated.</string>
+	<string name="learn_technique_als_chain_pattern">Chain almost locked sets by restricted common digits, then eliminate the digit both ends share from the cells all of its places can see.</string>
+</resources>
