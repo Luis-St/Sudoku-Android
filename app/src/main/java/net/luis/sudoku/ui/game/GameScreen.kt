@@ -3,6 +3,7 @@ package net.luis.sudoku.ui.game
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,6 +39,8 @@ import net.luis.sudoku.ui.common.PlayLayout
 import net.luis.sudoku.ui.common.ToggleActionButton
 import net.luis.sudoku.ui.common.friendlyErrorMessage
 import net.luis.sudoku.ui.common.shareText
+import net.luis.sudoku.ui.learn.stringsOf
+import net.luis.sudoku.domain.HintAdvice
 import net.luis.sudoku.ui.input.NumberPad
 import net.luis.sudoku.ui.navigation.PlayMode
 import net.luis.sudoku.ui.navigation.PlayRequest
@@ -63,6 +66,11 @@ fun GameScreen(
 	 * next. It now leaves the finished game and opens the generator.
 	 */
 	onNewPuzzle: () -> Unit = {},
+	/**
+	 * Opens a technique's wiki page, which is where a named hint leads. Takes the technique's enum name,
+	 * which is an identifier rather than anything the player is ever shown.
+	 */
+	onOpenTechnique: (String) -> Unit = {},
 	topBarActions: GameTopBarActions? = null,
 	modifier: Modifier = Modifier,
 	viewModel: GameViewModel = hiltViewModel()
@@ -225,6 +233,12 @@ fun GameScreen(
 							)
 						}
 					}
+
+					// What the peeked hint has to say beyond the cell it marks. A hint that only reveals a digit
+					// answers one cell and teaches nothing about the next one.
+					viewModel.hintAdvice?.let { advice ->
+						HintAdviceRow(advice, onOpenTechnique)
+					}
 				}
 			}
 		)
@@ -335,4 +349,40 @@ internal fun formatElapsed(millis: Long): String {
 	val minutes = totalSeconds / 60
 	val seconds = totalSeconds % 60
 	return "%d:%02d".format(minutes, seconds)
+}
+
+/**
+ * The sentence under the hint buttons: either the technique that solves the marked cell, or the pencil marks
+ * that have to be sorted out before any technique means anything.
+ *
+ * The wrong-marks case comes first and offers no wiki link on purpose. Sending a player to read about a
+ * technique while their candidate set contradicts the board teaches them to apply it to a position that is
+ * not in front of them.
+ */
+@Composable
+private fun HintAdviceRow(advice: HintAdvice, onOpenTechnique: (String) -> Unit) {
+	Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+		when (advice) {
+			is HintAdvice.WrongPencilMarks -> Text(
+				text = stringResource(R.string.learn_hint_wrong_pencil),
+				style = MaterialTheme.typography.bodySmall,
+				color = MaterialTheme.colorScheme.error
+			)
+
+			is HintAdvice.Named -> {
+				Text(
+					text = stringResource(R.string.learn_hint_technique, stringResource(stringsOf(advice.technique).name)),
+					style = MaterialTheme.typography.bodySmall,
+					color = MaterialTheme.colorScheme.onSurfaceVariant
+				)
+				// The handful of techniques the learn area does not teach are still named, they simply have no
+				// page to open. Naming one and offering a link to nothing would be worse than naming it alone.
+				if (advice.teachable) {
+					TextButton(onClick = { onOpenTechnique(advice.technique.name) }) {
+						Text(stringResource(R.string.learn_hint_open_wiki))
+					}
+				}
+			}
+		}
+	}
 }

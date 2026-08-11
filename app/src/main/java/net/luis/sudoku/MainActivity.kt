@@ -248,6 +248,17 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 					// is not a way *out* of the board, it is something to do *with* the board. The play screen still
 					// withdraws it wherever sharing is meaningless - the daily, whose puzzle everybody already has,
 					// and a finished game.
+					// The way from a running game into the technique wiki, next to share. A player stuck on a
+					// board is exactly the player a technique list is for, and a hint that names a technique
+					// (see `HintAdviceRow`) is the other half of the same route.
+					if (onGameScreen) {
+						IconButton(onClick = { navController.navigate(Routes.LEARN) }) {
+							Icon(
+								painter = painterResource(R.drawable.ic_learn),
+								contentDescription = stringResource(R.string.learn_open_wiki)
+							)
+						}
+					}
 					gameTopBarActions.onShare?.let { share ->
 						IconButton(onClick = share) {
 							Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.action_share))

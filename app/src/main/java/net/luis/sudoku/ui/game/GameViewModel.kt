@@ -37,6 +37,8 @@ import net.luis.sudoku.domain.CurrencyController
 import net.luis.sudoku.domain.DailyController
 import net.luis.sudoku.domain.DailyRecord
 import net.luis.sudoku.domain.GameResultUploader
+import net.luis.sudoku.domain.HintAdvice
+import net.luis.sudoku.domain.HintAdviser
 import net.luis.sudoku.domain.HintController
 import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.domain.LivesController
@@ -261,6 +263,15 @@ class GameViewModel @Inject constructor(
 		private set
 
 	/** Set after the first hint tap, cleared on confirm/cancel - the cell to highlight (feature-spec §4.4). */
+	/**
+	 * What the pending hint has to say beyond the cell it marks: the technique that solves it, or the wrong
+	 * pencil marks that have to be sorted out before any technique means anything.
+	 *
+	 * Set alongside [hintCandidate] and cleared with it, because it describes that one peek.
+	 */
+	var hintAdvice by mutableStateOf<HintAdvice?>(null)
+		private set
+
 	var hintCandidate by mutableStateOf<HintCandidate?>(null)
 		private set
 
@@ -711,6 +722,7 @@ class GameViewModel @Inject constructor(
 	 */
 	private fun clearPendingHint() {
 		this.hintCandidate = null
+		this.hintAdvice = null
 		this.hintController.cancelPending()
 	}
 
@@ -726,7 +738,11 @@ class GameViewModel @Inject constructor(
 		if (this.outcome != null) return
 		val pending = this.hintCandidate
 		if (pending == null) {
-			this.hintCandidate = this.hintController.requestHint()
+			val candidate = this.hintController.requestHint()
+			this.hintCandidate = candidate
+			// Named on the peek rather than on the reveal: the peek is the moment the player is still deciding
+			// what to do, which is the only moment a way forward is worth more than the answer.
+			this.hintAdvice = candidate?.let { HintAdviser.adviceFor(this.session, it.technique()) }
 			return
 		}
 		val index = pending.cellIndex()
@@ -736,6 +752,7 @@ class GameViewModel @Inject constructor(
 		val digit = this.hintController.confirmHint() ?: return
 		val after = this.session.cellForUndo(index).copy()
 		this.hintCandidate = null
+		this.hintAdvice = null
 		this.hintsRemaining = this.hintController.remaining
 		this.hintCells.add(index)
 		// The cell is filled from here on, so the replay has to know about it - see [dailySolveOrder].

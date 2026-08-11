@@ -54,6 +54,10 @@
 	<!-- The narration under an animated example. One sentence per step kind, never one per technique:
 	     the shared core emits beats rather than text, and forty-one sets of sentences saying the same
 	     handful of things is forty-one places for them to drift apart. -->
+	<string name="learn_hint_technique">This cell can be solved with %1$s.</string>
+	<string name="learn_hint_open_wiki">How does that work?</string>
+	<string name="learn_hint_wrong_pencil">Some of your pencil marks cannot be right: a digit is noted in a cell where a row, column or box already shows it. Fix those first, every technique argues from the notes.</string>
+	<string name="learn_open_wiki">Techniques</string>
 	<string name="learn_reset">Reset this training</string>
 	<string name="learn_reset_confirm_title">Reset this training</string>
 	<string name="learn_reset_confirm_message">Every exercise for this technique goes back to the start, and the achievement is given up. Your other techniques are not touched.</string>

@@ -52,6 +52,10 @@
 	<string name="learn_stat_mastered">Gemeisterte Techniken</string>
 
 	<!-- The narration under an animated example. See the English file for why these are per step kind. -->
+	<string name="learn_hint_technique">Diese Zelle lässt sich mit %1$s lösen.</string>
+	<string name="learn_hint_open_wiki">Wie funktioniert das?</string>
+	<string name="learn_hint_wrong_pencil">Einige deiner Notizen können nicht stimmen: In einer Zelle steht eine Ziffer, die in Zeile, Spalte oder Block bereits vorkommt. Korrigiere das zuerst, jede Technik baut auf den Notizen auf.</string>
+	<string name="learn_open_wiki">Techniken</string>
 	<string name="learn_reset">Training zurücksetzen</string>
 	<string name="learn_reset_confirm_title">Training zurücksetzen</string>
 	<string name="learn_reset_confirm_message">Alle Übungen dieser Technik beginnen wieder von vorn und der Erfolg wird abgegeben. Deine anderen Techniken bleiben unberührt.</string>
