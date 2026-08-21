@@ -55,6 +55,7 @@ import net.luis.sudoku.ui.common.SectionCard
 fun SettingsScreen(
 	appViewModel: AppViewModel,
 	onOpenAccount: () -> Unit,
+	onOpenLearnSettings: () -> Unit,
 	modifier: Modifier = Modifier
 ) {
 	val preferences = appViewModel.preferences
@@ -131,6 +132,24 @@ fun SettingsScreen(
 					label = stringResource(R.string.pref_sound_enabled),
 					checked = preferences.soundEnabled,
 					onCheckedChange = appViewModel::setSoundEnabled
+				)
+			}
+		}
+
+		// The learn area keeps its own preferences on their own screen, the way the account does. There is one
+		// of them today, and it is there because the training lets a player switch a screen off from inside a
+		// lesson: a choice made in passing needs somewhere obvious to be taken back.
+		SectionCard(title = stringResource(R.string.settings_header_learn), modifier = Modifier.padding(top = 12.dp)) {
+			Column {
+				Text(
+					text = stringResource(R.string.settings_learn_note),
+					style = MaterialTheme.typography.bodySmall,
+					color = MaterialTheme.colorScheme.onSurfaceVariant
+				)
+				OutlinedActionButton(
+					text = stringResource(R.string.settings_open_learn),
+					onClick = onOpenLearnSettings,
+					modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
 				)
 			}
 		}

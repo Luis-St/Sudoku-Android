@@ -378,6 +378,9 @@
 
 	<!-- Settings item 2: the server account workflow, on its own screen. -->
 	<string name="settings_open_account">Server and account</string>
+	<string name="settings_header_learn">Learn area</string>
+	<string name="settings_learn_note">The training explains each exercise before it starts. Whether it still does is set here.</string>
+	<string name="settings_open_learn">Learn area settings</string>
 	<string name="account_step_server">Server</string>
 	<string name="account_step_sign_in">Sign in</string>
 	<string name="account_step_account">Account</string>

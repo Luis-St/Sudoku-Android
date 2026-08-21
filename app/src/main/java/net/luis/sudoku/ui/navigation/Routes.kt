@@ -26,40 +26,106 @@ object Routes {
 	const val ACCOUNT = "settings/account"
 	const val FRIENDS = "friends"
 
+	const val ARG_TECHNIQUE = "technique"
+	const val ARG_LEVEL = "level"
+	const val ARG_SUB_LEVEL = "subLevel"
+	const val ARG_EXAMPLE = "example"
+
+	/**
+	 * Game item 1 (2.1.0): whether the learn area was opened to be *worked through* or merely to be *looked
+	 * something up in*.
+	 *
+	 * `true` is reference mode, which is what a running board opens. The wiki is a reasonable thing to reach
+	 * for mid-puzzle - a hint has just named a technique, and the player wants to know what that is - but
+	 * training is not: it is a second sudoku, started from inside the first one, on a screen the player still
+	 * has a timed puzzle waiting behind. So reference mode keeps the descriptions and the worked examples and
+	 * drops everything that is progress through the area: the training entry point, the mastery ring, and the
+	 * per-technique progress lines that only mean something to someone who came here to train.
+	 *
+	 * Carried in the route rather than held in a view model because it has to survive process death with the
+	 * back stack: a player who reads a wiki page while Android kills the app behind it comes back to the same
+	 * page, and it must not have grown a "Start training" button in the meantime.
+	 */
+	const val ARG_REFERENCE = "reference"
+
 	/**
 	 * The technique wiki: every technique the shared core can teach, with the player's progress on each
 	 * (learn item 2). The entry point of the learn area, and the only one reachable from the home screen -
 	 * a technique's training is always entered through its wiki page, never directly, because the
 	 * description is what the third training level leaves the player with.
 	 */
-	const val LEARN = "learn"
-
-	const val ARG_TECHNIQUE = "technique"
-	const val ARG_LEVEL = "level"
-	const val ARG_SUB_LEVEL = "subLevel"
+	const val LEARN = "learn?$ARG_REFERENCE={$ARG_REFERENCE}"
 
 	/**
 	 * One technique explained: what it proves, how to spot it, worked examples, and the way into its
 	 * training. The technique travels as its enum name, which is a fixed identifier rather than user text.
 	 */
-	const val LEARN_TECHNIQUE = "learn/{$ARG_TECHNIQUE}"
+	const val LEARN_TECHNIQUE = "learn/{$ARG_TECHNIQUE}?$ARG_REFERENCE={$ARG_REFERENCE}"
+
+	/**
+	 * One worked example, on a screen of its own.
+	 *
+	 * Its own destination rather than a carousel on the wiki page: the page's dots said nothing about whether
+	 * they meant the example or the step within it, and an example is a board plus an argument that runs over
+	 * several beats, which is a thing to be looked at rather than a thing to be scrolled past.
+	 */
+	const val LEARN_EXAMPLE = "learn/{$ARG_TECHNIQUE}/example/{$ARG_EXAMPLE}"
 
 	/** The three levels of a technique's training, with the sub-levels of each and their state. */
 	const val LEARN_LEVELS = "learn/{$ARG_TECHNIQUE}/levels"
+
+	/**
+	 * Learn item 8: open this exercise on a position generated now, rather than on the one bundled with the
+	 * app.
+	 *
+	 * A route argument because the choice is made *before* the exercise opens: it is offered on the level
+	 * overview, where the player can see which exercise they are asking for a new puzzle for, instead of
+	 * inside the exercise where it used to be, halfway through a board they had already started reading.
+	 */
+	const val ARG_FRESH = "fresh"
 
 	/**
 	 * One training puzzle. The level decides how much help is available, so it has to travel with the
 	 * route rather than be looked up: a level 1 board and a level 3 board are the same screen under two
 	 * different sets of rules.
 	 */
-	const val LEARN_TRAIN = "learn/{$ARG_TECHNIQUE}/train/{$ARG_LEVEL}/{$ARG_SUB_LEVEL}"
+	const val LEARN_TRAIN = "learn/{$ARG_TECHNIQUE}/train/{$ARG_LEVEL}/{$ARG_SUB_LEVEL}?$ARG_FRESH={$ARG_FRESH}"
 
-	fun learnTechnique(technique: String): String = "learn/$technique"
+	/**
+	 * What the exercise about to open is asking for, on a screen of its own, before the board appears.
+	 *
+	 * Its own destination rather than a card above the board. The brief and the puzzle are two different
+	 * things to do: one is read once, the other is worked at, and stacked on one screen the brief is what the
+	 * player scrolls past to reach the board and then never reads. Separating them also lets the brief be
+	 * turned off per level, which a card in the middle of a screen could not honestly offer.
+	 *
+	 * It carries the fresh-puzzle request through untouched, so asking for a new position on the overview
+	 * still means the board that opens after the brief is the generated one.
+	 */
+	const val LEARN_BRIEF = "learn/{$ARG_TECHNIQUE}/brief/{$ARG_LEVEL}/{$ARG_SUB_LEVEL}?$ARG_FRESH={$ARG_FRESH}"
+
+	/**
+	 * The learn area's own settings, a sub screen of [SETTINGS] the way [ACCOUNT] is.
+	 *
+	 * It exists because the briefing can be dismissed for good from inside the training, and a choice made
+	 * with one tap on the way past has to be undoable somewhere the player can find later.
+	 */
+	const val LEARN_SETTINGS = "settings/learn"
+
+	fun learn(reference: Boolean = false): String = "learn?$ARG_REFERENCE=$reference"
+
+	fun learnTechnique(technique: String, reference: Boolean = false): String =
+		"learn/$technique?$ARG_REFERENCE=$reference"
+
+	fun learnExample(technique: String, index: Int): String = "learn/$technique/example/$index"
 
 	fun learnLevels(technique: String): String = "learn/$technique/levels"
 
-	fun learnTrain(technique: String, level: Int, subLevel: Int): String =
-		"learn/$technique/train/$level/$subLevel"
+	fun learnTrain(technique: String, level: Int, subLevel: Int, fresh: Boolean = false): String =
+		"learn/$technique/train/$level/$subLevel?$ARG_FRESH=$fresh"
+
+	fun learnBrief(technique: String, level: Int, subLevel: Int, fresh: Boolean = false): String =
+		"learn/$technique/brief/$level/$subLevel?$ARG_FRESH=$fresh"
 
 	const val ARG_MODE = "mode"
 	const val ARG_SIZE = "size"

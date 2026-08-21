@@ -8,7 +8,7 @@ lifecycleRuntimeKtx = "2.11.0"
 activityCompose = "1.13.0"
 kotlin = "2.2.10"
 composeBom = "2026.02.01"
-sudokuLib = "3.1.1"
+sudokuLib = "3.2.0"
 # KSP's version is tied to the Kotlin compiler version: the prefix must equal `kotlin` above.
 ksp = "2.2.10-2.0.2"
 hilt = "2.60.1"

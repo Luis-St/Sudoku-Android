@@ -18,11 +18,13 @@ import net.luis.sudoku.ui.navigation.Routes
 import javax.inject.Inject
 
 /**
- * One technique's wiki page: what it proves, how to spot it, and five worked examples to watch.
+ * One technique's wiki page: what it proves, how to spot it, and the way into its worked examples and its
+ * training.
  *
- * The examples are played rather than shown. Each one is an [ExplanationFrame] list built once from the
- * puzzle's own explanation, and the screen holds a cursor into it, so stepping forwards costs nothing and
- * going back is free.
+ * The examples are no longer stepped through here. This page offers them as tiles and [LearnExampleScreen]
+ * plays the one that was picked, so the page holds a *picture* of each example rather than a cursor into any
+ * of them: for every example, the frame its argument ends on, which is the one that shows the whole pattern
+ * at once.
  */
 @HiltViewModel
 class LearnTechniqueViewModel @Inject constructor(
@@ -36,18 +38,14 @@ class LearnTechniqueViewModel @Inject constructor(
 	var examples by mutableStateOf<List<LearnPuzzle>>(emptyList())
 		private set
 
+	/** The finished frame of each example, in the same order, which is what its tile is drawn from. */
+	var previews by mutableStateOf<List<ExplanationFrame>>(emptyList())
+		private set
+
 	var progress by mutableStateOf<TechniqueProgress?>(null)
 		private set
 
-	/** Which of the five examples is on screen. */
-	var exampleIndex by mutableStateOf(0)
-		private set
-
-	/** How far into the current example's explanation the player has stepped. */
-	var stepIndex by mutableStateOf(0)
-		private set
-
-	/** True while the asset is still being read, which is the one frame the board has nothing to draw. */
+	/** True while the asset is still being read, which is the one frame the tiles have nothing to draw. */
 	var loading by mutableStateOf(true)
 		private set
 
@@ -55,20 +53,15 @@ class LearnTechniqueViewModel @Inject constructor(
 	var failed by mutableStateOf(false)
 		private set
 
-	val frames: List<ExplanationFrame>
-		get() = this.examples.getOrNull(this.exampleIndex)?.let { framesOf(it.explanation()) }.orEmpty()
-
-	val frame: ExplanationFrame?
-		get() = this.frames.getOrNull(this.stepIndex)
-
-	val hasNextStep: Boolean
-		get() = this.stepIndex < this.frames.size - 1
-
 	init {
 		this.viewModelScope.launch {
 			try {
-				this@LearnTechniqueViewModel.examples = this@LearnTechniqueViewModel.contentProvider
+				val examples = this@LearnTechniqueViewModel.contentProvider
 					.assetOf(this@LearnTechniqueViewModel.technique).examples()
+				this@LearnTechniqueViewModel.examples = examples
+				this@LearnTechniqueViewModel.previews = examples.map {
+					framesOf(it.explanation()).lastOrNull() ?: ExplanationFrame()
+				}
 			} catch (e: CancellationException) {
 				throw e
 			} catch (e: Exception) {
@@ -78,28 +71,5 @@ class LearnTechniqueViewModel @Inject constructor(
 				.progressOf(this@LearnTechniqueViewModel.technique)
 			this@LearnTechniqueViewModel.loading = false
 		}
-	}
-
-	/**
-	 * Moves to another example, starting it at its first beat.
-	 *
-	 * Starting over rather than keeping the cursor is the point: the five examples are five different
-	 * pictures of one idea, and landing halfway through one of them shows a pattern with no beginning.
-	 */
-	fun showExample(index: Int) {
-		if (index in this.examples.indices) {
-			this.exampleIndex = index
-			this.stepIndex = 0
-		}
-	}
-
-	fun nextStep() {
-		if (this.hasNextStep) {
-			this.stepIndex++
-		}
-	}
-
-	fun replay() {
-		this.stepIndex = 0
 	}
 }

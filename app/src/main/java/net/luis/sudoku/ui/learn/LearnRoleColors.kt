@@ -40,23 +40,47 @@ object LearnRoleColors {
 		CellRole.CONTEXT to Color(0xFFECEFF1)
 	)
 
+	/**
+	 * The same vocabulary for a dark board, and not the light one darkened.
+	 *
+	 * Two things set the level. Each fill has to be a colour rather than another shade of the board, which
+	 * the old set was not: several of them sat within a few points of the board's own #131318 and of the
+	 * peer highlight, so a coloured cell read as a slightly different black. And every fill carries the
+	 * board's near-white digits and its pencil marks on top, so none of them may climb to where a light
+	 * glyph stops being legible.
+	 */
 	private val DARK = mapOf(
-		CellRole.BASE to Color(0xFF4A3A1E),
-		CellRole.COVER to Color(0xFF1E3A4A),
-		CellRole.PATTERN to Color(0xFF352A4A),
-		CellRole.PIVOT to Color(0xFF5A431C),
-		CellRole.WING to Color(0xFF3E3520),
-		CellRole.FIN to Color(0xFF4A2233),
-		CellRole.FLOOR to Color(0xFF2C3238),
-		CellRole.ROOF to Color(0xFF1F3A36),
-		CellRole.LINK_ON to Color(0xFF2C4423),
-		CellRole.LINK_OFF to Color(0xFF4A2626),
+		CellRole.BASE to Color(0xFF5A421A),
+		CellRole.COVER to Color(0xFF1B4257),
+		// Clear of the selected cell (#3A3646), which is the one grey a learn board also draws.
+		CellRole.PATTERN to Color(0xFF43336B),
+		CellRole.PIVOT to Color(0xFF7A5410),
+		CellRole.WING to Color(0xFF4A431F),
+		CellRole.FIN to Color(0xFF6B2447),
+		CellRole.FLOOR to Color(0xFF384049),
+		CellRole.ROOF to Color(0xFF1F4A44),
+		CellRole.LINK_ON to Color(0xFF2F5A2A),
+		CellRole.LINK_OFF to Color(0xFF5E2A2A),
+		// The board's own "look here" amber, exactly as in light mode. Deep rather than bright for the
+		// reason the play board gives it: a full-strength yellow cell on a near-black board is a lamp.
 		CellRole.TARGET to Color(0xFF9A6E00),
-		CellRole.CONTEXT to Color(0xFF2A2E33)
+		CellRole.CONTEXT to Color(0xFF333040)
 	)
 
 	fun of(role: CellRole, dark: Boolean): Color =
 		(if (dark) DARK else LIGHT).getValue(role)
+
+	/**
+	 * The ink a digit standing on a coloured cell is written in.
+	 *
+	 * A role fill replaces the board's background under the glyph, and the board's inks are chosen against
+	 * that background and nothing else. Left alone, a near-white given lands on a pale lavender pattern cell
+	 * and disappears, and the placed digit's orange lands on the target's yellow, which is the same colour
+	 * twice. One ink per mode, held against every fill in that mode, is what keeps a lesson readable on all
+	 * twelve of them.
+	 */
+	fun inkOn(dark: Boolean): Color =
+		if (dark) Color(0xFFF4F1FA) else Color(0xFF171221)
 
 	/** The outline a focused row, column or region is drawn with. */
 	fun unitOutline(dark: Boolean): Color =

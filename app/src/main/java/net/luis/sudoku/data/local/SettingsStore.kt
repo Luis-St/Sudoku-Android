@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -39,7 +40,16 @@ data class PreferenceSettings(
 	/** BCP-47 tag, or `null` for "follow the system language" - the default. */
 	val languageTag: String?,
 	/** Selected board theme id, resolved through `BoardThemeCatalog.byId`. */
-	val boardThemeId: String
+	val boardThemeId: String,
+	/**
+	 * The training levels whose task description the player has asked not to be shown again.
+	 *
+	 * Per level rather than per exercise or per technique: what the briefing explains is what *that level*
+	 * asks of the player, and somebody who has read it once for level 1 has read it for every level 1
+	 * exercise there is. It is only ever a shortcut, never a state the training depends on, so an empty set
+	 * is the default and turning a level back on in settings restores the screen exactly.
+	 */
+	val learnBriefSkipped: Set<Int>
 ) {
 	companion object {
 		val DEFAULT = PreferenceSettings(
@@ -49,7 +59,8 @@ data class PreferenceSettings(
 			soundEnabled = true,
 			themeMode = ThemeMode.SYSTEM,
 			languageTag = null,
-			boardThemeId = "classic"
+			boardThemeId = "classic",
+			learnBriefSkipped = emptySet()
 		)
 	}
 }
@@ -65,7 +76,10 @@ class SettingsStore @Inject constructor(@SettingsDataStore private val dataStore
 			soundEnabled = prefs[SOUND_ENABLED] ?: PreferenceSettings.DEFAULT.soundEnabled,
 			themeMode = ThemeMode.fromId(prefs[THEME_MODE]),
 			languageTag = prefs[LANGUAGE_TAG],
-			boardThemeId = prefs[BOARD_THEME_ID] ?: PreferenceSettings.DEFAULT.boardThemeId
+			boardThemeId = prefs[BOARD_THEME_ID] ?: PreferenceSettings.DEFAULT.boardThemeId,
+			// Stored as strings because DataStore has no int set: anything unparseable is dropped rather than
+			// crashing a preference read, which would take the whole settings flow down with it.
+			learnBriefSkipped = prefs[LEARN_BRIEF_SKIPPED]?.mapNotNull(String::toIntOrNull)?.toSet().orEmpty()
 		)
 	}
 
@@ -120,6 +134,20 @@ class SettingsStore @Inject constructor(@SettingsDataStore private val dataStore
 		this.dataStore.edit { it[BOARD_THEME_ID] = id }
 	}
 
+	/**
+	 * Remembers, or forgets, that one training level goes straight to its board.
+	 *
+	 * @param level the training level, counted from one
+	 * @param skipped `true` to skip that level's task description from now on
+	 */
+	suspend fun setLearnBriefSkipped(level: Int, skipped: Boolean) {
+		this.dataStore.edit { prefs ->
+			val levels = prefs[LEARN_BRIEF_SKIPPED].orEmpty().toMutableSet()
+			if (skipped) levels.add(level.toString()) else levels.remove(level.toString())
+			prefs[LEARN_BRIEF_SKIPPED] = levels
+		}
+	}
+
 	private companion object {
 		val DAILY_REMINDER_ENABLED = booleanPreferencesKey("daily_reminder_enabled")
 		val AUTO_CANDIDATE_MODE = booleanPreferencesKey("auto_candidate_mode")
@@ -129,5 +157,6 @@ class SettingsStore @Inject constructor(@SettingsDataStore private val dataStore
 		val LANGUAGE_TAG = stringPreferencesKey("language_tag")
 		val BOARD_THEME_ID = stringPreferencesKey("board_theme_id")
 		val LAST_REMINDER_DATE = stringPreferencesKey("last_reminder_date")
+		val LEARN_BRIEF_SKIPPED = stringSetPreferencesKey("learn_brief_skipped_levels")
 	}
 }

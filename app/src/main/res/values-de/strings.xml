@@ -349,6 +349,9 @@
 
 	<!-- Settings item 2: the server account workflow, on its own screen. -->
 	<string name="settings_open_account">Server und Konto</string>
+	<string name="settings_header_learn">Lernbereich</string>
+	<string name="settings_learn_note">Das Training erklärt jede Übung, bevor sie beginnt. Ob es das weiterhin tut, stellst du hier ein.</string>
+	<string name="settings_open_learn">Einstellungen zum Lernbereich</string>
 	<string name="account_step_server">Server</string>
 	<string name="account_step_sign_in">Anmelden</string>
 	<string name="account_step_account">Konto</string>

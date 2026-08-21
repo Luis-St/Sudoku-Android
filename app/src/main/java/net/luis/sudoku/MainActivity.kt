@@ -44,6 +44,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -84,8 +86,11 @@ import net.luis.sudoku.ui.navigation.Routes
 import net.luis.sudoku.ui.settings.SettingsScreen
 import net.luis.sudoku.ui.settings.account.AccountScreen
 import net.luis.sudoku.ui.shop.ShopScreen
+import net.luis.sudoku.ui.learn.LearnExampleScreen
 import net.luis.sudoku.ui.learn.LearnLevelsScreen
+import net.luis.sudoku.ui.learn.LearnBriefScreen
 import net.luis.sudoku.ui.learn.LearnScreen
+import net.luis.sudoku.ui.learn.LearnSettingsScreen
 import net.luis.sudoku.ui.learn.LearnTrainScreen
 import net.luis.sudoku.ui.learn.LearnTechniqueScreen
 import net.luis.sudoku.ui.stats.StatsScreen
@@ -186,9 +191,17 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 	// Inside either area both icons are gone. Neither leads anywhere from there - one is where you already
 	// are, and the other is the peer section, which is reached from home like everything else.
 	val onGameScreen = route == Routes.PLAY || route == Routes.MULTIPLAYER
-	val inSettingsArea = route == Routes.SETTINGS || route == Routes.ACCOUNT
+	val inSettingsArea = route == Routes.SETTINGS || route == Routes.ACCOUNT || route == Routes.LEARN_SETTINGS
 	val inPlayersArea = route == Routes.FRIENDS || route == Routes.PLAYER_DETAIL
-	val showTopLevelNavigation = !onGameScreen && !inSettingsArea && !inPlayersArea
+	// Learn item 9: the wiki and everything under it is an area of its own, and it gets the same treatment
+	// the other two do. A player reading about a technique is not on their way to the players list, and the
+	// settings icon over a page of body text is one tap out of the thing they came to read.
+	//
+	// The whole area, list included, and not only the pages below it: the list is reached from home and from
+	// a running board, both of which have those icons already, so drawing them again here says nothing.
+	val inLearnArea = route == Routes.LEARN || route == Routes.LEARN_TECHNIQUE || route == Routes.LEARN_EXAMPLE ||
+		route == Routes.LEARN_LEVELS || route == Routes.LEARN_TRAIN || route == Routes.LEARN_BRIEF
+	val showTopLevelNavigation = !onGameScreen && !inSettingsArea && !inPlayersArea && !inLearnArea
 	// Game item 3: the play screen publishes its share action here, so it renders next to settings.
 	val gameTopBarActions = remember { GameTopBarActions() }
 	// The same idea for a running match's connection status, and the same reason it is up here rather than
@@ -202,6 +215,11 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 	// theme itself uses, so `SYSTEM` reports what is actually on screen rather than a third state the toggle
 	// has no icon for.
 	val darkTheme = isDarkTheme(appViewModel.preferences.themeMode)
+	// Learn item 12: which language is on screen right now, which is not the same question as which one was
+	// chosen. `languageTag` is null while the app follows the system, and a toggle cannot say what it would
+	// switch to without knowing what the reader is actually looking at - so it is read off the configuration
+	// the composition was handed, which is the system's own when nothing was chosen.
+	val language = appViewModel.preferences.languageTag ?: LocalConfiguration.current.locales[0].language
 
 	// General item 1: the app's content color, stated once, here.
 	//
@@ -251,8 +269,12 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 					// The way from a running game into the technique wiki, next to share. A player stuck on a
 					// board is exactly the player a technique list is for, and a hint that names a technique
 					// (see `HintAdviceRow`) is the other half of the same route.
+					//
+					// Game item 1 (2.1.0): in reference mode, so what opens is the descriptions and the worked
+					// examples and not the training. There is a puzzle running behind this screen; the way out
+					// of it is not a second one (see `Routes.ARG_REFERENCE`).
 					if (onGameScreen) {
-						IconButton(onClick = { navController.navigate(Routes.LEARN) }) {
+						IconButton(onClick = { navController.navigate(Routes.learn(reference = true)) }) {
 							Icon(
 								painter = painterResource(R.drawable.ic_learn),
 								contentDescription = stringResource(R.string.learn_open_wiki)
@@ -273,7 +295,11 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 					//
 					// It writes LIGHT or DARK, never SYSTEM: this is a deliberate override of the stored preference, and
 					// the settings dropdown stays the only way back to following the system.
-					if (onGameScreen) {
+					//
+					// Learn item 12: the wiki gets it for the same reason the board does. It is the other screen the
+					// player sits on for a long stretch, it is the one that is nothing but body text, and the settings
+					// icon that used to be the way to the switch is deliberately gone from here (learn item 9).
+					if (onGameScreen || inLearnArea) {
 						IconButton(onClick = { appViewModel.setThemeMode(if (darkTheme) ThemeMode.LIGHT else ThemeMode.DARK) }) {
 							Icon(
 								painter = painterResource(if (darkTheme) R.drawable.ic_theme_light else R.drawable.ic_theme_dark),
@@ -282,6 +308,18 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 								)
 							)
 						}
+					}
+					// Learn item 12: and the language, next to it, on the learn screens only.
+					//
+					// This is where switching languages is actually a *reading* decision rather than a setting: the
+					// wiki is the one place in the app whose text is long enough to be worth having in the other
+					// language, and comparing the two wordings of a technique is a reasonable thing to want to do
+					// mid-page. Everywhere else the strings are labels, and settings offers the full choice.
+					//
+					// Like the theme toggle it writes a concrete value rather than "follow the system", and shows the
+					// language it switches *to*. Two languages ship, so one tap is the whole choice.
+					if (inLearnArea) {
+						LanguageToggle(current = language, onSelect = appViewModel::setLanguageTag)
 					}
 					// UI item 9: the friends button sits immediately left of settings, and only exists once a
 					// server is configured and signed in (feature-spec §9.1's "no multiplayer UI anywhere").
@@ -445,6 +483,42 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 }
 
 /**
+ * The learn area's language switch (learn item 12): one tap, between the two languages the app ships.
+ *
+ * A short label rather than a glyph, and the label names the language the tap leads *to*. A globe says only
+ * that something about languages happens here, which on a page the reader cannot read is the one thing they
+ * already know; "DE" says what they will get.
+ *
+ * It is an [IconButton] with two letters where the glyph goes, rather than the `TextButton` it started as.
+ * A button and an icon button are not the same shape: `ButtonDefaults.MinWidth` is 58dp against an icon
+ * button's 40dp container inside a 48dp touch target, and the text button's own 12dp of content padding sits
+ * on top of that, so the toggle was a good ten dp wider than every icon beside it and pushed the whole action
+ * row along. This way it takes exactly one icon slot, is centred like one, and inherits the bar's content
+ * color the way one does.
+ *
+ * @param current the language on screen, as a two-letter code
+ */
+@Composable
+private fun LanguageToggle(current: String, onSelect: (String?) -> Unit) {
+	val german = current == GERMAN
+	val target = if (german) ENGLISH else GERMAN
+	val targetName = stringResource(if (german) R.string.settings_language_english else R.string.settings_language_german)
+	IconButton(onClick = { onSelect(target) }) {
+		Text(
+			text = target.uppercase(Locale.ROOT),
+			style = MaterialTheme.typography.labelLarge,
+			// The label names the language, the way an icon's description would: read out, "DE" is two letters
+			// and says nothing at all.
+			modifier = Modifier.clearAndSetSemantics { this.contentDescription = targetName }
+		)
+	}
+}
+
+private const val ENGLISH = "en"
+
+private const val GERMAN = "de"
+
+/**
  * What a player is told when their session stops working (server-spec §7.2).
  *
  * The two cases read differently on purpose. Being removed is somebody's decision and is reversible, so it
@@ -487,6 +561,9 @@ private fun titleFor(route: String?): String = when (route) {
 	Routes.SHOP -> stringResource(R.string.tab_shop)
 	Routes.STATS -> stringResource(R.string.tab_stats)
 	Routes.LEARN -> stringResource(R.string.learn_title)
+	Routes.LEARN_EXAMPLE -> stringResource(R.string.learn_example_title)
+	Routes.LEARN_BRIEF -> stringResource(R.string.learn_train_task_title)
+	Routes.LEARN_SETTINGS -> stringResource(R.string.settings_open_learn)
 	Routes.SETTINGS -> stringResource(R.string.tab_settings)
 	Routes.ACCOUNT -> stringResource(R.string.settings_open_account)
 	Routes.FRIENDS -> stringResource(R.string.tab_friends)
@@ -521,7 +598,7 @@ private fun AppNavHost(
 				// The hub, not a match: creating and joining are separate destinations now (multiplayer item 2).
 				onOpenMultiplayer = { navController.navigate(Routes.MULTIPLAYER_HUB) },
 				// Deliberately not gated on a configured server: the learn area is bundled and local.
-				onOpenLearn = { navController.navigate(Routes.LEARN) },
+				onOpenLearn = { navController.navigate(Routes.learn()) },
 				onContinue = { navController.navigate(Routes.play(PlayMode.NORMAL)) }
 			)
 		}
@@ -575,15 +652,40 @@ private fun AppNavHost(
 
 		composable(Routes.SHOP) { ShopScreen() }
 		composable(Routes.STATS) { StatsScreen() }
-		composable(Routes.LEARN) {
-			LearnScreen(onOpenTechnique = { technique -> navController.navigate(Routes.learnTechnique(technique.name)) })
+		composable(
+			route = Routes.LEARN,
+			arguments = listOf(navArgument(Routes.ARG_REFERENCE) { type = NavType.BoolType; defaultValue = false })
+		) { entry ->
+			// Reference mode travels on to the technique page: a list opened to look something up leads to
+			// pages opened to look something up (game item 1 of 2.1.0).
+			val reference = entry.arguments?.getBoolean(Routes.ARG_REFERENCE) ?: false
+			LearnScreen(
+				reference = reference,
+				onOpenTechnique = { technique -> navController.navigate(Routes.learnTechnique(technique.name, reference)) }
+			)
 		}
 		composable(
 			route = Routes.LEARN_TECHNIQUE,
-			arguments = listOf(navArgument(Routes.ARG_TECHNIQUE) { type = NavType.StringType })
+			arguments = listOf(
+				navArgument(Routes.ARG_TECHNIQUE) { type = NavType.StringType },
+				navArgument(Routes.ARG_REFERENCE) { type = NavType.BoolType; defaultValue = false }
+			)
 		) { entry ->
 			val technique = entry.arguments?.getString(Routes.ARG_TECHNIQUE).orEmpty()
-			LearnTechniqueScreen(onStartTraining = { navController.navigate(Routes.learnLevels(technique)) })
+			LearnTechniqueScreen(
+				reference = entry.arguments?.getBoolean(Routes.ARG_REFERENCE) ?: false,
+				onStartTraining = { navController.navigate(Routes.learnLevels(technique)) },
+				onOpenExample = { index -> navController.navigate(Routes.learnExample(technique, index)) }
+			)
+		}
+		composable(
+			route = Routes.LEARN_EXAMPLE,
+			arguments = listOf(
+				navArgument(Routes.ARG_TECHNIQUE) { type = NavType.StringType },
+				navArgument(Routes.ARG_EXAMPLE) { type = NavType.StringType }
+			)
+		) {
+			LearnExampleScreen()
 		}
 		composable(
 			route = Routes.LEARN_LEVELS,
@@ -591,7 +693,45 @@ private fun AppNavHost(
 		) { entry ->
 			val technique = entry.arguments?.getString(Routes.ARG_TECHNIQUE).orEmpty()
 			LearnLevelsScreen(
-				onOpenExercise = { level, subLevel -> navController.navigate(Routes.learnTrain(technique, level, subLevel)) }
+				// Learn item 8: the practice request travels in the route either way - a board is what is being
+				// opened, and generating the position for it is how it opens.
+				//
+				// Which of the two destinations that is, is the overview's call: the brief unless the player has
+				// switched it off for this level.
+				onOpenExercise = { request ->
+					navController.navigate(
+						if (request.brief) {
+							Routes.learnBrief(technique, request.level, request.subLevel, request.fresh)
+						} else {
+							Routes.learnTrain(technique, request.level, request.subLevel, request.fresh)
+						}
+					)
+				}
+			)
+		}
+		composable(
+			route = Routes.LEARN_BRIEF,
+			arguments = listOf(
+				navArgument(Routes.ARG_TECHNIQUE) { type = NavType.StringType },
+				navArgument(Routes.ARG_LEVEL) { type = NavType.StringType },
+				navArgument(Routes.ARG_SUB_LEVEL) { type = NavType.StringType },
+				navArgument(Routes.ARG_FRESH) { type = NavType.BoolType; defaultValue = false }
+			)
+		) { entry ->
+			val args = entry.arguments
+			val technique = args?.getString(Routes.ARG_TECHNIQUE).orEmpty()
+			val level = args?.getString(Routes.ARG_LEVEL)?.toIntOrNull() ?: 1
+			val subLevel = args?.getString(Routes.ARG_SUB_LEVEL)?.toIntOrNull() ?: 0
+			val fresh = args?.getBoolean(Routes.ARG_FRESH) ?: false
+			LearnBriefScreen(
+				// The brief leaves the back stack as the board opens. It is read on the way in, so Back from the
+				// exercise belongs to the level overview, and finishing one must not land on the briefing for the
+				// exercise that was just played.
+				onStart = {
+					navController.navigate(Routes.learnTrain(technique, level, subLevel, fresh)) {
+						popUpTo(Routes.LEARN_BRIEF) { inclusive = true }
+					}
+				}
 			)
 		}
 		composable(
@@ -599,7 +739,8 @@ private fun AppNavHost(
 			arguments = listOf(
 				navArgument(Routes.ARG_TECHNIQUE) { type = NavType.StringType },
 				navArgument(Routes.ARG_LEVEL) { type = NavType.StringType },
-				navArgument(Routes.ARG_SUB_LEVEL) { type = NavType.StringType }
+				navArgument(Routes.ARG_SUB_LEVEL) { type = NavType.StringType },
+				navArgument(Routes.ARG_FRESH) { type = NavType.BoolType; defaultValue = false }
 			)
 		) {
 			// Back to the levels screen rather than onwards to the next exercise: the levels screen is where
@@ -707,9 +848,12 @@ private fun AppNavHost(
 		composable(Routes.SETTINGS) {
 			SettingsScreen(
 				appViewModel = appViewModel,
-				onOpenAccount = { navController.navigate(Routes.ACCOUNT) }
+				onOpenAccount = { navController.navigate(Routes.ACCOUNT) },
+				onOpenLearnSettings = { navController.navigate(Routes.LEARN_SETTINGS) }
 			)
 		}
+
+		composable(Routes.LEARN_SETTINGS) { LearnSettingsScreen() }
 
 		composable(Routes.ACCOUNT) {
 			AccountScreen(onServerStateChanged = appViewModel::refreshServerConfig)

@@ -180,7 +180,8 @@ fun SudokuAndroidTheme(
 
 	CompositionLocalProvider(
 		LocalBoardPalette provides boardPalette,
-		LocalAppGradients provides gradients
+		LocalAppGradients provides gradients,
+		LocalDarkTheme provides darkTheme
 	) {
 		MaterialTheme(
 			colorScheme = colorScheme,

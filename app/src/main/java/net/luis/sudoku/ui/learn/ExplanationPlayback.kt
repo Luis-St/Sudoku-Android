@@ -30,7 +30,23 @@ data class ExplanationFrame(
 	/** What this particular step is saying, which is what the caption under the board renders. */
 	val kind: StepKind = StepKind.PATTERN,
 	/** The digit this step is about, which is not always the digit the whole argument is about. */
-	val stepDigit: Int = 0
+	val stepDigit: Int = 0,
+	/**
+	 * Learn item 10: the cells *this* step names, as opposed to [roles], which is everything named so far.
+	 *
+	 * A frame has to be both cumulative and pointed. Cumulative, because a fish with four corners nobody ever
+	 * saw at once teaches nothing; pointed, because by the fifth step a third of the board is coloured in and
+	 * "these cells" no longer picks anything out. The board draws the earlier cells faded and these at full
+	 * strength, so the argument stays on screen while the sentence still has a referent.
+	 *
+	 * Empty means "no current step": a frame being shown as a summary rather than as a beat, which is what the
+	 * example tiles and a finished exercise draw. Everything is then at full strength.
+	 */
+	val currentCells: List<Int> = emptyList(),
+	/** The units this step names, for the same reason and drawn the same way. */
+	val currentUnits: List<UnitRef> = emptyList(),
+	/** The candidates this step names per cell, as the core's bitmask, for the caption's detail line. */
+	val currentDigits: Map<Int, Int> = emptyMap()
 )
 
 /**
@@ -53,12 +69,16 @@ fun framesOf(explanation: Explanation): List<ExplanationFrame> {
 		if (step.kind() == StepKind.FOCUS_DIGIT) {
 			focusDigit = step.digit()
 		}
+		val currentCells = mutableListOf<Int>()
+		val currentDigits = mutableMapOf<Int, Int>()
 		for (unit in step.units()) {
 			if (unit !in units) {
 				units.add(unit)
 			}
 		}
 		for (cell in step.cells()) {
+			currentCells.add(cell.cell())
+			currentDigits[cell.cell()] = (currentDigits[cell.cell()] ?: 0) or cell.digits()
 			roles[cell.cell()] = cell.role()
 			// Merged rather than replaced: a cell that carries two of the pattern's digits, as the cells of a
 			// naked pair do, is about both of them at once.
@@ -80,7 +100,10 @@ fun framesOf(explanation: Explanation): List<ExplanationFrame> {
 				struck = struck.toMap(),
 				placement = placement,
 				kind = step.kind(),
-				stepDigit = step.digit()
+				stepDigit = step.digit(),
+				currentCells = currentCells.toList(),
+				currentUnits = step.units().toList(),
+				currentDigits = currentDigits.toMap()
 			)
 		)
 	}

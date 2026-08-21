@@ -23,6 +23,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -197,6 +198,44 @@ fun GradientButton(
 			modifier = if (fillWidth) Modifier.fillMaxWidth() else Modifier
 		) {
 			ButtonLabel(text, icon, iconPainter, iconIsArtwork)
+		}
+	}
+}
+
+/**
+ * The icon-only member of the gradient family, for a single decisive action that has no room for its label.
+ *
+ * Filled rather than outlined, and deliberately: [OutlinedIconActionButton] is the neutral icon control, so
+ * an icon that is *the* thing to press next has to differ from it by more than which glyph it carries.
+ */
+@Composable
+fun GradientIconActionButton(
+	icon: ImageVector,
+	contentDescription: String?,
+	onClick: () -> Unit,
+	modifier: Modifier = Modifier,
+	accent: ActionAccent? = null
+) {
+	val shape = RAISED_SHAPE
+	val brush = accent?.brush() ?: accentBrush()
+	Box(
+		modifier = modifier
+			.shadow(elevation = 3.dp, shape = shape)
+			.clip(shape)
+			.background(brush),
+		contentAlignment = Alignment.Center
+	) {
+		IconButton(
+			onClick = onClick,
+			// White for the same reason [GradientButton] uses it: the accents are fixed saturated colours
+			// that do not follow the scheme, so a scheme ink would flip and vanish into the gradient.
+			colors = IconButtonDefaults.iconButtonColors(
+				containerColor = Color.Transparent,
+				contentColor = Color.White
+			),
+			modifier = Modifier.fillMaxSize()
+		) {
+			Icon(imageVector = icon, contentDescription = contentDescription, modifier = Modifier.size(22.dp))
 		}
 	}
 }

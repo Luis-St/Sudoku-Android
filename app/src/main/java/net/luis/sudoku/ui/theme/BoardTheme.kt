@@ -184,3 +184,13 @@ object ChaosRegionColors {
 }
 
 val LocalBoardPalette = staticCompositionLocalOf { BoardThemeCatalog.CLASSIC.light }
+
+/**
+ * Whether the app is *drawing* dark right now.
+ *
+ * Provided by the theme rather than read off the system, because the player's own light/dark choice
+ * (settings item 7) overrides the system one: a screen that asks `isSystemInDarkTheme()` paints its light
+ * colours onto a dark app for every player who set dark mode on a light phone. The learn area is where that
+ * showed, since its role fills are a palette per mode rather than a tint of the scheme.
+ */
+val LocalDarkTheme = staticCompositionLocalOf { false }
