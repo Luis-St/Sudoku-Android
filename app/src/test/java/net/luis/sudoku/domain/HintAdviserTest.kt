@@ -45,7 +45,7 @@ class HintAdviserTest {
 
 		val advice = HintAdviser.adviceFor(session, Technique.NAKED_SINGLE)
 
-		assertEquals(HintAdvice.Named(Technique.NAKED_SINGLE, true), advice)
+		assertEquals(HintAdvice.Named(Technique.NAKED_SINGLE), advice)
 	}
 
 	@Test
@@ -86,9 +86,9 @@ class HintAdviserTest {
 	}
 
 	@Test
-	fun `a technique the learn area does not teach is named without a page`() {
+	fun `a technique the learn area does not teach is named all the same`() {
 		val advice = HintAdviser.adviceFor(session(), Technique.LAW_OF_LEFTOVERS)
 
-		assertEquals(HintAdvice.Named(Technique.LAW_OF_LEFTOVERS, false), advice)
+		assertEquals(HintAdvice.Named(Technique.LAW_OF_LEFTOVERS), advice)
 	}
 }

@@ -1,15 +1,14 @@
 package net.luis.sudoku.domain
 
 import net.luis.sudoku.core.GameSession
-import net.luis.sudoku.learn.LearnTechniques
 import net.luis.sudoku.solver.Technique
 
 /**
  * What a hint can tell the player besides the cell it is pointing at.
  *
  * A hint that only reveals a digit answers one cell and teaches nothing about the next one. Naming the
- * technique that solves the cell turns the same hint into a way forward, and the wiki page behind the name
- * is where the player finds out how it works.
+ * technique that solves the cell turns the same hint into a way forward; what that technique is called is
+ * also what the player looks it up under, in the wiki the app bar leads to.
  */
 sealed interface HintAdvice {
 
@@ -27,10 +26,11 @@ sealed interface HintAdvice {
 	/**
 	 * The technique that solves the cell the hint is pointing at.
 	 *
-	 * [teachable] is false for the handful of techniques the learn area does not cover, which are still named
-	 * but have no page to open.
+	 * The name alone, with no page behind it: a board no longer offers a way into the wiki (game item 2 of
+	 * 2.1.0), so whether the learn area happens to teach this particular technique is no longer something
+	 * the play screen has to know.
 	 */
-	data class Named(val technique: Technique, val teachable: Boolean) : HintAdvice
+	data class Named(val technique: Technique) : HintAdvice
 }
 
 /**
@@ -49,7 +49,7 @@ object HintAdviser {
 		if (wrong.isNotEmpty()) {
 			return HintAdvice.WrongPencilMarks(wrong)
 		}
-		return HintAdvice.Named(technique, LearnTechniques.isTaught(technique))
+		return HintAdvice.Named(technique)
 	}
 
 	/**
