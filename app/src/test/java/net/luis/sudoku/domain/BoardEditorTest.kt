@@ -161,21 +161,27 @@ class BoardEditorTest {
 		}
 	}
 
+	/**
+	 * The prefill is a one-off: after it, the only thing that touches a mark by itself is auto-clear-peers,
+	 * which runs in every mode. A note the player writes into an already-filled board therefore survives the
+	 * next pen entry - the recompute that used to wipe it is gone (feature-spec §5.6).
+	 */
 	@Test
-	fun autoCandidateMode_recomputesAfterEveryPenEntry() {
+	fun aPlayersOwnMarkSurvivesTheNextPenEntryOnAPrefilledBoard() {
 		val session = session()
-		val undoStack = UndoStack()
-		val editor = BoardEditor(session, undoStack, autoCandidateMode = true)
+		val editor = BoardEditor(session, UndoStack())
+		editor.recomputeAllCandidates()
 		val index = firstEmptyNonGiven(session)
-		val peer = session.peersOf(index).first { !session.snapshot(it).given && it != index }
-		assertEquals("fresh puzzle has no pencil marks yet", 0, session.snapshot(peer).pencilMarks)
+		val impossible = (1..session.edgeLength).first { !session.snapshot(index).hasPencilMark(it) }
 
-		editor.apply(TapAction.EnterPen(index, 3))
+		editor.apply(TapAction.TogglePencil(index, impossible))
+		val elsewhere = (0 until session.cellCount).first { !session.snapshot(it).given && it != index }
+		// Any digit but the marked one, so auto-clear-peers cannot be what removes it.
+		editor.apply(TapAction.EnterPen(elsewhere, (1..session.edgeLength).first { it != impossible }))
 
-		// Recompute must have actually run (marks are no longer the untouched 0), and the peer's
-		// candidate set must no longer offer 3 now that a peer holds it as a pen value - auto-candidate
-		// mode "maintains" the marks continuously, not just fills them once (feature-spec §5.6).
-		assertEquals(CandidateCalculator.legalDigits(session, peer), session.snapshot(peer).pencilMarks)
-		assertFalse(session.snapshot(peer).hasPencilMark(3))
+		assertTrue(
+			"a mark the prefill would never have made is still there",
+			session.snapshot(index).hasPencilMark(impossible)
+		)
 	}
 }

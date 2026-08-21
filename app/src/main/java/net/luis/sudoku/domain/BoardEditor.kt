@@ -10,30 +10,27 @@ import net.luis.sudoku.core.GameSession
 class BoardEditor(
 	private val session: GameSession,
 	private val undoStack: UndoStack,
-	private val autoClearPeers: Boolean = true,
-	/** feature-spec §5.6: "the app fills and maintains all pencil marks automatically." Never true under
-	 *  Lisa (§4.3) - the caller (`GameViewModel`) enforces that gate. */
-	var autoCandidateMode: Boolean = false
+	private val autoClearPeers: Boolean = true
 ) {
 
 	fun apply(action: TapAction) {
-		// While the app maintains the notes, a hand-written one is not a note the player keeps: the recompute
-		// at the end of this very call would overwrite it, so the mark appeared for no frame at all and left a
-		// phantom entry on the undo stack behind it. Refusing here is what the UI's hidden pencil mode rests
-		// on - `GameViewModel` stops offering pencil input while this is on, and this makes that a rule rather
-		// than a screen's good manners.
-		if (this.autoCandidateMode && action is TapAction.TogglePencil) return
 		when (action) {
 			is TapAction.EnterPen -> enterPen(action.index, action.digit)
 			is TapAction.TogglePencil -> togglePencil(action.index, action.digit)
 			TapAction.None -> Unit
 		}
-		if (this.autoCandidateMode) recomputeAllCandidates()
 	}
 
 	/**
 	 * Overwrites every empty non-given cell's pencil marks with its current legal-digit set. Not pushed
 	 * onto the undo stack - this is system upkeep, not a player edit, same treatment as auto-clear-peers.
+	 *
+	 * Auto-candidate mode (feature-spec §5.6) is **this call, once**, when the board is installed or when the
+	 * setting is switched on mid-game. It used to run again after every single action, which is what forced
+	 * the board into a pen-only mode with no pen/pencil toggle: a hand-written mark was overwritten before it
+	 * could be read, so the only coherent thing left to do was refuse it. Filling once and then handing the
+	 * notes back to the player is what makes the mode a head start instead of a different game - see
+	 * [clearPeerCandidates] for the upkeep that does still run, on every entry, in every mode.
 	 */
 	fun recomputeAllCandidates() {
 		for (index in 0 until this.session.cellCount) {

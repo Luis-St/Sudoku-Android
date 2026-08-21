@@ -230,23 +230,11 @@ class GameViewModel @Inject constructor(
 	 * pen meant every session began with the player either switching modes or writing a digit they had not
 	 * finished reasoning about, which on this board costs a life. `LockState`'s own default stays PEN: the
 	 * duel and race boards have no pen/pencil control at all, so a pencil default there would strand them.
+	 *
+	 * Auto-candidate mode does not change this. It used to open in pen with the toggle taken away entirely,
+	 * which turned a convenience setting into a different game - see [BoardEditor.recomputeAllCandidates].
 	 */
 	var lock by mutableStateOf(LockState(mode = InputMode.PENCIL))
-		private set
-
-	/**
-	 * Whether the player has pencil input at all right now.
-	 *
-	 * False exactly while auto-candidate mode is running: it maintains every note itself (§5.6), so a
-	 * hand-written one is overwritten before it can be read, and one that is rubbed out comes straight back.
-	 * The mode toggle is *absent* rather than disabled while this is false, the same treatment Lisa's hint
-	 * button gets (§4.3) - there is no pen/pencil choice to make, so a greyed-out half of one says nothing.
-	 * [BoardEditor] refuses the edit as well, so this is which controls exist, not the rule itself.
-	 *
-	 * Held as state rather than read off the editor: `BoardEditor.autoCandidateMode` is a plain field, so a
-	 * composable reading it would never be told when the settings screen turns the mode on mid-game.
-	 */
-	var pencilInputAvailable by mutableStateOf(true)
 		private set
 
 	/** The last-tapped cell, for row/column/region highlighting - independent of which lock dimension it drove. */
@@ -339,9 +327,9 @@ class GameViewModel @Inject constructor(
 			this@GameViewModel.loading = PuzzleLoading()
 			val saved = this@GameViewModel.savedGameStore.load(SaveSlot.NORMAL) { key, origin -> describeLoading(key, origin) }
 			if (saved != null) {
-				installSession(saved.session, saved.undoStack, saved.elapsedMillis, saved.livesRemaining, saved.hintsUsed)
+				installSession(saved.session, saved.undoStack, saved.elapsedMillis, saved.livesRemaining, saved.hintsUsed, freshPuzzle = false)
 			} else {
-				installSession(newSession(DEFAULT_KEY), UndoStack(), 0L, 5, 0)
+				installSession(newSession(DEFAULT_KEY), UndoStack(), 0L, 5, 0, freshPuzzle = true)
 			}
 			this@GameViewModel.loading = null
 			this@GameViewModel.ready = true
@@ -376,7 +364,19 @@ class GameViewModel @Inject constructor(
 		}
 	}
 
-	private fun installSession(session: GameSession, undoStack: UndoStack, elapsedMillis: Long, lives: Int, hintsUsed: Int) {
+	/**
+	 * @param freshPuzzle Whether this board has never been played, which is the only time auto-candidate mode
+	 *   fills the notes. A restored save already carries its marks, including the ones the player wrote or
+	 *   rubbed out themselves - refilling those would undo their work every time the app came back.
+	 */
+	private fun installSession(
+		session: GameSession,
+		undoStack: UndoStack,
+		elapsedMillis: Long,
+		lives: Int,
+		hintsUsed: Int,
+		freshPuzzle: Boolean
+	) {
 		val modifiers = ModifierSet.forDifficulty(session.key.difficulty())
 		// Lisa withholds auto-candidate mode (§4.3) - modifiers is the single gate, same pattern as
 		// maxLives/maxHints just below.
@@ -385,16 +385,13 @@ class GameViewModel @Inject constructor(
 		this.undoStack = undoStack
 		// autoClearPeers is not passed: settings item 2 made it unconditional, so BoardEditor's own default
 		// is the only value it ever takes outside its unit tests.
-		this.editor = BoardEditor(session, undoStack, autoCandidateMode = autoCandidateActive)
-		this.pencilInputAvailable = !autoCandidateActive
-		if (autoCandidateActive) this.editor.recomputeAllCandidates()
+		this.editor = BoardEditor(session, undoStack)
+		if (autoCandidateActive && freshPuzzle) this.editor.recomputeAllCandidates()
 		this.livesController = LivesController(modifiers.maxLives).apply { restore(lives) }
 		this.hintController = HintController(session, maxHints = if (modifiers.hintsAllowed) 5 else 0).apply { restore(hintsUsed) }
 		this.mistakeChecker = MistakeChecker(session)
 		this.timerController.restore(elapsedMillis)
-		// Pencil, unless the app is maintaining the notes itself - then the toggle does not exist and PEN is
-		// the only mode with a control to leave it by (the same trap `applyPreferences` handles below).
-		this.lock = LockState(mode = if (autoCandidateActive) InputMode.PEN else InputMode.PENCIL)
+		this.lock = LockState(mode = InputMode.PENCIL)
 		this.activeIndex = null
 		this.hintCandidate = null
 		this.mistake = null
@@ -429,9 +426,9 @@ class GameViewModel @Inject constructor(
 			this@GameViewModel.loading = PuzzleLoading()
 			val saved = this@GameViewModel.savedGameStore.load(SaveSlot.NORMAL) { key, origin -> describeLoading(key, origin) }
 			if (saved != null) {
-				installSession(saved.session, saved.undoStack, saved.elapsedMillis, saved.livesRemaining, saved.hintsUsed)
+				installSession(saved.session, saved.undoStack, saved.elapsedMillis, saved.livesRemaining, saved.hintsUsed, freshPuzzle = false)
 			} else {
-				installSession(newSession(DEFAULT_KEY), UndoStack(), 0L, 5, 0)
+				installSession(newSession(DEFAULT_KEY), UndoStack(), 0L, 5, 0, freshPuzzle = true)
 			}
 			this@GameViewModel.loading = null
 			this@GameViewModel.timerController.start()
@@ -485,7 +482,7 @@ class GameViewModel @Inject constructor(
 			val saved = this@GameViewModel.savedGameStore.load(SaveSlot.DAILY) { savedKey, origin -> describeLoading(savedKey, origin) }
 
 			if (saved != null && saved.session.key == key) {
-				installSession(saved.session, saved.undoStack, saved.elapsedMillis, saved.livesRemaining, saved.hintsUsed)
+				installSession(saved.session, saved.undoStack, saved.elapsedMillis, saved.livesRemaining, saved.hintsUsed, freshPuzzle = false)
 				// The board came back from disk, so its solve order has to as well: the server verifies the
 				// submission by replaying it, and a resumed attempt that starts the list again from empty
 				// submits a grid full of cells it never accounts for.
@@ -495,7 +492,7 @@ class GameViewModel @Inject constructor(
 				val started = this@GameViewModel.dailyController.recordAttemptStart(rolled)
 				this@GameViewModel.dailyStore.save(started)
 				this@GameViewModel.dailyRecord = started
-				installSession(newSession(key, dailyGivensFor(key)), UndoStack(), 0L, 5, 0)
+				installSession(newSession(key, dailyGivensFor(key)), UndoStack(), 0L, 5, 0, freshPuzzle = true)
 				// A fresh attempt starts from nothing, and takes the stored order with it - what is on disk
 				// belongs to the attempt that was just replaced.
 				this@GameViewModel.dailySolveOrder.clear()
@@ -583,28 +580,22 @@ class GameViewModel @Inject constructor(
 	 * Applies a preference change made on the settings screen (UI item 2 moved these toggles there, so
 	 * this view model no longer owns the setters - it reacts to the store instead).
 	 *
-	 * Only `autoCandidateMode` needs more than a field update: turning it on has to fill every empty cell's
-	 * notes immediately, exactly as [installSession] does. `hexDisplay` and `soundEnabled` are read at their
-	 * use sites.
+	 * Only `autoCandidateMode` needs more than a field update: switching it on fills every empty cell's notes
+	 * once, exactly as [installSession] does for a fresh puzzle. `hexDisplay` and `soundEnabled` are read at
+	 * their use sites.
+	 *
+	 * Switching it *off* does nothing on purpose. The marks on the board are the player's from the moment they
+	 * are drawn, and wiping them because a setting moved would throw away work the setting never claimed.
 	 */
 	private fun applyPreferences(updated: PreferenceSettings) {
 		val previous = this.preferences
 		this.preferences = updated
 		if (!this.ready) return
 
-		if (previous.autoCandidateMode != updated.autoCandidateMode) {
-			// Lisa withholds it regardless of the stored preference (§4.3).
-			val active = updated.autoCandidateMode && this.modifiers.autoCandidateModeAvailable
-			this.editor.autoCandidateMode = active
-			this.pencilInputAvailable = !active
-			if (active) {
-				// The toggle is about to disappear from under the player's finger, so the mode it was holding
-				// has to go back to pen - leaving it on pencil would strand the board in an input mode with no
-				// control to leave it by, and every subsequent tap would resolve to a refused mark.
-				this.lock = this.lock.withMode(InputMode.PEN)
-				this.editor.recomputeAllCandidates()
-				refresh()
-			}
+		// Lisa withholds it regardless of the stored preference (§4.3).
+		if (!previous.autoCandidateMode && updated.autoCandidateMode && this.modifiers.autoCandidateModeAvailable) {
+			this.editor.recomputeAllCandidates()
+			refresh()
 		}
 	}
 
@@ -645,11 +636,6 @@ class GameViewModel @Inject constructor(
 
 	fun onNumberTap(digit: Int, longPress: Boolean = false) {
 		if (this.outcome != null) return
-		// A long press is the one way to write a note without the mode toggle (5.2), so it is also the one way
-		// pencil input could survive the toggle being taken away. Ignored outright rather than falling through
-		// to a pen entry: the player asked for a note, and quietly placing a digit instead is worse than doing
-		// nothing, since a pen entry here can cost a life.
-		if (longPress && !this.pencilInputAvailable) return
 		// Game item 3: the number pad is the other half of the input model, and picking a digit there means the
 		// player has stopped working on one cell. Leaving the old cell lit kept a row and column highlighted
 		// around a cell that no longer had anything to do with what was about to be entered - and after the
@@ -704,7 +690,6 @@ class GameViewModel @Inject constructor(
 	}
 
 	fun onModeToggle(mode: InputMode) {
-		if (mode == InputMode.PENCIL && !this.pencilInputAvailable) return
 		this.lock = this.lock.withMode(mode)
 	}
 
@@ -1012,7 +997,7 @@ class GameViewModel @Inject constructor(
 		this.dailyLocked = false
 		this.loading = loading
 		this.viewModelScope.launch {
-			this@GameViewModel.installSession(build(), UndoStack(), 0L, 5, 0)
+			this@GameViewModel.installSession(build(), UndoStack(), 0L, 5, 0, freshPuzzle = true)
 			this@GameViewModel.loading = null
 			this@GameViewModel.timerController.start()
 			this@GameViewModel.persist()

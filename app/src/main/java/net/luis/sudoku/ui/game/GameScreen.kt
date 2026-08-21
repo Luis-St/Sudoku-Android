@@ -307,25 +307,22 @@ private fun StatusBar(viewModel: GameViewModel) {
 		// Visual item 3: buttons, not chips - a chip's own height and corner radius made the middle of this
 		// row look like a different app.
 		//
-		// Absent entirely while auto-candidate mode maintains the notes: with pencil input refused there is
-		// no choice left for this pair to offer, and it used to sit there taking marks the recompute wiped in
-		// the same frame.
-		if (viewModel.pencilInputAvailable) {
-			Row(modifier = Modifier.align(Alignment.Center)) {
-				ToggleActionButton(
-					text = stringResource(R.string.mode_pen),
-					selected = viewModel.lock.mode == InputMode.PEN,
-					onClick = { viewModel.onModeToggle(InputMode.PEN) },
-					accent = MODE_ACCENT
-				)
-				ToggleActionButton(
-					text = stringResource(R.string.mode_pencil),
-					selected = viewModel.lock.mode == InputMode.PENCIL,
-					onClick = { viewModel.onModeToggle(InputMode.PENCIL) },
-					accent = MODE_ACCENT,
-					modifier = Modifier.padding(start = 8.dp)
-				)
-			}
+		// Shown on every board, auto-candidate mode included: that mode fills the notes once and then leaves
+		// them to the player, so the choice this pair offers is a real one there too.
+		Row(modifier = Modifier.align(Alignment.Center)) {
+			ToggleActionButton(
+				text = stringResource(R.string.mode_pen),
+				selected = viewModel.lock.mode == InputMode.PEN,
+				onClick = { viewModel.onModeToggle(InputMode.PEN) },
+				accent = MODE_ACCENT
+			)
+			ToggleActionButton(
+				text = stringResource(R.string.mode_pencil),
+				selected = viewModel.lock.mode == InputMode.PENCIL,
+				onClick = { viewModel.onModeToggle(InputMode.PENCIL) },
+				accent = MODE_ACCENT,
+				modifier = Modifier.padding(start = 8.dp)
+			)
 		}
 
 		Text(

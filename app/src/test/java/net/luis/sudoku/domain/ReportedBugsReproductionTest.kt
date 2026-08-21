@@ -15,7 +15,9 @@ import org.junit.Test
  *
  * 1. "Cannot enter pencil marks into some cells." Two separate causes, both now gone: Lisa's 2-note cap
  *    (removed outright, [ModifierSet]) and auto-candidate mode overwriting the player's own marks in the
- *    same call that made them (pencil input is refused and unoffered while it runs).
+ *    same call that made them. The second one was first answered by refusing pencil input outright while
+ *    the mode ran, which cost the board its pen/pencil toggle; since 2026-08-16 the mode fills the notes
+ *    once and then keeps its hands off, so the marks are the player's again and nothing is refused.
  * 2. "A cell I filled myself will not select; only prefilled ones do." A pencil-mode tap on your own digit
  *    resolved to a mark on the bit stashed under it, which nothing draws and which held the focus back.
  */
@@ -90,48 +92,36 @@ class ReportedBugsReproductionTest {
 		for (digit in 1..5) assertTrue("note $digit should have been accepted", session.snapshot(index).hasPencilMark(digit))
 	}
 
-	/**
-	 * Auto-candidate mode refuses pencil edits instead of performing and then overwriting them. The refusal
-	 * has to be complete: no mark, and no undo entry for the mark that was never made.
-	 */
+	/** A prefilled board takes a note like any other: the fill is a head start, not a claim on the marks. */
 	@Test
-	fun report1_autoCandidateMode_refusesAPencilEditOutright() {
+	fun report1_aPrefilledBoardStillAcceptsAPencilEdit() {
 		val session = session()
 		val undoStack = UndoStack()
-		val editor = BoardEditor(session, undoStack, autoCandidateMode = true)
+		val editor = BoardEditor(session, undoStack)
+		editor.recomputeAllCandidates()
 		val index = firstEmptyNonGiven(session)
 		val takenDigit = session.peersOf(index).map { session.snapshot(it).value }.first { it != 0 }
 
 		editor.apply(TapAction.TogglePencil(index, takenDigit))
 
-		assertFalse(session.snapshot(index).hasPencilMark(takenDigit))
-		assertFalse("no undo entry for an edit that never happened", undoStack.canUndo)
+		assertTrue(session.snapshot(index).hasPencilMark(takenDigit))
+		assertTrue("a mark the player made is undoable", undoStack.canUndo)
 	}
 
-	/** The same for a mark the recompute had filled in: it is not the player's to rub out while this runs. */
+	/** And rubbing a prefilled mark out makes it stay out - no later call brings it back. */
 	@Test
-	fun report1_autoCandidateMode_refusesAPencilRemovalToo() {
+	fun report1_aPrefilledMarkCanBeRubbedOutAndStaysOut() {
 		val session = session()
-		val editor = BoardEditor(session, UndoStack(), autoCandidateMode = true)
-		val index = firstEmptyNonGiven(session)
+		val editor = BoardEditor(session, UndoStack())
 		editor.recomputeAllCandidates()
+		val index = firstEmptyNonGiven(session)
 		val legalDigit = (1..session.edgeLength).first { session.snapshot(index).hasPencilMark(it) }
 
 		editor.apply(TapAction.TogglePencil(index, legalDigit))
+		// The pen entry is what used to trigger the recompute that put the mark straight back.
+		val elsewhere = (0 until session.cellCount).first { !session.snapshot(it).given && it != index }
+		editor.apply(TapAction.EnterPen(elsewhere, 1))
 
-		assertTrue("the maintained note stays", session.snapshot(index).hasPencilMark(legalDigit))
-	}
-
-	/** Turning the mode off hands pencil input straight back. */
-	@Test
-	fun report1_pencilEditsWorkAgainOnceAutoCandidateModeIsOff() {
-		val session = session()
-		val editor = BoardEditor(session, UndoStack(), autoCandidateMode = true)
-		val index = firstEmptyNonGiven(session)
-
-		editor.autoCandidateMode = false
-		editor.apply(TapAction.TogglePencil(index, 2))
-
-		assertTrue(session.snapshot(index).hasPencilMark(2))
+		assertFalse("the rubbed-out mark does not come back", session.snapshot(index).hasPencilMark(legalDigit))
 	}
 }
