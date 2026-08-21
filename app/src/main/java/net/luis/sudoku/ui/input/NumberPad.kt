@@ -84,7 +84,8 @@ private fun columnsFor(edgeLength: Int): Int = when (edgeLength) {
 	else -> 3
 }
 
-private fun digitLabel(digit: Int, hexDisplay: Boolean): String =
+/** Shared with the hint's step text (game item 19), which names digits the same way the pad labels them. */
+internal fun digitLabel(digit: Int, hexDisplay: Boolean): String =
 	if (hexDisplay && digit >= 10) ('A' + (digit - 10)).toString() else digit.toString()
 
 @OptIn(ExperimentalFoundationApi::class)

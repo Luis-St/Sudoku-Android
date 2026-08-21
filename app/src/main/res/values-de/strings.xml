@@ -379,6 +379,13 @@
 	<string name="action_hint_reveal">Zelle aufdecken</string>
 	<string name="action_hint_withdraw">Zurückziehen</string>
 
+	<!-- Game item 19: see the English file for what the steps are. -->
+	<string name="action_hint_next_step">Nächster Schritt</string>
+	<string name="hint_step_review">Sieh dir zuerst deine Notizen zu %1$s an. Jede Technik baut auf den Notizen auf.</string>
+	<string name="hint_step_diff">Deine Notizen sind auf dem Feld markiert: Ein grüner Kandidat ist einer, den du nicht notiert hast, eine rote Notiz kann nicht stimmen, weil Zeile, Spalte oder Block diese Ziffer bereits enthält.</string>
+	<string name="hint_step_marks">Mit diesen Notizen lässt sich eine Zelle mit %1$s lösen.</string>
+	<string name="hint_step_target">%1$s löst die markierte Zelle. Der nächste Druck trägt die Ziffer ein und verbraucht den Tipp.</string>
+
 	<!-- Multiplayer game screen. -->
 
 	<!-- General item 5: leaving a board is a decision, not a back step. -->

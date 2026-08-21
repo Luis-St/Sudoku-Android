@@ -28,7 +28,10 @@ import net.luis.sudoku.data.remote.match.booleanOrNull
 import net.luis.sudoku.data.remote.match.intOrNull
 import net.luis.sudoku.data.remote.match.matchSocketUrl
 import net.luis.sudoku.data.remote.match.stringOrNull
+import net.luis.sudoku.domain.HintMarkReview
+import net.luis.sudoku.domain.HintStep
 import net.luis.sudoku.domain.InputMode
+import net.luis.sudoku.domain.MarkReview
 import net.luis.sudoku.domain.LockState
 import net.luis.sudoku.domain.TapAction
 import net.luis.sudoku.domain.focusFollowsTap
@@ -36,6 +39,7 @@ import net.luis.sudoku.domain.resolveNumberButtonTap
 import net.luis.sudoku.domain.resolveTap
 import net.luis.sudoku.domain.tapReleasedFocus
 import net.luis.sudoku.hint.HintCandidate
+import net.luis.sudoku.solver.Technique
 
 /**
  * Co-operative mode (feature-spec §10.3): up to 4 participants share the pen layer, the pencil marks, one
@@ -199,6 +203,56 @@ class CoopViewModel @AssistedInject constructor(
 		private set
 
 	val hintsRemaining: Int get() = MAX_HINTS - this.hintsUsed
+
+	/**
+	 * How far *this* player has stepped the hint they are asking for (game item 19), or `null` for none.
+	 *
+	 * Local, unlike [hintCell]. The first three steps are about notes and say nothing about the answer, so
+	 * there is nothing there for the group to see, and stepping them on everybody else's screen would be one
+	 * player scrolling four other people's boards. What the match owns is still the offer itself, which goes
+	 * out at [HintStep.TARGET_CELL] exactly as it always did.
+	 */
+	var hintStep by mutableStateOf<HintStep?>(null)
+		private set
+
+	/** The cell this player's own run has promised, held back until the step that offers it to the match. */
+	private var hintTarget by mutableStateOf<HintCandidate?>(null)
+
+	/** Read once when the run starts, like single-player's - see `GameViewModel.hintReview`. */
+	var hintReview by mutableStateOf(MarkReview.EMPTY)
+		private set
+
+	/** The technique the run names, from the step that lays out the full candidate set onwards. */
+	val hintTechnique: Technique?
+		get() = this.hintTarget?.technique()
+			?.takeIf { this.hintStep == HintStep.FULL_MARKS || this.hintStep == HintStep.TARGET_CELL }
+
+	/**
+	 * The proposed notes this player's board draws right now (game item 19).
+	 *
+	 * The full set is *drawn* here and never written, which is where co-op parts company with single-player:
+	 * the notes are the group's, held by the server, so one player asking for a hint may not rewrite four
+	 * people's marks, and a fill would go out as one note frame per digit per cell besides.
+	 */
+	val hintMissingMarks: Map<Int, Int>
+		get() = when (this.hintStep) {
+			HintStep.MARK_DIFF -> this.hintReview.missing
+			HintStep.FULL_MARKS, HintStep.TARGET_CELL -> this.hintReview.stillUnnoted()
+			else -> emptyMap()
+		}
+
+	val hintWrongMarks: Map<Int, Int>
+		get() = when (this.hintStep) {
+			HintStep.MARK_DIFF, HintStep.FULL_MARKS, HintStep.TARGET_CELL -> this.hintReview.wrong
+			else -> emptyMap()
+		}
+
+	/** Ends this player's run without touching the match's offer, which is not theirs to clear. */
+	private fun clearHintRun() {
+		this.hintStep = null
+		this.hintTarget = null
+		this.hintReview = MarkReview.EMPTY
+	}
 
 	init {
 		this.viewModelScope.launch { openSocket(initial = true) }
@@ -377,6 +431,10 @@ class CoopViewModel @AssistedInject constructor(
 		this.mistakes = this.mistakes - cell
 		// A pending hint on this cell is not cleared here: the match owns it and sends its own HINT frame, so
 		// clearing it locally would only make the two disagree until the next snapshot.
+		//
+		// This player's own run is a different matter: it is local, and once somebody has filled the cell it
+		// was walking towards it has nothing left to say.
+		if (this.hintTarget?.cellIndex() == cell) clearHintRun()
 		refresh()
 	}
 
@@ -438,6 +496,9 @@ class CoopViewModel @AssistedInject constructor(
 	/** The match's answer about the shared offer - claimed by somebody, or gone. */
 	private fun applyHint(payload: JsonObject) {
 		this.hintCell = payload.intOrNull("cell")
+		// Somebody withdrew the offer this run had already put to the match, so the run is over too - the
+		// steps before it are still local, and those keep running until this player ends them.
+		if (this.hintCell == null && this.hintStep == HintStep.TARGET_CELL) clearHintRun()
 	}
 
 	/**
@@ -498,29 +559,54 @@ class CoopViewModel @AssistedInject constructor(
 	 */
 	fun onHintTap() {
 		if (!this.ready || !this.hintsEnabled || this.endReason != null) return
-		val pending = this.hintCell
-		if (pending == null) {
+
+		// The match's offer outranks any local run: whoever put it up, it is a question about one shared
+		// board, and a player who arrives at a marked cell reveals it rather than starting four steps of
+		// their own about a cell everybody has already agreed on.
+		val offered = this.hintCell ?: this.hintTarget?.cellIndex()?.takeIf { this.hintStep == HintStep.TARGET_CELL }
+		if (offered != null) {
+			// Anybody may spend the pending offer, not just whoever asked. The cap stays per player by
+			// charging whoever actually presses reveal, which is also why a player with none left cannot.
 			if (this.hintsRemaining <= 0) return
-			// The cell is chosen here - shared-core's hint engine is local, and every client has the same
-			// puzzle - but it is *offered* rather than shown: the match owns the pending hint, so this waits
-			// for the broadcast exactly as a placement or a note does. Nothing is applied locally.
-			val candidate: HintCandidate = this.session.peekHint() ?: return
-			this.viewModelScope.launch { this@CoopViewModel.socketClient.hint(candidate.cellIndex()) }
+			val digit = this.session.solutionAt(offered)
+			this.hintsUsed++
+			clearHintRun()
+			// The placement clears the offer server-side, since a filled cell has nothing left to point at.
+			this.viewModelScope.launch { this@CoopViewModel.socketClient.place(offered, digit) }
 			return
 		}
-		// Anybody may spend the pending offer, not just whoever asked - it is one question about one shared
-		// board. The cap stays per player by charging whoever actually presses reveal, which is also why a
-		// player with none left cannot take it.
-		if (this.hintsRemaining <= 0) return
-		val digit = this.session.solutionAt(pending)
-		this.hintsUsed++
-		// The placement clears the offer server-side, since a filled cell has nothing left to point at.
-		this.viewModelScope.launch { this@CoopViewModel.socketClient.place(pending, digit) }
+
+		val step = this.hintStep
+		if (step == null) {
+			if (this.hintsRemaining <= 0) return
+			// The cell is chosen here - shared-core's hint engine is local, and every client has the same
+			// puzzle - but it is not *offered* yet: the first three steps are about this player's reading of
+			// the notes, and the match only hears about the cell when the run reaches it.
+			val candidate: HintCandidate = this.session.peekHint() ?: return
+			this.hintTarget = candidate
+			// The notes come from the match, not from the cells - see [notes] and `HintMarkReview.of`.
+			val review = HintMarkReview.of(this.session, this.notes)
+			this.hintReview = review
+			// Straight past the note steps when the group's notes are already right, as single-player does.
+			this.hintStep = HintStep.first(review)
+			return
+		}
+
+		val next = step.next(this.hintReview) ?: return
+		this.hintStep = next
+		if (next == HintStep.TARGET_CELL) {
+			// Now it becomes the match's: the offer goes out and comes back as a HINT frame, so every board
+			// marks the same cell, exactly as it did before this was stepped at all. Nothing is applied here.
+			val cell = this.hintTarget?.cellIndex() ?: return
+			this.viewModelScope.launch { this@CoopViewModel.socketClient.hint(cell) }
+		}
 	}
 
 	/** Drops the pending offer without spending it. Any player may, since any player may spend it. */
 	fun onHintCancel() {
-		if (this.hintCell == null) return
+		val offered = this.hintCell
+		clearHintRun()
+		if (offered == null) return
 		this.viewModelScope.launch { this@CoopViewModel.socketClient.clearHint() }
 	}
 

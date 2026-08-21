@@ -67,7 +67,14 @@ fun BoardScreen(
 	/** Cells marked as already got wrong: the summary board (game item 7), and co-op (multiplayer item 2). */
 	mistakeCells: Set<Int> = emptySet(),
 	/** Summary board only (game item 7). */
-	hintCells: Set<Int> = emptySet()
+	hintCells: Set<Int> = emptySet(),
+	/**
+	 * Game item 19: the notes a running hint is proposing, cell index -> bitmask, coloured on the board
+	 * without being written to it. Green for [hintMissingMarks], red for [hintWrongMarks]; both empty unless
+	 * a hint is standing on a step that shows its working.
+	 */
+	hintMissingMarks: Map<Int, Int> = emptyMap(),
+	hintWrongMarks: Map<Int, Int> = emptyMap()
 ) {
 	// A board narrower than its own edge length is always a half-applied update, never a state to draw: the
 	// multiplayer models write `cells` and `edgeLength` from the socket thread, so a composition can land
@@ -113,6 +120,8 @@ fun BoardScreen(
 										mistakeDigit = mistakeDigits[index],
 										mistakeMade = index in mistakeCells,
 										hintUsed = index in hintCells,
+										hintMissingMarks = hintMissingMarks[index] ?: 0,
+										hintWrongMarks = hintWrongMarks[index] ?: 0,
 										regionTint = if (tintRegions) ChaosRegionColors.of(regionOf(index), darkTheme) else null
 									),
 									palette = palette,

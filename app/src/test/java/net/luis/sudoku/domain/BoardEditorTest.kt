@@ -184,4 +184,48 @@ class BoardEditorTest {
 			session.snapshot(index).hasPencilMark(impossible)
 		)
 	}
+
+	@Test
+	fun fillAllCandidates_writesEveryLegalNoteAsOneUndoableMove() {
+		val session = session()
+		val undoStack = UndoStack()
+		val editor = BoardEditor(session, undoStack)
+		val index = firstEmptyNonGiven(session)
+
+		assertTrue(editor.fillAllCandidates())
+
+		assertEquals(CandidateCalculator.legalDigits(session, index), session.snapshot(index).pencilMarks)
+		// One command for the whole fill (game item 19), so one undo takes all of it back rather than one cell.
+		undoStack.undo(session)
+		assertEquals(0, session.snapshot(index).pencilMarks)
+		assertFalse(undoStack.canUndo)
+	}
+
+	@Test
+	fun fillAllCandidates_dropsAMarkThatCannotBeRight() {
+		val session = session()
+		val undoStack = UndoStack()
+		val editor = BoardEditor(session, undoStack)
+		val index = firstEmptyNonGiven(session)
+		val impossible = (1..session.edgeLength)
+			.first { digit -> CandidateCalculator.legalDigits(session, index) shr digit and 1 == 0 }
+		session.togglePencilMark(index, impossible)
+
+		editor.fillAllCandidates()
+
+		assertEquals(0, session.snapshot(index).pencilMarks and (1 shl impossible))
+	}
+
+	@Test
+	fun fillAllCandidates_onCompleteNotesChangesNothing() {
+		val session = session()
+		val undoStack = UndoStack()
+		val editor = BoardEditor(session, undoStack)
+
+		editor.fillAllCandidates()
+
+		// Nothing left to write, so nothing is pushed: an undo would otherwise appear to do nothing at all.
+		assertFalse(editor.fillAllCandidates())
+		assertTrue(undoStack.canUndo)
+	}
 }

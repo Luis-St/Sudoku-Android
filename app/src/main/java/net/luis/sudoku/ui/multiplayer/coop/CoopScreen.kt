@@ -3,6 +3,7 @@ package net.luis.sudoku.ui.multiplayer.coop
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,6 +23,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import net.luis.sudoku.R
+import net.luis.sudoku.domain.HintStep
 import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.ui.board.BoardScreen
@@ -30,6 +32,7 @@ import net.luis.sudoku.ui.common.MatchOverDialog
 import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.common.PlayLayout
 import net.luis.sudoku.ui.common.ToggleActionButton
+import net.luis.sudoku.ui.game.hintStepText
 import net.luis.sudoku.ui.input.NumberPad
 import net.luis.sudoku.ui.multiplayer.MatchStatusHolder
 import net.luis.sudoku.ui.multiplayer.PublishMatchStatus
@@ -139,12 +142,25 @@ fun CoopScreen(
 				onCellTap = viewModel::onCellTap,
 				// The match's hint, not this player's: whoever asked, every board marks the same cell yellow.
 				hintCandidateIndex = viewModel.hintCell,
+				// Game item 19: the run's own working, which is this player's alone and never sent.
+				hintMissingMarks = viewModel.hintMissingMarks,
+				hintWrongMarks = viewModel.hintWrongMarks,
 				// Multiplayer item 2: the digit and the mark are the same fact, so they arrive together and leave
 				// together - the number stays readable for exactly as long as the cell is red.
 				mistakeDigits = viewModel.mistakes,
 				mistakeCells = viewModel.mistakes.keys,
 				darkTheme = darkTheme
 			)
+
+			// Game item 19: the same stepped hint the single-player board runs, worded by the same code.
+			viewModel.hintStep?.let { step ->
+				Text(
+					text = hintStepText(step, viewModel.hintReview, viewModel.hintTechnique, hexDisplay = false),
+					style = MaterialTheme.typography.bodySmall,
+					color = MaterialTheme.colorScheme.onSurfaceVariant,
+					modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+				)
+			}
 		},
 		input = {
 			NumberPad(
@@ -163,17 +179,24 @@ fun CoopScreen(
 				// One offer per match, but it is the group's: every screen shows the same two buttons on it, no
 				// matter who asked. The asker-only version left the others with a marked cell they could neither
 				// take nor clear.
-				val hintPending = viewModel.hintCell != null
+				val hintStep = viewModel.hintStep
+				// Either the match has an offer up or this player is mid run: both mean the button is not
+				// starting a new hint, and both give the withdraw button something to withdraw.
+				val hintPending = viewModel.hintCell != null || hintStep != null
 				Row(
 					modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 8.dp),
 					horizontalArrangement = Arrangement.Center,
 					verticalAlignment = Alignment.CenterVertically
 				) {
 					OutlinedActionButton(
-						text = if (hintPending) {
-							stringResource(R.string.action_hint_reveal)
-						} else {
-							stringResource(R.string.action_hint_with_count, viewModel.hintsRemaining)
+						text = when {
+							// The match's offer is always a reveal, whoever put it up and whatever step this
+							// player happens to be standing on.
+							viewModel.hintCell != null || hintStep == HintStep.TARGET_CELL ->
+								stringResource(R.string.action_hint_reveal)
+
+							hintStep != null -> stringResource(R.string.action_hint_next_step)
+							else -> stringResource(R.string.action_hint_with_count, viewModel.hintsRemaining)
 						},
 						onClick = viewModel::onHintTap,
 						// The cap is per player and the reveal charges whoever presses it, so an empty cap stops

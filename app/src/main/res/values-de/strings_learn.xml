@@ -55,14 +55,11 @@
 	<string name="learn_train_prompt_select">Tippe die Zelle an, die die Technik deiner Meinung nach löst.</string>
 	<string name="learn_train_prompt_digit">Zeile %1$d, Spalte %2$d ist ausgewählt. Wähle jetzt unten ihre Ziffer.</string>
 	<string name="learn_train_prompt_cell">Die Ziffer %1$d ist gewählt. Tippe jetzt die Zelle an, in die sie gehört.</string>
-	<string name="learn_train_prompt_done">Diese Übung ist beendet, das ganze Muster ist jetzt auf dem Feld zu sehen.</string>
 	<string name="learn_train_refused_digit">%1$d ist nicht die Lösung der gewählten Zelle, deshalb wurde nichts eingetragen. Versuche eine andere Ziffer oder wähle eine andere Zelle.</string>
 	<string name="learn_train_marked_only">Die markierten Zellen zeigen, wo das Muster liegt. Was daraus folgt, findest du selbst heraus.</string>
 	<string name="learn_train_help_spent">Mehr Hilfe gibt diese Übung nicht.</string>
-	<string name="learn_train_solved_title">Gut gemacht</string>
 	<string name="learn_train_solved_message">Du hast die Technik richtig angewendet.</string>
 	<string name="learn_train_continue">Nächste Übung</string>
-	<string name="learn_train_partial_title">Übung beendet</string>
 	<string name="learn_train_partial_message">Du hast das ohne die Technik gelöst, deshalb zählt es nicht für den Erfolg. Versuche die Übung nochmal oder hole dir in der Trainingsübersicht ein neues Rätsel dafür.</string>
 	<string name="learn_generate_level">Neue Übung für diese Stufe</string>
 	<string name="learn_practice">Freies Üben</string>
@@ -76,8 +73,6 @@
 	<string name="learn_stat_mastered">Gemeisterte Techniken</string>
 
 	<!-- The narration under an animated example. See the English file for why these are per step kind. -->
-	<string name="learn_hint_technique">Diese Zelle lässt sich mit %1$s lösen.</string>
-	<string name="learn_hint_wrong_pencil">Einige deiner Notizen können nicht stimmen: In einer Zelle steht eine Ziffer, die in Zeile, Spalte oder Block bereits vorkommt. Korrigiere das zuerst, jede Technik baut auf den Notizen auf.</string>
 	<string name="learn_open_wiki">Techniken</string>
 	<string name="learn_reset">Training zurücksetzen</string>
 	<string name="learn_reset_confirm_title">Training zurücksetzen</string>

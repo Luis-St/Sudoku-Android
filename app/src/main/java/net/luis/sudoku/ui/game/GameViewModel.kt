@@ -37,9 +37,10 @@ import net.luis.sudoku.domain.CurrencyController
 import net.luis.sudoku.domain.DailyController
 import net.luis.sudoku.domain.DailyRecord
 import net.luis.sudoku.domain.GameResultUploader
-import net.luis.sudoku.domain.HintAdvice
-import net.luis.sudoku.domain.HintAdviser
 import net.luis.sudoku.domain.HintController
+import net.luis.sudoku.domain.HintMarkReview
+import net.luis.sudoku.domain.HintStep
+import net.luis.sudoku.domain.MarkReview
 import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.domain.LivesController
 import net.luis.sudoku.domain.LockState
@@ -60,6 +61,7 @@ import net.luis.sudoku.hint.HintCandidate
 import net.luis.sudoku.key.PuzzleKey
 import net.luis.sudoku.sharecode.ShareCodeCodec
 import net.luis.sudoku.sound.SoundEvent
+import net.luis.sudoku.solver.Technique
 import net.luis.sudoku.sound.SoundPlayer
 import javax.inject.Inject
 
@@ -250,18 +252,54 @@ class GameViewModel @Inject constructor(
 	var hintsRemaining by mutableStateOf(5)
 		private set
 
-	/** Set after the first hint tap, cleared on confirm/cancel - the cell to highlight (feature-spec §4.4). */
 	/**
-	 * What the pending hint has to say beyond the cell it marks: the technique that solves it, or the wrong
-	 * pencil marks that have to be sorted out before any technique means anything.
+	 * How far the running hint has been stepped (game item 19), or `null` when no hint is running.
 	 *
-	 * Set alongside [hintCandidate] and cleared with it, because it describes that one peek.
+	 * Set by the first press and cleared when the hint is spent, withdrawn or made pointless. Every press in
+	 * between moves it on one, and only the press past the last step writes a digit.
 	 */
-	var hintAdvice by mutableStateOf<HintAdvice?>(null)
+	var hintStep by mutableStateOf<HintStep?>(null)
 		private set
 
+	/**
+	 * What the running hint found when it compared the player's notes to the board.
+	 *
+	 * Taken once, when the hint starts, and not recomputed as it is stepped: the four steps are four things
+	 * to say about *one* reading of the board, and a set that moved under them would have step two drawing
+	 * something step one did not name.
+	 */
+	var hintReview by mutableStateOf(MarkReview.EMPTY)
+		private set
+
+	/** Set after the first hint press, cleared on reveal/withdraw - the cell the hint has promised (§4.4). */
 	var hintCandidate by mutableStateOf<HintCandidate?>(null)
 		private set
+
+	/**
+	 * The cell to mark yellow, which is **not** the same as the cell the hint has promised.
+	 *
+	 * The promise is made on the first press and the mark is only put on the board at the fourth step: the
+	 * first three steps are about the notes, and marking the answer's cell while talking about them would
+	 * hand over the one thing those steps exist to make unnecessary.
+	 */
+	val hintMarkedCell: Int? get() = this.hintCandidate?.cellIndex()?.takeIf { this.hintStep == HintStep.TARGET_CELL }
+
+	/** The proposed notes the board draws right now: only the diff step shows any (game item 19). */
+	val hintMissingMarks: Map<Int, Int>
+		get() = if (this.hintStep == HintStep.MARK_DIFF) this.hintReview.missing else emptyMap()
+
+	val hintWrongMarks: Map<Int, Int>
+		get() = if (this.hintStep == HintStep.MARK_DIFF) this.hintReview.wrong else emptyMap()
+
+	/**
+	 * The technique the hint names, from the step that fills the notes in onwards.
+	 *
+	 * Not before: it is a conclusion drawn *from* the complete candidate set, and naming it over the player's
+	 * half-written notes teaches the technique against a position that is not on the board.
+	 */
+	val hintTechnique: Technique?
+		get() = this.hintCandidate?.technique()
+			?.takeIf { this.hintStep == HintStep.FULL_MARKS || this.hintStep == HintStep.TARGET_CELL }
 
 	var elapsedMillis by mutableStateOf(0L)
 		private set
@@ -394,6 +432,8 @@ class GameViewModel @Inject constructor(
 		this.lock = LockState(mode = InputMode.PENCIL)
 		this.activeIndex = null
 		this.hintCandidate = null
+		this.hintStep = null
+		this.hintReview = MarkReview.EMPTY
 		this.mistake = null
 		this.outcome = null
 		this.summary = null
@@ -707,29 +747,51 @@ class GameViewModel @Inject constructor(
 	 */
 	private fun clearPendingHint() {
 		this.hintCandidate = null
-		this.hintAdvice = null
+		this.hintStep = null
+		this.hintReview = MarkReview.EMPTY
 		this.hintController.cancelPending()
 	}
 
 	/**
-	 * First tap peeks a hint cell; a second tap while one is pending consumes it (feature-spec §4.4).
+	 * Steps the hint on by one press (game item 19); the press past the last step spends it (§4.4).
 	 *
-	 * Game item 3: the peek is the "partially used" state, and it survives everything except its own two
-	 * exits - pressing this button again, or the peeked cell being filled by the player. It used to be
-	 * cleared by *any* tap, so the yellow cell vanished the moment the player looked anywhere else, and a
-	 * hint that had been asked for silently stopped existing.
+	 * The first press promises a cell and reads the notes, the next three talk about those notes and finally
+	 * name the technique, and only the fifth writes a digit. Nothing is charged until that last one, so a
+	 * player who works it out at step two or three walks away having paid nothing, which is the point of
+	 * stepping it at all.
+	 *
+	 * Game item 3: the whole run survives everything except its own exits - pressing on, withdrawing it, or
+	 * the promised cell being filled by the player. It used to be cleared by *any* tap, so the yellow cell
+	 * vanished the moment the player looked anywhere else.
 	 */
 	fun onHintTap() {
 		if (this.outcome != null) return
-		val pending = this.hintCandidate
-		if (pending == null) {
-			val candidate = this.hintController.requestHint()
+		val step = this.hintStep
+		if (step == null) {
+			val candidate = this.hintController.requestHint() ?: return
 			this.hintCandidate = candidate
-			// Named on the peek rather than on the reveal: the peek is the moment the player is still deciding
-			// what to do, which is the only moment a way forward is worth more than the answer.
-			this.hintAdvice = candidate?.let { HintAdviser.adviceFor(this.session, it.technique()) }
+			// Read once, here, and kept for the whole run - see [hintReview].
+			val review = HintMarkReview.of(this.session)
+			this.hintReview = review
+			// Straight past the note steps on a board whose notes are already right - see [HintStep.shows].
+			this.hintStep = HintStep.first(review)
 			return
 		}
+
+		val next = step.next(this.hintReview)
+		if (next != null) {
+			// The one step that changes the board rather than only drawing on it. It is a real, undoable move:
+			// from here on the notes the next two steps argue from are the ones actually in the cells, so a
+			// player who reads the technique's name can check it against what they are looking at.
+			if (next == HintStep.FULL_MARKS) {
+				this.editor.fillAllCandidates()
+				refresh()
+			}
+			this.hintStep = next
+			return
+		}
+
+		val pending = this.hintCandidate ?: return
 		val index = pending.cellIndex()
 		val before = this.session.cellForUndo(index).copy()
 		// Never null with a candidate pending - the controller now falls back to the known solution for the
@@ -737,7 +799,8 @@ class GameViewModel @Inject constructor(
 		val digit = this.hintController.confirmHint() ?: return
 		val after = this.session.cellForUndo(index).copy()
 		this.hintCandidate = null
-		this.hintAdvice = null
+		this.hintStep = null
+		this.hintReview = MarkReview.EMPTY
 		this.hintsRemaining = this.hintController.remaining
 		this.hintCells.add(index)
 		// The cell is filled from here on, so the replay has to know about it - see [dailySolveOrder].

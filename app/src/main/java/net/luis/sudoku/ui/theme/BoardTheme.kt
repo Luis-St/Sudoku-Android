@@ -49,6 +49,21 @@ data class BoardPalette(
 	 * regions, and there is nothing to preserve underneath a cell that is about to be filled in.
 	 */
 	val hintCandidate: Color = Color(0xFFFFC400),
+	/**
+	 * A note a hint is *proposing*, drawn in the cell rather than written into it (game item 19).
+	 *
+	 * Green for one that is missing and red for one that cannot be right, and both deliberately softer than
+	 * [error] or any ink on the board: at that point in a hint nothing has been decided yet, and a
+	 * full-strength colour on a ninth of a cell would read as the board having been changed already. They
+	 * still have to be legible at that size, which is why they are muted rather than genuinely pale.
+	 *
+	 * The colour is the whole mark. A note carries no ring, box or outline of its own: a shape drawn around a
+	 * glyph that is already a ninth of a cell is bigger than the glyph, and these two hues appear nowhere else
+	 * in the note grid, so nothing else is needed to tell a proposal from something the player wrote.
+	 */
+	val hintMarkMissing: Color = Color(0xFF2E7D52),
+	/** The other half of [hintMarkMissing]: a noted digit a peer already holds, so it cannot be right. */
+	val hintMarkWrong: Color = Color(0xFFC4443E),
 	/** A cell the player entered a wrong digit into, on the end-of-game summary board (game item 7). */
 	val summaryMistake: Color = Color(0xFFFFB3B3),
 	/** A cell the player spent a hint on, on the end-of-game summary board (game item 7). */
@@ -113,6 +128,8 @@ object BoardThemeCatalog {
 			sameValuePencil = Color(0xFFEF6C00),
 			conflict = Color(0xFFFFDAD6),
 			hintCandidate = Color(0xFFFFC400),
+			hintMarkMissing = Color(0xFF2E7D52),
+			hintMarkWrong = Color(0xFFC4443E),
 			tintHighlight = Color(0xFF4C4ED9)
 		),
 		dark = BoardPalette(
@@ -134,6 +151,10 @@ object BoardThemeCatalog {
 			// Deep amber, not the light mode's bright yellow: on a near-black board a full-strength yellow cell
 			// is a lamp, and the pencil marks left in the cell would have to be black to survive it.
 			hintCandidate = Color(0xFF9A6E00),
+			// Lifted for a dark board, like every other ink here: the light mode's greens and reds are dark
+			// pigments and vanish into a near-black cell.
+			hintMarkMissing = Color(0xFF7FD3A3),
+			hintMarkWrong = Color(0xFFEFA19B),
 			// Light on a dark board: the tints there are near-black, so the highlight has to lift them, not
 			// darken them further.
 			tintHighlight = Color(0xFFC1C1FF)

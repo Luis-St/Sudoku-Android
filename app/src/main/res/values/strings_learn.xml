@@ -55,14 +55,11 @@
 	<string name="learn_train_prompt_select">Tap the cell you think the technique solves.</string>
 	<string name="learn_train_prompt_digit">Row %1$d, column %2$d is selected. Now pick its digit below.</string>
 	<string name="learn_train_prompt_cell">The digit %1$d is picked. Now tap the cell it belongs in.</string>
-	<string name="learn_train_prompt_done">This exercise is over, and the whole pattern is now shown on the board.</string>
 	<string name="learn_train_refused_digit">%1$d is not the solution of the selected cell, so nothing was written. Try another digit, or pick another cell.</string>
 	<string name="learn_train_marked_only">The marked cells are where the pattern sits. What follows from it is yours to work out.</string>
 	<string name="learn_train_help_spent">That was all the help this exercise gives.</string>
-	<string name="learn_train_solved_title">Well done</string>
 	<string name="learn_train_solved_message">You applied the technique correctly.</string>
 	<string name="learn_train_continue">Next exercise</string>
-	<string name="learn_train_partial_title">Exercise done</string>
 	<string name="learn_train_partial_message">You solved this without using the technique, so it does not count towards the achievement. Try the exercise again, or ask for a new puzzle for it on the training overview.</string>
 	<string name="learn_generate_level">New exercise for this level</string>
 	<string name="learn_practice">Free practice</string>
@@ -78,8 +75,6 @@
 	<!-- The narration under an animated example. One sentence per step kind, never one per technique:
 	     the shared core emits beats rather than text, and forty-one sets of sentences saying the same
 	     handful of things is forty-one places for them to drift apart. -->
-	<string name="learn_hint_technique">This cell can be solved with %1$s.</string>
-	<string name="learn_hint_wrong_pencil">Some of your pencil marks cannot be right: a digit is noted in a cell where a row, column or box already shows it. Fix those first, every technique argues from the notes.</string>
 	<string name="learn_open_wiki">Techniques</string>
 	<string name="learn_reset">Reset this training</string>
 	<string name="learn_reset_confirm_title">Reset this training</string>

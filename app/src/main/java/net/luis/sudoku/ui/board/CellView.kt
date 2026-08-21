@@ -58,6 +58,15 @@ data class CellHighlight(
 	val mistakeMade: Boolean = false,
 	/** Summary board only (game item 7): a hint filled this cell. */
 	val hintUsed: Boolean = false,
+	/**
+	 * Game item 19: notes a running hint is proposing for this cell, coloured and never written.
+	 *
+	 * [hintMissingMarks] is what is legal here but not noted, [hintWrongMarks] what is noted but cannot be
+	 * right. Both are bitmasks in the same shape as [CellSnapshot.pencilMarks], and both are empty except
+	 * while a hint is on the step that shows them.
+	 */
+	val hintMissingMarks: Int = 0,
+	val hintWrongMarks: Int = 0,
 	/** The chaos region tint under everything else (game item 1); `null` for classic puzzles. */
 	val regionTint: Color? = null
 )
@@ -139,8 +148,15 @@ fun CellView(
 				bold = highlight.markedValue
 			)
 
-			snapshot.pencilMarks != 0 ->
-				PencilMarkGrid(snapshot, edgeLength, palette, cellSize, highlight.markedPencilDigit)
+			snapshot.pencilMarks != 0 || highlight.hintMissingMarks != 0 -> PencilMarkGrid(
+				snapshot = snapshot,
+				edgeLength = edgeLength,
+				palette = palette,
+				cellSize = cellSize,
+				markedDigit = highlight.markedPencilDigit,
+				missingMarks = highlight.hintMissingMarks,
+				wrongMarks = highlight.hintWrongMarks
+			)
 		}
 	}
 }
@@ -193,7 +209,11 @@ private fun PencilMarkGrid(
 	palette: BoardPalette,
 	cellSize: Dp,
 	/** Game item 2: this one note is the locked digit, and is the only thing in the cell that gets marked. */
-	markedDigit: Int?
+	markedDigit: Int?,
+	/** Game item 19: legal here, not noted - drawn in its slot although the cell does not hold it. */
+	missingMarks: Int = 0,
+	/** Game item 19: noted here, impossible - the note the player already wrote, marked rather than added. */
+	wrongMarks: Int = 0
 ) {
 	val columns = pencilColumnsFor(edgeLength)
 	val rows = (edgeLength + columns - 1) / columns
@@ -221,18 +241,35 @@ private fun PencilMarkGrid(
 						modifier = Modifier.weight(1f).fillMaxHeight(),
 						contentAlignment = Alignment.Center
 					) {
+						val missing = digit <= edgeLength && missingMarks shr digit and 1 == 1
+						val wrong = digit <= edgeLength && wrongMarks shr digit and 1 == 1
 						// Past edgeLength the slot is padding, not a digit - it keeps the grid square, so the
 						// candidates that do exist stay in their own fixed positions.
-						if (digit <= edgeLength && snapshot.hasPencilMark(digit)) {
+						if (digit <= edgeLength && (snapshot.hasPencilMark(digit) || missing)) {
 							// Game item 2: a chip would swallow a note at a ninth of a cell, so the mark *is*
 							// the ink - the locked digit's note is written in the accent and a weight heavier.
 							val marked = digit == markedDigit
+							// Game item 19: a proposed note is green because it is not on the board yet, and a
+							// wrong one red because the hint is about to take it away. Colour alone, with no
+							// ring or outline around the glyph: at a ninth of a cell a shape drawn around a
+							// note is bigger than the note, and it lands on the one board element that has no
+							// room to spare. The two colours are nowhere else in the note grid, which is what
+							// separates them from anything the player wrote themselves.
+							val proposalColor = when {
+								missing -> palette.hintMarkMissing
+								wrong -> palette.hintMarkWrong
+								else -> null
+							}
 							Text(
 								text = digit.toString(),
-								color = if (marked) palette.sameValuePencil else palette.pencilMark,
+								color = when {
+									proposalColor != null -> proposalColor
+									marked -> palette.sameValuePencil
+									else -> palette.pencilMark
+								},
 								fontSize = fontSize,
 								lineHeight = fontSize,
-								fontWeight = if (marked) FontWeight.Bold else FontWeight.Normal,
+								fontWeight = if (marked || proposalColor != null) FontWeight.Bold else FontWeight.Normal,
 								maxLines = 1,
 								softWrap = false,
 								textAlign = TextAlign.Center

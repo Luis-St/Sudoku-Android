@@ -40,8 +40,11 @@ import net.luis.sudoku.ui.common.ToggleActionButton
 import net.luis.sudoku.ui.common.friendlyErrorMessage
 import net.luis.sudoku.ui.common.shareText
 import net.luis.sudoku.ui.learn.stringsOf
-import net.luis.sudoku.domain.HintAdvice
+import net.luis.sudoku.domain.HintStep
+import net.luis.sudoku.domain.MarkReview
 import net.luis.sudoku.ui.input.NumberPad
+import net.luis.sudoku.ui.input.digitLabel
+import net.luis.sudoku.solver.Technique
 import net.luis.sudoku.ui.navigation.PlayMode
 import net.luis.sudoku.ui.navigation.PlayRequest
 import net.luis.sudoku.ui.theme.ActionAccent
@@ -178,11 +181,15 @@ fun GameScreen(
 					regionOf = viewModel::regionOf,
 					palette = palette,
 					onCellTap = viewModel::onCellTap,
-					hintCandidateIndex = viewModel.hintCandidate?.cellIndex(),
+					hintCandidateIndex = viewModel.hintMarkedCell,
 					// Single-player keeps the timed flash (feature-spec §6): at most one wrong digit, briefly.
 					mistakeDigits = viewModel.mistake?.let { mapOf(it) }.orEmpty(),
 					tintRegions = viewModel.isChaos,
-					darkTheme = darkTheme
+					darkTheme = darkTheme,
+					// Game item 19: the notes the running hint is proposing, drawn on the board and written to
+					// it only once the player steps past them.
+					hintMissingMarks = viewModel.hintMissingMarks,
+					hintWrongMarks = viewModel.hintWrongMarks
 				)
 
 				// Game item 3 (2.1.0): what the peeked hint has to say beyond the cell it marks, directly under
@@ -192,7 +199,14 @@ fun GameScreen(
 				//
 				// Still gated on hints existing at all: under Lisa there is no hint to advise on (§4.3).
 				if (viewModel.modifiers.hintsAllowed) {
-					viewModel.hintAdvice?.let { advice -> HintAdviceRow(advice) }
+					viewModel.hintStep?.let { step ->
+						HintStepRow(
+							step = step,
+							review = viewModel.hintReview,
+							technique = viewModel.hintTechnique,
+							hexDisplay = viewModel.preferences.hexDisplay
+						)
+					}
 				}
 			},
 			input = {
@@ -211,17 +225,20 @@ fun GameScreen(
 					// Game item 3: a peeked hint is half-used, and the button is where that shows. The yellow cell
 					// alone was not enough of a signal - a player who did not already know the hint takes two
 					// presses read the marked cell as something that had happened *to* the board.
-					val hintPending = viewModel.hintCandidate != null
+					val hintStep = viewModel.hintStep
+					val hintPending = hintStep != null
 					Row(
 						modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
 						horizontalArrangement = Arrangement.Center,
 						verticalAlignment = Alignment.CenterVertically
 					) {
 						OutlinedActionButton(
-							text = if (hintPending) {
-								stringResource(R.string.action_hint_reveal)
-							} else {
-								stringResource(R.string.action_hint_with_count, viewModel.hintsRemaining)
+							text = when (hintStep) {
+								null -> stringResource(R.string.action_hint_with_count, viewModel.hintsRemaining)
+								// The last step is the one before the digit, so the button says what the press
+								// after it actually does rather than carrying on counting.
+								HintStep.TARGET_CELL -> stringResource(R.string.action_hint_reveal)
+								else -> stringResource(R.string.action_hint_next_step)
 							},
 							onClick = viewModel::onHintTap,
 							enabled = viewModel.hintsRemaining > 0 || hintPending,
@@ -348,30 +365,50 @@ internal fun formatElapsed(millis: Long): String {
 }
 
 /**
- * The sentence under the board: either the technique that solves the marked cell, or the pencil marks that
- * have to be sorted out before any technique means anything.
+ * What the running hint is saying right now, under the board (game item 19).
+ *
+ * One paragraph per step, and a counter over it so the player can see how much of the hint is left before it
+ * costs them the digit. Directly under the board rather than down with the buttons: every one of the four
+ * steps is a statement *about* what the board is showing, and sixty pixels of number pad between the two made
+ * them read as unrelated.
  *
  * Game item 2 (2.1.0): a sentence, and nothing else. It used to carry a "How does that work?" button into the
  * technique's wiki page, which is a way *out* of a running, timed puzzle offered at the exact moment the
  * player is trying to get back into it. The wiki is still one tap away on the app bar for anyone who wants
- * it - what is gone is the board asking. Which is also why the wrong-marks case never had a link: what it
- * describes is fixed on the board in front of them, not on a page somewhere else.
+ * it; what is gone is the board asking.
  */
 @Composable
-private fun HintAdviceRow(advice: HintAdvice) {
+private fun HintStepRow(step: HintStep, review: MarkReview, technique: Technique?, hexDisplay: Boolean) {
 	Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-		when (advice) {
-			is HintAdvice.WrongPencilMarks -> Text(
-				text = stringResource(R.string.learn_hint_wrong_pencil),
-				style = MaterialTheme.typography.bodySmall,
-				color = MaterialTheme.colorScheme.error
-			)
+		Text(
+			text = hintStepText(step, review, technique, hexDisplay),
+			style = MaterialTheme.typography.bodySmall,
+			color = MaterialTheme.colorScheme.onSurfaceVariant
+		)
+	}
+}
 
-			is HintAdvice.Named -> Text(
-				text = stringResource(R.string.learn_hint_technique, stringResource(stringsOf(advice.technique).name)),
-				style = MaterialTheme.typography.bodySmall,
-				color = MaterialTheme.colorScheme.onSurfaceVariant
-			)
-		}
+/**
+ * The wording of one hint step, shared by the single-player board and the co-op one.
+ *
+ * No step number and no total: a hint is a sequence of things to say, some of which a given board does not
+ * need ([HintStep.shows]), so a count would be a promise the hint does not keep. What the player is told is
+ * what is in front of them now, and the button says whether there is more.
+ *
+ * The two note steps therefore have no wording for a board whose notes are already right: those steps are
+ * skipped there rather than shown saying nothing.
+ */
+@Composable
+internal fun hintStepText(step: HintStep, review: MarkReview, technique: Technique?, hexDisplay: Boolean): String {
+	val techniqueName = technique?.let { stringResource(stringsOf(it).name) }.orEmpty()
+	return when (step) {
+		HintStep.REVIEW_MARKS -> stringResource(
+			R.string.hint_step_review,
+			review.digitsToReview.joinToString(", ") { digit -> digitLabel(digit, hexDisplay) }
+		)
+
+		HintStep.MARK_DIFF -> stringResource(R.string.hint_step_diff)
+		HintStep.FULL_MARKS -> stringResource(R.string.hint_step_marks, techniqueName)
+		HintStep.TARGET_CELL -> stringResource(R.string.hint_step_target, techniqueName)
 	}
 }

@@ -32,10 +32,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import net.luis.sudoku.R
 import net.luis.sudoku.learn.LearnContent
-import net.luis.sudoku.ui.common.GradientButton
 import net.luis.sudoku.ui.common.GradientIconActionButton
 import net.luis.sudoku.ui.common.OutlinedIconActionButton
-import net.luis.sudoku.ui.common.SectionCard
 import net.luis.sudoku.ui.input.NumberPad
 import net.luis.sudoku.ui.theme.ActionAccent
 import net.luis.sudoku.ui.theme.LocalBoardPalette
@@ -132,11 +130,6 @@ fun LearnTrainScreen(
 						RevealSection(viewModel)
 					}
 
-					val outcome = viewModel.outcome
-					if (outcome != null) {
-						Box(modifier = Modifier.size(16.dp))
-						OutcomeCard(outcome, onFinished, viewModel)
-					}
 					Box(modifier = Modifier.size(24.dp))
 				}
 			}
@@ -263,6 +256,13 @@ private fun StepArrow(
  *
  * The refusals take priority over the instructions on purpose: a player who has just been refused is asking
  * "why did that not work", and answering "tap a cell" instead would read as the app not having noticed.
+ *
+ * Learn item 18: the finished exercise says so *here* too, and no longer on a card of its own under the
+ * board. The card carried the same "well done" every single time plus a Next button duplicating the one in
+ * the heading, so the last thing every exercise did was push the board up the screen to make room for a
+ * second copy of a control that was already there. What the card actually said that the heading could not,
+ * which is whether the technique was used and whether that finished the level, is one sentence, and this is
+ * where the exercise has been putting its sentences all along.
  */
 @Composable
 private fun PromptLine(viewModel: LearnTrainViewModel) {
@@ -271,8 +271,24 @@ private fun PromptLine(viewModel: LearnTrainViewModel) {
 	val lockedDigit = viewModel.lockedDigit
 	val refused = refusal != null && viewModel.outcome == null
 
+	val outcome = viewModel.outcome
 	val message = when {
-		viewModel.outcome != null -> stringResource(R.string.learn_train_prompt_done)
+		// Solved with the technique, solved without it, or solved the last exercise this technique had left.
+		// The partial case is the one that has to be said the moment it happens: the player did solve the
+		// cell, and the only way that is not a win is if somebody tells them so while they can still see it.
+		outcome != null -> listOfNotNull(
+			when {
+				// The one outcome that is more than "this exercise is over", so it keeps its headline, now
+				// as the opening of the sentence rather than the title of a card.
+				viewModel.masteredNow -> stringResource(R.string.learn_achievement_unlocked) + ": " +
+					stringResource(R.string.learn_achievement_message, stringResource(stringsOf(viewModel.technique).name))
+				outcome == TrainOutcome.SOLVED -> stringResource(R.string.learn_train_solved_message)
+				else -> stringResource(R.string.learn_train_partial_message)
+			},
+			// A generated position changes nothing about the level behind it, which is worth repeating
+			// exactly once: here, where the player has just solved something and is looking for what it did.
+			stringResource(R.string.learn_practice_note).takeIf { viewModel.practice }
+		).joinToString(" ")
 		refusal != null -> stringResource(R.string.learn_train_refused_digit, refusal.digit)
 		// Row and column counted from one, like every other place the lesson names a cell.
 		selected != null ->
@@ -346,54 +362,6 @@ private fun RevealSection(viewModel: LearnTrainViewModel) {
 				modifier = Modifier.padding(top = 6.dp)
 			)
 		}
-	}
-}
-
-/**
- * How the exercise ended, said the moment it happens.
- *
- * The partial message is the one that has to be here rather than three screens later on an achievement that
- * quietly never arrives: the player did solve the cell, and the only way that is not a win is if somebody
- * tells them so while they can still see what they did.
- */
-@Composable
-private fun OutcomeCard(outcome: TrainOutcome, onFinished: () -> Unit, viewModel: LearnTrainViewModel) {
-	val solved = outcome == TrainOutcome.SOLVED
-	val mastered = viewModel.masteredNow
-	SectionCard(
-		title = stringResource(
-			when {
-				mastered -> R.string.learn_achievement_unlocked
-				solved -> R.string.learn_train_solved_title
-				else -> R.string.learn_train_partial_title
-			}
-		)
-	) {
-		Text(
-			text = when {
-				mastered -> stringResource(R.string.learn_achievement_message, stringResource(stringsOf(viewModel.technique).name))
-				solved -> stringResource(R.string.learn_train_solved_message)
-				else -> stringResource(R.string.learn_train_partial_message)
-			},
-			style = MaterialTheme.typography.bodyMedium
-		)
-		// The one place the outcome card has to repeat it: the player has just solved something and is looking
-		// at a card that is not going to change the level behind it.
-		if (viewModel.practice) {
-			Text(
-				text = stringResource(R.string.learn_practice_note),
-				style = MaterialTheme.typography.bodySmall,
-				color = MaterialTheme.colorScheme.onSurfaceVariant,
-				modifier = Modifier.padding(top = 8.dp)
-			)
-		}
-		Box(modifier = Modifier.size(12.dp))
-		GradientButton(
-			text = stringResource(R.string.learn_train_continue),
-			onClick = onFinished,
-			accent = ActionAccent.LIME,
-			modifier = Modifier.fillMaxWidth()
-		)
 	}
 }
 

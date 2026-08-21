@@ -40,6 +40,34 @@ class BoardEditor(
 		}
 	}
 
+	/**
+	 * Writes the full candidate set into every empty cell, as **one undoable move**.
+	 *
+	 * Step three of a hint (game item 19 of 2.1.0): the partial marks the step before only drew are actually
+	 * put on the board here, wrong ones dropped and missing ones added, because every technique the next two
+	 * steps talk about argues from that set. Unlike [recomputeAllCandidates] this is a player-visible change
+	 * the player asked for, so it goes on the undo stack, and one undo takes the whole fill back rather than
+	 * one cell of it.
+	 *
+	 * @return whether anything changed, i.e. whether the notes were not already complete
+	 */
+	fun fillAllCandidates(): Boolean {
+		val edits = mutableListOf<CellEdit>()
+		for (index in 0 until this.session.cellCount) {
+			val snapshot = this.session.snapshot(index)
+			if (snapshot.given || !snapshot.empty) continue
+			val legal = CandidateCalculator.legalDigits(this.session, index)
+			if (snapshot.pencilMarks == legal) continue
+			val cell = this.session.cellForUndo(index)
+			val before = cell.copy()
+			cell.setPencilMarks(legal)
+			edits += CellEdit(index, before, cell.copy())
+		}
+		if (edits.isEmpty()) return false
+		this.undoStack.push(Command(edits))
+		return true
+	}
+
 	private fun enterPen(index: Int, digit: Int) {
 		val cell = this.session.cellForUndo(index)
 		val edits = mutableListOf<CellEdit>()
