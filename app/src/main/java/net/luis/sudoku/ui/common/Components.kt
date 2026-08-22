@@ -72,7 +72,15 @@ fun OutlinedActionButton(
 	icon: ImageVector? = null,
 	iconPainter: Painter? = null,
 	/** `true` when [iconPainter] is a full-color drawable rather than a tintable glyph - see `ButtonLabel`. */
-	iconIsArtwork: Boolean = false
+	iconIsArtwork: Boolean = false,
+	/**
+	 * Game item 2 (2.1.0): an outline of the caller's own, for the buttons that sit **on a board**.
+	 *
+	 * The play screens draw theirs in the text ink rather than the scheme's soft outline - a board is a page
+	 * of ruled lines and digits, and a grey hairline that reads as a button everywhere else disappears into
+	 * it. `null` everywhere else, which is the outline every other screen has always had.
+	 */
+	borderColor: Color? = null
 ) {
 	OutlinedButton(
 		onClick = onClick,
@@ -86,7 +94,12 @@ fun OutlinedActionButton(
 			contentColor = MaterialTheme.colorScheme.onSurface
 		),
 		elevation = raisedElevation(),
-		border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = if (enabled) 0.7f else 0.25f)),
+		// The disabled fade is applied to whichever colour is in use, so a board button greys out exactly
+		// like every other one rather than staying at full strength once its count runs out.
+		border = BorderStroke(
+			1.dp,
+			(borderColor ?: MaterialTheme.colorScheme.outline).copy(alpha = if (enabled) 0.7f else 0.25f)
+		),
 		contentPadding = ACTION_BUTTON_PADDING
 	) {
 		ButtonLabel(text, icon, iconPainter, iconIsArtwork)

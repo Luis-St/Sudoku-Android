@@ -36,8 +36,8 @@ import net.luis.sudoku.ui.game.hintStepText
 import net.luis.sudoku.ui.input.NumberPad
 import net.luis.sudoku.ui.multiplayer.MatchStatusHolder
 import net.luis.sudoku.ui.multiplayer.PublishMatchStatus
-import net.luis.sudoku.ui.theme.ActionAccent
 import net.luis.sudoku.ui.theme.LocalBoardPalette
+import net.luis.sudoku.ui.theme.LocalInkColors
 
 /**
  * feature-spec §10.3: shared board, shared pencil marks, shared lives pool, shared hint.
@@ -116,17 +116,20 @@ fun CoopScreen(
 				horizontalArrangement = Arrangement.Center,
 				verticalAlignment = Alignment.CenterVertically
 			) {
+				// Beta item 1: the same pair of inks the single-player board uses, for the same reason - this
+				// is the same decision, and a shared board is where telling a note from a digit matters most.
+				val ink = LocalInkColors.current
 				ToggleActionButton(
 					text = stringResource(R.string.mode_pen),
 					selected = viewModel.lock.mode == InputMode.PEN,
 					onClick = { viewModel.onModeToggle(InputMode.PEN) },
-					accent = ActionAccent.INDIGO
+					accent = ink.accentOf(InputMode.PEN)
 				)
 				ToggleActionButton(
 					text = stringResource(R.string.mode_pencil),
 					selected = viewModel.lock.mode == InputMode.PENCIL,
 					onClick = { viewModel.onModeToggle(InputMode.PENCIL) },
-					accent = ActionAccent.INDIGO,
+					accent = ink.accentOf(InputMode.PENCIL),
 					modifier = Modifier.padding(start = 8.dp)
 				)
 			}
@@ -167,6 +170,8 @@ fun CoopScreen(
 				edgeLength = viewModel.edgeLength,
 				cells = viewModel.cells,
 				lockedDigit = lockedDigit,
+				// Beta item 1: which ink the pad is drawn in - what a tap on it would write.
+				mode = viewModel.lock.mode,
 				onDigitTap = { digit -> viewModel.onNumberTap(digit, longPress = false) },
 				onDigitLongPress = { digit -> viewModel.onNumberTap(digit, longPress = true) },
 				modifier = Modifier.padding(top = 12.dp)
@@ -203,13 +208,17 @@ fun CoopScreen(
 						// this player taking the offer even though somebody else could.
 						enabled = viewModel.hintsRemaining > 0,
 						iconPainter = painterResource(R.drawable.ic_hint),
-						iconIsArtwork = true
+						iconIsArtwork = true,
+						// Game item 2 (2.1.0): the text ink, like the single-player board's - same button,
+						// same board, same reason.
+						borderColor = MaterialTheme.colorScheme.onSurface
 					)
 					if (hintPending) {
 						OutlinedActionButton(
 							text = stringResource(R.string.action_hint_withdraw),
 							onClick = viewModel::onHintCancel,
-							modifier = Modifier.padding(start = 8.dp)
+							modifier = Modifier.padding(start = 8.dp),
+							borderColor = MaterialTheme.colorScheme.onSurface
 						)
 					}
 				}

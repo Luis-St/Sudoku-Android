@@ -148,7 +148,8 @@ class MainActivity : ComponentActivity() {
 			) {
 				SudokuAndroidTheme(
 					themeMode = preferences.themeMode,
-					boardTheme = BoardThemeCatalog.byId(preferences.boardThemeId)
+					boardTheme = BoardThemeCatalog.byId(preferences.boardThemeId),
+					dualInk = preferences.betaDualInk
 				) {
 					SudokuApp(appViewModel)
 				}

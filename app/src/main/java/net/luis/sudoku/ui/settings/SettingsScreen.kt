@@ -154,6 +154,32 @@ fun SettingsScreen(
 			}
 		}
 
+		// Beta item 1: features that are still being tried out, each one off until the player asks for it.
+		//
+		// Its own section rather than a switch among the gameplay ones, because what the section says about
+		// its contents is the point: these are unfinished, they can change, and nothing about the app moves
+		// for anybody who never opens this card. Below the settled sections for the same reason.
+		SectionCard(title = stringResource(R.string.settings_header_beta), modifier = Modifier.padding(top = 12.dp)) {
+			Column {
+				Text(
+					text = stringResource(R.string.settings_beta_note),
+					style = MaterialTheme.typography.bodySmall,
+					color = MaterialTheme.colorScheme.onSurfaceVariant
+				)
+				SettingSwitch(
+					label = stringResource(R.string.pref_beta_dual_ink),
+					checked = preferences.betaDualInk,
+					onCheckedChange = appViewModel::setBetaDualInk,
+					modifier = Modifier.padding(top = 4.dp)
+				)
+				Text(
+					text = stringResource(R.string.pref_beta_dual_ink_note),
+					style = MaterialTheme.typography.bodySmall,
+					color = MaterialTheme.colorScheme.onSurfaceVariant
+				)
+			}
+		}
+
 		// Settings item 2: the server section is a *status line and a door*, not the whole sign-in flow.
 		// Registering, linking, recovering and verifying an address are a workflow with stages, and they
 		// have their own destination now - see

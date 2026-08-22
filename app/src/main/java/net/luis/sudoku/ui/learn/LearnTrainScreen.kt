@@ -146,6 +146,8 @@ fun LearnTrainScreen(
 				edgeLength = BOARD_SIZE,
 				cells = viewModel.cells,
 				lockedDigit = viewModel.lockedDigit,
+				// Beta item 1: which ink the pad is drawn in - what a tap on it would write.
+				mode = viewModel.lock.mode,
 				onDigitTap = { digit -> viewModel.onNumberTap(digit, longPress = false) },
 				onDigitLongPress = { digit -> viewModel.onNumberTap(digit, longPress = true) },
 				modifier = Modifier.padding(vertical = 12.dp)

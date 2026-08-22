@@ -166,6 +166,12 @@ fun isDarkTheme(themeMode: ThemeMode): Boolean = when (themeMode) {
 fun SudokuAndroidTheme(
 	themeMode: ThemeMode = ThemeMode.SYSTEM,
 	boardTheme: BoardTheme = BoardThemeCatalog.CLASSIC,
+	/**
+	 * Beta item 1: pen and pencil in inks of their own (see [InkColors]). Provided here rather than read
+	 * from the settings store by each screen, because it has to reach the board, the number pad and the
+	 * mode toggles at once, and two of those are drawn by four screens each.
+	 */
+	dualInk: Boolean = false,
 	content: @Composable () -> Unit
 ) {
 	val darkTheme = isDarkTheme(themeMode)
@@ -180,6 +186,7 @@ fun SudokuAndroidTheme(
 
 	CompositionLocalProvider(
 		LocalBoardPalette provides boardPalette,
+		LocalInkColors provides if (dualInk) InkColors.of(darkTheme) else InkColors.OFF,
 		LocalAppGradients provides gradients,
 		LocalDarkTheme provides darkTheme
 	) {

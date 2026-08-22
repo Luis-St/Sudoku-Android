@@ -249,6 +249,11 @@ class AppViewModel @Inject constructor(
 	fun setSoundEnabled(enabled: Boolean) {
 		this.viewModelScope.launch { this@AppViewModel.settingsStore.setSoundEnabled(enabled) }
 	}
+
+	/** Beta item 1: pen and pencil in inks of their own (see `InkColors`). */
+	fun setBetaDualInk(enabled: Boolean) {
+		this.viewModelScope.launch { this@AppViewModel.settingsStore.setBetaDualInk(enabled) }
+	}
 }
 
 /**

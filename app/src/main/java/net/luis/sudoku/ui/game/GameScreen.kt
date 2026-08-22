@@ -47,8 +47,8 @@ import net.luis.sudoku.ui.input.digitLabel
 import net.luis.sudoku.solver.Technique
 import net.luis.sudoku.ui.navigation.PlayMode
 import net.luis.sudoku.ui.navigation.PlayRequest
-import net.luis.sudoku.ui.theme.ActionAccent
 import net.luis.sudoku.ui.theme.LocalBoardPalette
+import net.luis.sudoku.ui.theme.LocalInkColors
 
 /**
  * The playable screen. Since the home screen exists (UI item 5) the Normal/Daily tab row is gone: which
@@ -227,6 +227,8 @@ fun GameScreen(
 					cells = viewModel.cells,
 					lockedDigit = lockedDigit,
 					hexDisplay = viewModel.preferences.hexDisplay,
+					// Beta item 1: which ink the pad is drawn in - what a tap on it would write.
+					mode = viewModel.lock.mode,
 					onDigitTap = { digit -> viewModel.onNumberTap(digit, longPress = false) },
 					onDigitLongPress = { digit -> viewModel.onNumberTap(digit, longPress = true) },
 					modifier = Modifier.padding(top = 12.dp)
@@ -255,7 +257,9 @@ fun GameScreen(
 							onClick = viewModel::onHintTap,
 							enabled = viewModel.hintsRemaining > 0 || hintPending,
 							iconPainter = painterResource(R.drawable.ic_hint),
-							iconIsArtwork = true
+							iconIsArtwork = true,
+							// Game item 2 (2.1.0): the text ink, not the scheme's soft grey - see `borderColor`.
+							borderColor = MaterialTheme.colorScheme.onSurface
 						)
 						// The peek's third exit, alongside revealing it and filling the cell: nothing has been spent
 						// yet, so a player who changed their mind can hand it straight back.
@@ -263,7 +267,9 @@ fun GameScreen(
 							OutlinedActionButton(
 								text = stringResource(R.string.action_hint_withdraw),
 								onClick = viewModel::onHintCancel,
-								modifier = Modifier.padding(start = 8.dp)
+								modifier = Modifier.padding(start = 8.dp),
+								// Its neighbour's outline, or the row would carry two different ones.
+								borderColor = MaterialTheme.colorScheme.onSurface
 							)
 						}
 					}
@@ -302,8 +308,9 @@ class GameTopBarActions {
 	var leaveNeedsConfirm by mutableStateOf(true)
 }
 
-/** The accent the pen/pencil toggles light up in - the same one the whole play screen uses. */
-private val MODE_ACCENT = ActionAccent.INDIGO
+// The accent the pen/pencil toggles light up in used to be a constant here, `ActionAccent.INDIGO` for both.
+// It is `InkColors.MODE_ACCENT` now and still indigo for both - until beta item 1 is switched on, where each
+// mode lights up in its own ink instead. See `InkColors`.
 
 /**
  * Everything above the board, in **one** row (game item 8): lives on the left, the pen/pencil pair in the
@@ -346,17 +353,18 @@ private fun StatusBar(viewModel: GameViewModel) {
 		// Shown on every board, auto-candidate mode included: that mode fills the notes once and then leaves
 		// them to the player, so the choice this pair offers is a real one there too.
 		Row(modifier = Modifier.align(Alignment.Center)) {
+			val ink = LocalInkColors.current
 			ToggleActionButton(
 				text = stringResource(R.string.mode_pen),
 				selected = viewModel.lock.mode == InputMode.PEN,
 				onClick = { viewModel.onModeToggle(InputMode.PEN) },
-				accent = MODE_ACCENT
+				accent = ink.accentOf(InputMode.PEN)
 			)
 			ToggleActionButton(
 				text = stringResource(R.string.mode_pencil),
 				selected = viewModel.lock.mode == InputMode.PENCIL,
 				onClick = { viewModel.onModeToggle(InputMode.PENCIL) },
-				accent = MODE_ACCENT,
+				accent = ink.accentOf(InputMode.PENCIL),
 				modifier = Modifier.padding(start = 8.dp)
 			)
 		}

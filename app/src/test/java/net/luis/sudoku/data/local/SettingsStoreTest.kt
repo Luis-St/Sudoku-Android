@@ -42,6 +42,22 @@ class SettingsStoreTest {
 	}
 
 	@Test
+	fun betaDualInk_defaultsToOff() = runBlocking {
+		assertFalse(newStore().current().betaDualInk)
+	}
+
+	@Test
+	fun setBetaDualInk_roundTrips() = runBlocking {
+		val store = newStore()
+
+		store.setBetaDualInk(true)
+		assertTrue(store.current().betaDualInk)
+
+		store.setBetaDualInk(false)
+		assertFalse(store.current().betaDualInk)
+	}
+
+	@Test
 	fun eachPreference_roundTripsIndependently() = runBlocking {
 		val store = newStore()
 

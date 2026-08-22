@@ -18,7 +18,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import net.luis.sudoku.core.CellSnapshot
+import net.luis.sudoku.domain.InputMode
+import net.luis.sudoku.ui.theme.LocalInkColors
 
 /**
  * The `1..N` entry buttons (feature-spec 5.2), laid out as a **grid** rather than one long row
@@ -39,6 +42,12 @@ fun NumberPad(
 	cells: List<CellSnapshot>,
 	lockedDigit: Int?,
 	hexDisplay: Boolean = false,
+	/**
+	 * Beta item 1: which mode a tap on one of these buttons would write in, so the pad can be drawn in that
+	 * mode's ink. Ignored entirely while the beta is off, which is why it may safely default - a screen
+	 * without a mode of its own (the training board) is always writing in pen.
+	 */
+	mode: InputMode = InputMode.PEN,
 	onDigitTap: (Int) -> Unit,
 	onDigitLongPress: (Int) -> Unit,
 	modifier: Modifier = Modifier
@@ -47,6 +56,9 @@ fun NumberPad(
 
 	val digits = (1..edgeLength).toList()
 	val columns = columnsFor(edgeLength)
+	// Beta item 1: the pad says what a tap would produce. `null` while the beta is off, and every button
+	// then keeps the scheme colours it has always used.
+	val ink = LocalInkColors.current.inkOf(mode)
 
 	Column(modifier = modifier.fillMaxWidth()) {
 		digits.chunked(columns).forEach { rowDigits ->
@@ -56,6 +68,7 @@ fun NumberPad(
 						label = digitLabel(digit, hexDisplay),
 						remaining = remaining(digit),
 						locked = digit == lockedDigit,
+						ink = ink,
 						onTap = { onDigitTap(digit) },
 						onLongPress = { onDigitLongPress(digit) },
 						modifier = Modifier.weight(1f).padding(horizontal = 3.dp)
@@ -84,6 +97,9 @@ private fun columnsFor(edgeLength: Int): Int = when (edgeLength) {
 	else -> 3
 }
 
+/** Beta item 1: how much of the mode ink a locked digit's fill carries - a wash, not the ink itself. */
+private const val LOCKED_FILL_ALPHA = 0.18f
+
 /** Shared with the hint's step text (game item 19), which names digits the same way the pad labels them. */
 internal fun digitLabel(digit: Int, hexDisplay: Boolean): String =
 	if (hexDisplay && digit >= 10) ('A' + (digit - 10)).toString() else digit.toString()
@@ -94,6 +110,8 @@ private fun NumberButton(
 	label: String,
 	remaining: Int,
 	locked: Boolean,
+	/** Beta item 1: the current mode's ink, or `null` for the scheme colours the pad had before it. */
+	ink: Color?,
 	onTap: () -> Unit,
 	onLongPress: () -> Unit,
 	modifier: Modifier = Modifier
@@ -102,16 +120,28 @@ private fun NumberButton(
 	// works, only the visual weight changes.
 	val exhausted = remaining <= 0
 
+	// Beta item 1: the *label* and the locked digit's fill follow the mode's ink; the outline does not, and
+	// keeps the scheme colours it has always had (owner's call) - the border is what makes these read as
+	// buttons, and it says the same thing in either mode. The fill alpha keeps it a wash rather than a
+	// second board: an ink at full strength behind a label of the same ink is unreadable.
+	val labelColor = ink ?: MaterialTheme.colorScheme.onSurface
+	val lockedFill = ink?.copy(alpha = LOCKED_FILL_ALPHA) ?: MaterialTheme.colorScheme.primaryContainer
+	val lockedLabel = ink ?: MaterialTheme.colorScheme.onPrimaryContainer
+
 	Surface(
 		modifier = modifier.combinedClickable(onClick = onTap, onLongClick = onLongPress),
 		shape = RoundedCornerShape(12.dp),
-		color = if (locked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+		color = if (locked) lockedFill else MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
 		// Stated explicitly - an alpha-modified surface resolves to no scheme role, so Material3 would
 		// otherwise hand the children a black content color.
-		contentColor = if (locked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+		contentColor = if (locked) lockedLabel else labelColor,
+		// Game item 2 (2.1.0): the text ink, not the scheme's soft grey. These buttons sit directly under a
+		// board of ruled lines and digits, and a hairline at 40% of `outline` read as an empty area rather
+		// than as sixteen things to press. The locked one keeps its heavier stroke, so it still stands out
+		// of the row it is in.
 		border = BorderStroke(
 			width = if (locked) 1.5.dp else 1.dp,
-			color = if (locked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+			color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (locked) 1f else 0.7f)
 		)
 	) {
 		Box(
@@ -124,9 +154,9 @@ private fun NumberButton(
 				fontWeight = FontWeight.Medium,
 				textAlign = TextAlign.Center,
 				color = when {
-					exhausted -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
-					locked -> MaterialTheme.colorScheme.onPrimaryContainer
-					else -> MaterialTheme.colorScheme.onSurface
+					exhausted -> labelColor.copy(alpha = 0.35f)
+					locked -> lockedLabel
+					else -> labelColor
 				}
 			)
 		}

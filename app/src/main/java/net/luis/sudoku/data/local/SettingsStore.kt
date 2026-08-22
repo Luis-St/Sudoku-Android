@@ -42,6 +42,13 @@ data class PreferenceSettings(
 	/** Selected board theme id, resolved through `BoardThemeCatalog.byId`. */
 	val boardThemeId: String,
 	/**
+	 * Beta feature: pen and pencil are drawn in inks of their own (see `InkColors`).
+	 *
+	 * Opt-in, and `false` for everybody who never opts in: a beta feature changes how the board reads, and
+	 * a player who has not asked for it must see exactly what they saw before it shipped.
+	 */
+	val betaDualInk: Boolean,
+	/**
 	 * The training levels whose task description the player has asked not to be shown again.
 	 *
 	 * Per level rather than per exercise or per technique: what the briefing explains is what *that level*
@@ -60,6 +67,7 @@ data class PreferenceSettings(
 			themeMode = ThemeMode.SYSTEM,
 			languageTag = null,
 			boardThemeId = "classic",
+			betaDualInk = false, // beta features are opt-in
 			learnBriefSkipped = emptySet()
 		)
 	}
@@ -77,6 +85,7 @@ class SettingsStore @Inject constructor(@SettingsDataStore private val dataStore
 			themeMode = ThemeMode.fromId(prefs[THEME_MODE]),
 			languageTag = prefs[LANGUAGE_TAG],
 			boardThemeId = prefs[BOARD_THEME_ID] ?: PreferenceSettings.DEFAULT.boardThemeId,
+			betaDualInk = prefs[BETA_DUAL_INK] ?: PreferenceSettings.DEFAULT.betaDualInk,
 			// Stored as strings because DataStore has no int set: anything unparseable is dropped rather than
 			// crashing a preference read, which would take the whole settings flow down with it.
 			learnBriefSkipped = prefs[LEARN_BRIEF_SKIPPED]?.mapNotNull(String::toIntOrNull)?.toSet().orEmpty()
@@ -130,6 +139,10 @@ class SettingsStore @Inject constructor(@SettingsDataStore private val dataStore
 		}
 	}
 
+	suspend fun setBetaDualInk(enabled: Boolean) {
+		this.dataStore.edit { it[BETA_DUAL_INK] = enabled }
+	}
+
 	suspend fun setBoardThemeId(id: String) {
 		this.dataStore.edit { it[BOARD_THEME_ID] = id }
 	}
@@ -156,6 +169,7 @@ class SettingsStore @Inject constructor(@SettingsDataStore private val dataStore
 		val THEME_MODE = stringPreferencesKey("theme_mode")
 		val LANGUAGE_TAG = stringPreferencesKey("language_tag")
 		val BOARD_THEME_ID = stringPreferencesKey("board_theme_id")
+		val BETA_DUAL_INK = booleanPreferencesKey("beta_dual_ink")
 		val LAST_REMINDER_DATE = stringPreferencesKey("last_reminder_date")
 		val LEARN_BRIEF_SKIPPED = stringSetPreferencesKey("learn_brief_skipped_levels")
 	}

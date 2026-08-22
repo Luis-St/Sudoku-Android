@@ -25,7 +25,9 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.luis.sudoku.core.CellSnapshot
+import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.ui.theme.BoardPalette
+import net.luis.sudoku.ui.theme.LocalInkColors
 
 /** How [BoardScreen] wants this one cell drawn - everything decided outside, this composable only paints. */
 data class CellHighlight(
@@ -81,6 +83,10 @@ fun CellView(
 	modifier: Modifier = Modifier
 ) {
 	val tint = highlight.regionTint
+	// Beta item 1: pen and pencil in inks of their own - the *glyphs* only. The cell behind them keeps the
+	// palette's own selection, peer and marker colours whether the beta is on or off (owner's call): what
+	// the highlight says is which cell is being worked on, which is not a question about the input mode.
+	val ink = LocalInkColors.current
 
 	// Chaos item 8: on a tinted board a highlight cannot simply *replace* the cell colour. The old pastel
 	// selection and peer colours were the same weight as the region tints they landed on, so the selected
@@ -140,7 +146,11 @@ fun CellView(
 			snapshot.value != 0 -> CellValueText(
 				value = snapshot.value,
 				color = when {
-					highlight.markedValue -> palette.sameValuePen
+					// Beta item 1: the pen's ink marks the **locked digit** and nothing else (owner's call,
+					// and the same rule the notes below follow with the blue). Every placed digit in orange
+					// said only that somebody had placed it, which the board shows anyway; on the one digit
+					// the player is scanning for it says where that digit is.
+					highlight.markedValue -> ink.inkOf(InputMode.PEN) ?: palette.sameValuePen
 					snapshot.given -> palette.given
 					else -> palette.penEntry
 				},
@@ -153,6 +163,7 @@ fun CellView(
 				edgeLength = edgeLength,
 				palette = palette,
 				cellSize = cellSize,
+				pencilInk = ink.inkOf(InputMode.PENCIL),
 				markedDigit = highlight.markedPencilDigit,
 				missingMarks = highlight.hintMissingMarks,
 				wrongMarks = highlight.hintWrongMarks
@@ -208,6 +219,8 @@ private fun PencilMarkGrid(
 	edgeLength: Int,
 	palette: BoardPalette,
 	cellSize: Dp,
+	/** Beta item 1: the ink the locked digit's note is marked in, or `null` for the palette's own mark. */
+	pencilInk: Color?,
 	/** Game item 2: this one note is the locked digit, and is the only thing in the cell that gets marked. */
 	markedDigit: Int?,
 	/** Game item 19: legal here, not noted - drawn in its slot although the cell does not hold it. */
@@ -264,7 +277,13 @@ private fun PencilMarkGrid(
 								text = digit.toString(),
 								color = when {
 									proposalColor != null -> proposalColor
-									marked -> palette.sameValuePencil
+									// Beta item 1: the pencil's ink marks the **locked digit's** note and
+									// nothing else (owner's call). Colouring every note blue said only that
+									// it was a note, which the note grid already says by being one; on the one
+									// note the player is hunting for it says something they cannot see
+									// otherwise. Notes a hint is proposing keep their green and red above,
+									// and every other note keeps the palette's grey.
+									marked -> pencilInk ?: palette.sameValuePencil
 									else -> palette.pencilMark
 								},
 								fontSize = fontSize,
