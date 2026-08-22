@@ -1,7 +1,6 @@
 package net.luis.sudoku.ui.settings
 
 import android.Manifest
-import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -26,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import net.luis.sudoku.R
 import net.luis.sudoku.data.local.ServerConfig
 import net.luis.sudoku.data.local.ThemeMode
@@ -34,6 +32,7 @@ import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.domain.DifficultyOptions
 import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.grid.Variant
+import net.luis.sudoku.notification.NotificationPermission
 import net.luis.sudoku.ui.app.AppViewModel
 import net.luis.sudoku.ui.common.DropdownTrigger
 import net.luis.sudoku.ui.common.difficultyLabel
@@ -295,9 +294,10 @@ private fun DailyDifficultyDropdown(
 }
 
 /**
- * The daily reminder opt-in (daily item 1, feature-spec §8.3.2). minSdk 33, so `POST_NOTIFICATIONS` always
- * has to be asked for - and at opt-in time, not on first launch, which is why the launcher lives next to the
- * switch rather than in the Activity.
+ * The daily reminder opt-in (daily item 1, feature-spec §8.3.2). Where `POST_NOTIFICATIONS` exists it is
+ * asked for at opt-in time, not on first launch, which is why the launcher lives next to the switch rather
+ * than in the Activity. Below Android 13 there is no such permission and the switch simply takes effect,
+ * which is what [NotificationPermission] decides.
  */
 @Composable
 private fun DailyReminderSwitch(enabled: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
@@ -310,11 +310,9 @@ private fun DailyReminderSwitch(enabled: Boolean, onChange: (Boolean) -> Unit, m
 		label = stringResource(R.string.daily_remind_me),
 		checked = enabled,
 		onCheckedChange = { enable ->
-			val alreadyGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
-				PackageManager.PERMISSION_GRANTED
 			when {
 				!enable -> onChange(false)
-				alreadyGranted -> onChange(true)
+				NotificationPermission.isGranted(context) -> onChange(true)
 				else -> permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
 			}
 		},

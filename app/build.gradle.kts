@@ -29,10 +29,13 @@ android {
 	
 	defaultConfig {
 		applicationId = "net.luis.sudoku"
-		minSdk = 33
+		// Android 10. Nothing in the app or in sudoku-lib needs more: the only APIs above 29 either come from
+		// D8's backports (List.of, List.copyOf, Optional.isEmpty, records) or are guarded by hand
+		// (POST_NOTIFICATIONS, see NotificationPermission).
+		minSdk = 29
 		targetSdk = 36
-		versionCode = 3
-		versionName = "2.1.0"
+		versionCode = 4
+		versionName = "2.1.1"
 		
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 	}

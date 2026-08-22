@@ -13,8 +13,8 @@ import javax.inject.Singleton
 /**
  * The device identity (feature-spec §9.2): a keypair, generated **lazily** on first server connect and
  * never before (§9.1 - no keypair exists until a server is configured). Android uses **ECDSA P-256**
- * rather than the spec's Ed25519: hardware-backed Keystore Ed25519 needs API 34, above this app's minSdk
- * 33, and the server records a per-device [KEY_ALGORITHM] precisely because devices need not agree
+ * rather than the spec's Ed25519: hardware-backed Keystore Ed25519 needs API 34, far above this app's
+ * minSdk, and the server records a per-device [KEY_ALGORITHM] precisely because devices need not agree
  * (server-spec §5) - `"ECDSA_P256"` is a value the server already recognizes, not an approximation.
  *
  * The private key is non-extractable - it never leaves the Keystore, only signatures come out.

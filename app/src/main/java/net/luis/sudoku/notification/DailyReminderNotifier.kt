@@ -1,14 +1,11 @@
 package net.luis.sudoku.notification
 
-import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import net.luis.sudoku.MainActivity
 import net.luis.sudoku.R
 
@@ -29,15 +26,13 @@ object DailyReminderNotifier {
 	/**
 	 * Posts the reminder, or does nothing if the player has not granted `POST_NOTIFICATIONS`.
 	 *
-	 * No version guards: minSdk is 33, so the runtime permission is always required and notification
-	 * channels always exist.
+	 * Notification channels need no version guard - they have existed since API 26, well below minSdk. The
+	 * permission does: see [NotificationPermission], which is what makes this work below Android 13.
 	 */
 	fun show(context: Context) {
 		createChannel(context)
 
-		val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
-			PackageManager.PERMISSION_GRANTED
-		if (!granted) return
+		if (!NotificationPermission.isGranted(context)) return
 
 		val openApp = Intent(context, MainActivity::class.java)
 		val pendingIntent = android.app.PendingIntent.getActivity(
