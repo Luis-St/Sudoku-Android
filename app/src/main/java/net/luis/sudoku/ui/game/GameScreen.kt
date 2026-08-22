@@ -132,6 +132,18 @@ fun GameScreen(
 		onDispose { topBarActions?.onShare = null }
 	}
 
+	// Daily item 1: the arrow only asks before leaving while there is a game to leave.
+	//
+	// A finished game is on screen exactly while `summary` is set, and that covers the case the question was
+	// plainly wrong for: reviewing a daily that was solved earlier in the day (see `showFinishedDailySummary`),
+	// where the player is reading a result, not playing, and got asked whether they really wanted to stop.
+	// Withdrawn on the way out so the next board that publishes nothing, a match, still gets the question.
+	val gameInProgress = viewModel.summary == null
+	DisposableEffect(topBarActions, gameInProgress) {
+		topBarActions?.leaveNeedsConfirm = gameInProgress
+		onDispose { topBarActions?.leaveNeedsConfirm = true }
+	}
+
 	// General item 2: the code goes straight to the system share sheet, which already offers Copy - the
 	// popup that used to stand in front of it was a screen to get past on the way to the screen that shares.
 	//
@@ -281,6 +293,13 @@ fun GameScreen(
 class GameTopBarActions {
 
 	var onShare by mutableStateOf<(() -> Unit)?>(null)
+
+	/**
+	 * Whether leaving the current board is a decision worth confirming - false while a finished game's
+	 * summary is what is actually on screen. `true` is the safe default: a screen that publishes nothing
+	 * (a match) keeps the question.
+	 */
+	var leaveNeedsConfirm by mutableStateOf(true)
 }
 
 /** The accent the pen/pencil toggles light up in - the same one the whole play screen uses. */

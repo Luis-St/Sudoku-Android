@@ -243,11 +243,18 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 						// General item 5: on a board this is a *cancel*, not a back step. Popping one entry landed
 						// the player wherever they happened to come from - the generator, the lobby, a share code -
 						// and did it silently, mid-puzzle, on one stray tap. It asks first and then goes home.
-						IconButton(onClick = { if (onGameScreen) showLeaveGameConfirm = true else navController.popBackStack() }) {
+						//
+						// Daily item 1: only while a game is actually running. Once the board is finished the screen
+						// is a *result*, and the clearest case is a daily solved earlier in the day and reopened
+						// from Review - nothing is being played, so asking whether to stop playing had no answer
+						// that made sense. The play screen publishes which of the two it is (see
+						// `GameTopBarActions.leaveNeedsConfirm`); a result gets the ordinary back arrow.
+						val confirmLeave = onGameScreen && gameTopBarActions.leaveNeedsConfirm
+						IconButton(onClick = { if (confirmLeave) showLeaveGameConfirm = true else navController.popBackStack() }) {
 							Icon(
-								imageVector = if (onGameScreen) Icons.Filled.Close else Icons.Filled.ArrowBack,
+								imageVector = if (confirmLeave) Icons.Filled.Close else Icons.Filled.ArrowBack,
 								contentDescription = stringResource(
-									if (onGameScreen) R.string.action_leave_game else R.string.action_back
+									if (confirmLeave) R.string.action_leave_game else R.string.action_back
 								)
 							)
 						}
