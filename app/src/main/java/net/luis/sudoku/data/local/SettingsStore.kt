@@ -49,6 +49,14 @@ data class PreferenceSettings(
 	 */
 	val betaDualInk: Boolean,
 	/**
+	 * Beta feature: the row, column and box highlight covers **every** cell already holding the selected
+	 * number, not only the cell that was tapped (see `PeerHighlightRules`).
+	 *
+	 * Opt-in like every other beta feature, and for the same reason: it changes what the board says about
+	 * where a digit can still go, which is the player's own reading to make until they ask for help with it.
+	 */
+	val betaEveryOccurrencePeers: Boolean,
+	/**
 	 * The training levels whose task description the player has asked not to be shown again.
 	 *
 	 * Per level rather than per exercise or per technique: what the briefing explains is what *that level*
@@ -68,6 +76,7 @@ data class PreferenceSettings(
 			languageTag = null,
 			boardThemeId = "classic",
 			betaDualInk = false, // beta features are opt-in
+			betaEveryOccurrencePeers = false,
 			learnBriefSkipped = emptySet()
 		)
 	}
@@ -86,6 +95,7 @@ class SettingsStore @Inject constructor(@SettingsDataStore private val dataStore
 			languageTag = prefs[LANGUAGE_TAG],
 			boardThemeId = prefs[BOARD_THEME_ID] ?: PreferenceSettings.DEFAULT.boardThemeId,
 			betaDualInk = prefs[BETA_DUAL_INK] ?: PreferenceSettings.DEFAULT.betaDualInk,
+			betaEveryOccurrencePeers = prefs[BETA_EVERY_OCCURRENCE_PEERS] ?: PreferenceSettings.DEFAULT.betaEveryOccurrencePeers,
 			// Stored as strings because DataStore has no int set: anything unparseable is dropped rather than
 			// crashing a preference read, which would take the whole settings flow down with it.
 			learnBriefSkipped = prefs[LEARN_BRIEF_SKIPPED]?.mapNotNull(String::toIntOrNull)?.toSet().orEmpty()
@@ -143,6 +153,10 @@ class SettingsStore @Inject constructor(@SettingsDataStore private val dataStore
 		this.dataStore.edit { it[BETA_DUAL_INK] = enabled }
 	}
 
+	suspend fun setBetaEveryOccurrencePeers(enabled: Boolean) {
+		this.dataStore.edit { it[BETA_EVERY_OCCURRENCE_PEERS] = enabled }
+	}
+
 	suspend fun setBoardThemeId(id: String) {
 		this.dataStore.edit { it[BOARD_THEME_ID] = id }
 	}
@@ -170,6 +184,7 @@ class SettingsStore @Inject constructor(@SettingsDataStore private val dataStore
 		val LANGUAGE_TAG = stringPreferencesKey("language_tag")
 		val BOARD_THEME_ID = stringPreferencesKey("board_theme_id")
 		val BETA_DUAL_INK = booleanPreferencesKey("beta_dual_ink")
+		val BETA_EVERY_OCCURRENCE_PEERS = booleanPreferencesKey("beta_every_occurrence_peers")
 		val LAST_REMINDER_DATE = stringPreferencesKey("last_reminder_date")
 		val LEARN_BRIEF_SKIPPED = stringSetPreferencesKey("learn_brief_skipped_levels")
 	}

@@ -58,6 +58,37 @@ class SettingsStoreTest {
 	}
 
 	@Test
+	fun betaEveryOccurrencePeers_defaultsToOff() = runBlocking {
+		// Beta item 8 of 2.2.0, and the same rule as every beta feature: a board nobody opted into must
+		// look exactly as it did before the feature shipped.
+		assertFalse(newStore().current().betaEveryOccurrencePeers)
+	}
+
+	@Test
+	fun setBetaEveryOccurrencePeers_roundTrips() = runBlocking {
+		val store = newStore()
+
+		store.setBetaEveryOccurrencePeers(true)
+		assertTrue(store.current().betaEveryOccurrencePeers)
+
+		store.setBetaEveryOccurrencePeers(false)
+		assertFalse(store.current().betaEveryOccurrencePeers)
+	}
+
+	@Test
+	fun eachBetaFeature_isItsOwnSwitch() = runBlocking {
+		// Two features in one section, not one switch over both: opting into the ink must not opt the player
+		// into the highlight as well.
+		val store = newStore()
+
+		store.setBetaDualInk(true)
+
+		val current = store.current()
+		assertTrue(current.betaDualInk)
+		assertFalse(current.betaEveryOccurrencePeers)
+	}
+
+	@Test
 	fun eachPreference_roundTripsIndependently() = runBlocking {
 		val store = newStore()
 

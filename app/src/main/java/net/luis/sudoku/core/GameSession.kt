@@ -10,6 +10,7 @@ import net.luis.sudoku.hint.HintEngine
 import net.luis.sudoku.hint.HintResult
 import net.luis.sudoku.key.PuzzleKey
 import net.luis.sudoku.sharecode.GivensCodec
+import net.luis.sudoku.solver.CandidateGrid
 import net.luis.sudoku.solver.TechniqueReport
 import net.luis.sudoku.solver.TechniqueSolver
 
@@ -211,6 +212,18 @@ class GameSession private constructor(
 	fun clear(index: Int) = this.puzzle.cell(index).clear()
 
 	fun togglePencilMark(index: Int, digit: Int): Boolean = this.puzzle.cell(index).togglePencilMark(digit)
+
+	/**
+	 * The board as the **solver** reads it: every empty cell's legal digits, derived from the placed values
+	 * alone and never from the player's notes.
+	 *
+	 * A snapshot, not a view - the returned grid is the caller's to reduce (see
+	 * [net.luis.sudoku.domain.TechniqueCandidates]), and nothing it does to it touches this session.
+	 *
+	 * Internal for the same reason [cellForUndo] is: reading the board through shared-core's solver types
+	 * belongs to the domain layer, not to the UI.
+	 */
+	internal fun candidateGrid(): CandidateGrid = CandidateGrid(this.puzzle)
 
 	/**
 	 * Exposes the underlying puzzle for the undo stack, which restores whole [Cell] states via

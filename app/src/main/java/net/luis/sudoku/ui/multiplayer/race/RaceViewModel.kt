@@ -261,6 +261,7 @@ class RaceViewModel @AssistedInject constructor(
 		array.forEach { element ->
 			val index = element.toString().toIntOrNull() ?: return@forEach
 			if (!this.session.snapshot(index).given) this.session.setValue(index, this.session.solutionAt(index))
+			clearPeerNotes(index, this.session.solutionAt(index))
 		}
 	}
 
@@ -272,6 +273,7 @@ class RaceViewModel @AssistedInject constructor(
 
 		if (correct) {
 			this.session.setValue(cell, digit)
+			clearPeerNotes(cell, digit)
 			refresh()
 		} else {
 			this.mistake = cell to digit
@@ -321,17 +323,61 @@ class RaceViewModel @AssistedInject constructor(
 		}
 	}
 
+	/**
+	 * Multiplayer item 1 of 2.2.0: feature-spec 5.6's auto-clear-peers, for a board whose digits arrive
+	 * from the server.
+	 *
+	 * Single-player gets this from `BoardEditor`, which race never goes through - a pen entry is a `PLACE`
+	 * frame and the digit only lands on the board once the server has confirmed it, so nothing was rubbing
+	 * the placed digit out of the notes all down its row, column and region.
+	 *
+	 * Race boards are one puzzle per player, so the only digits that arrive are this player's own; the
+	 * `filledCells` catch-up on reconnect goes through here for the same reason.
+	 */
+	private fun clearPeerNotes(cell: Int, digit: Int) {
+		for (peer in this.session.peersOf(cell)) {
+			// Notes live in the session's own cells here, and a given never carries one - so the guard also
+			// keeps the toggle off the cells that would refuse it.
+			if (this.session.snapshot(peer).hasPencilMark(digit)) this.session.togglePencilMark(peer, digit)
+		}
+	}
+
 	fun regionOf(index: Int): Int = this.session.regionOf(index)
+	/** Beta item 8 of 2.2.0 needs the peers of cells the player never focused, so the board asks per index. */
+	fun peersOf(index: Int): Set<Int> = this.session.peersOf(index)
+
 	fun peersOfActive(): Set<Int> = this.activeIndex?.let(this.session::peersOf) ?: emptySet()
 
 	private fun refresh() {
 		this.cells = this.session.snapshots()
 	}
 
+	/**
+	 * Leaves the match: the others are told **now** rather than waiting out the reconnect grace for
+	 * somebody who is not coming back (issue 2.2.0/7).
+	 *
+	 * Every way out of this screen ends here, the top bar's X included, because [onCleared] is the one
+	 * point they all pass through. Two things were wrong with the teardown it used to do:
+	 *
+	 * - it ran on `viewModelScope`, which is **already cancelled** by the time `onCleared` is called, so
+	 *   the socket was never actually closed and the server saw a player who was simply still there;
+	 * - a bare close is a dropped connection as far as the server is concerned (server-spec 10.4), so even
+	 *   when it did land the other players were shown a grace countdown for a player who had quit.
+	 *
+	 * `RESIGN` says which of the two it is, and only while the match is still running: once it has ended
+	 * there is nothing to resign from, and the socket is just closed.
+	 */
+	fun leave() {
+		if (this.leaving) {
+			return
+		}
+		this.leaving = true
+		this.socketClient.leave(resign = this.endReason == null)
+	}
+
 	override fun onCleared() {
 		super.onCleared()
-		this.leaving = true
-		this.viewModelScope.launch { this@RaceViewModel.socketClient.close() }
+		leave()
 	}
 
 	private companion object {

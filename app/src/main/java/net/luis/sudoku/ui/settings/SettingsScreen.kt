@@ -176,6 +176,20 @@ fun SettingsScreen(
 					style = MaterialTheme.typography.bodySmall,
 					color = MaterialTheme.colorScheme.onSurfaceVariant
 				)
+				// Beta item 8 of 2.2.0. Each feature is its own switch with its own sentence under it, in the
+				// order they arrived - a section that groups them under one toggle would make opting into one
+				// mean opting into all of them.
+				SettingSwitch(
+					label = stringResource(R.string.pref_beta_every_occurrence_peers),
+					checked = preferences.betaEveryOccurrencePeers,
+					onCheckedChange = appViewModel::setBetaEveryOccurrencePeers,
+					modifier = Modifier.padding(top = 12.dp)
+				)
+				Text(
+					text = stringResource(R.string.pref_beta_every_occurrence_peers_note),
+					style = MaterialTheme.typography.bodySmall,
+					color = MaterialTheme.colorScheme.onSurfaceVariant
+				)
 			}
 		}
 
@@ -223,7 +237,17 @@ private fun SettingSwitch(
 		horizontalArrangement = Arrangement.SpaceBetween,
 		verticalAlignment = Alignment.CenterVertically
 	) {
-		Text(label, style = MaterialTheme.typography.bodyLarge)
+		// Beta item 3 of 2.2.0: the label takes the row's *leftover* width and wraps inside it, instead of
+		// both children asking for their ideal width and the row handing it out. A long label (the beta
+		// switch's own, and its German translation on any phone) measured wider than the row, which left the
+		// Switch squashed to whatever was still free: the thumb and track were drawn narrower than a switch
+		// is, so the control read as a broken graphic rather than as something to tap. Weighting the text is
+		// what makes the Switch keep its own size and the label give way.
+		Text(
+			text = label,
+			style = MaterialTheme.typography.bodyLarge,
+			modifier = Modifier.weight(1f).padding(end = 12.dp)
+		)
 		Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
 	}
 }

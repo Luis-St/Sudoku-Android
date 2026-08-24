@@ -31,6 +31,7 @@ import net.luis.sudoku.data.remote.match.longOrNull
 import net.luis.sudoku.data.remote.match.matchSocketUrl
 import net.luis.sudoku.data.remote.match.stringOrNull
 import net.luis.sudoku.domain.LockState
+import net.luis.sudoku.domain.PeerNotes
 import net.luis.sudoku.domain.TapAction
 import net.luis.sudoku.domain.resolveNumberButtonTap
 import net.luis.sudoku.domain.resolveTap
@@ -282,6 +283,7 @@ class DuelViewModel @AssistedInject constructor(
 			val cell = cellKey.toIntOrNull() ?: return@forEach
 			val digit = digitElement.toString().toIntOrNull() ?: return@forEach
 			if (!this.session.snapshot(cell).given) this.session.setValue(cell, digit)
+			clearPeerNotes(cell, digit)
 		}
 
 		(payload["banks"] as? JsonObject)?.entries?.forEach { (userId, valueElement) ->
@@ -298,7 +300,27 @@ class DuelViewModel @AssistedInject constructor(
 		val cell = payload.intOrNull("cell") ?: return
 		val digit = payload.intOrNull("digit") ?: return
 		if (!this.session.snapshot(cell).given) this.session.setValue(cell, digit)
+		clearPeerNotes(cell, digit)
 		refresh()
+	}
+
+	/**
+	 * Multiplayer item 1 of 2.2.0: feature-spec 5.6's auto-clear-peers, for a board whose digits arrive
+	 * from the server.
+	 *
+	 * Single-player gets this from `BoardEditor`, which no multiplayer mode goes through - a pen entry here
+	 * is a `PLACE` frame and the digit only lands on the board when the server says so. That is why the
+	 * notes were left standing: the board filled up while the note grids all down the row, column and region
+	 * still offered a digit that was already on it, and the player had to rub out by hand what every other
+	 * mode rubs out for them.
+	 *
+	 * Done on the *update* rather than on the tap, so the opponent's digits clear this device's notes too -
+	 * a candidate is impossible once the digit is placed, and it makes no difference who placed it.
+	 */
+	private fun clearPeerNotes(cell: Int, digit: Int) {
+		val cleared = PeerNotes.cleared(this.pencilMarks, cell, this.session.peersOf(cell), digit)
+		this.pencilMarks.clear()
+		this.pencilMarks.putAll(cleared)
 	}
 
 	private fun applyEntryResult(payload: JsonObject) {
@@ -357,6 +379,9 @@ class DuelViewModel @AssistedInject constructor(
 	}
 
 	fun regionOf(index: Int): Int = this.session.regionOf(index)
+	/** Beta item 8 of 2.2.0 needs the peers of cells the player never focused, so the board asks per index. */
+	fun peersOf(index: Int): Set<Int> = this.session.peersOf(index)
+
 	fun peersOfActive(): Set<Int> = this.activeIndex?.let(this.session::peersOf) ?: emptySet()
 
 	/** Sent from `ON_STOP`, never `ON_PAUSE` (feature-spec §10.2) - the single-player pause rule is inverted here. */
@@ -370,10 +395,32 @@ class DuelViewModel @AssistedInject constructor(
 		}
 	}
 
+	/**
+	 * Leaves the match: the others are told **now** rather than waiting out the reconnect grace for
+	 * somebody who is not coming back (issue 2.2.0/7).
+	 *
+	 * Every way out of this screen ends here, the top bar's X included, because [onCleared] is the one
+	 * point they all pass through. Two things were wrong with the teardown it used to do:
+	 *
+	 * - it ran on `viewModelScope`, which is **already cancelled** by the time `onCleared` is called, so
+	 *   the socket was never actually closed and the server saw a player who was simply still there;
+	 * - a bare close is a dropped connection as far as the server is concerned (server-spec 10.4), so even
+	 *   when it did land the other players were shown a grace countdown for a player who had quit.
+	 *
+	 * `RESIGN` says which of the two it is, and only while the match is still running: once it has ended
+	 * there is nothing to resign from, and the socket is just closed.
+	 */
+	fun leave() {
+		if (this.leaving) {
+			return
+		}
+		this.leaving = true
+		this.socketClient.leave(resign = this.endReason == null)
+	}
+
 	override fun onCleared() {
 		super.onCleared()
-		this.leaving = true
-		this.viewModelScope.launch { this@DuelViewModel.socketClient.close() }
+		leave()
 	}
 
 	private companion object {

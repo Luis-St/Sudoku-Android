@@ -32,6 +32,7 @@ import net.luis.sudoku.domain.HintMarkReview
 import net.luis.sudoku.domain.HintStep
 import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.domain.MarkReview
+import net.luis.sudoku.domain.PeerNotes
 import net.luis.sudoku.domain.LockState
 import net.luis.sudoku.domain.TapAction
 import net.luis.sudoku.domain.focusFollowsTap
@@ -407,6 +408,17 @@ class CoopViewModel @AssistedInject constructor(
 				if (mask != 0) put(cell, mask)
 			}
 		}
+		// Multiplayer item 1 of 2.2.0: a server that has not been redeployed yet sends notes it never cleared
+		// against the board it sends with them, so the snapshot is filtered here as well. Nothing to do on a
+		// current server, which clears them itself - this only ever removes candidates the board has already
+		// ruled out, so the two agree either way.
+		this.notes = this.notes.mapNotNull { (cell, mask) ->
+			if (!this.session.snapshot(cell).empty) return@mapNotNull null
+			val legal = this.session.peersOf(cell).fold(mask) { remaining, peer ->
+				remaining and (1 shl this.session.snapshot(peer).value).inv()
+			}
+			if (legal == 0) null else cell to legal
+		}.toMap()
 
 		// A snapshot replaces the board wholesale, so any cell that came back filled is no longer a warning.
 		this.mistakes = this.mistakes.filterKeys { this.session.snapshot(it).empty }
@@ -424,9 +436,10 @@ class CoopViewModel @AssistedInject constructor(
 		val cell = payload.intOrNull("cell") ?: return
 		val digit = payload.intOrNull("digit") ?: return
 		if (!this.session.snapshot(cell).given) this.session.setValue(cell, digit)
-		// A filled cell's notes are gone server-side too; dropping them here keeps the two in step between
-		// snapshots rather than waiting for the next one.
-		this.notes = this.notes - cell
+		// A filled cell's notes are gone server-side too, and so are the placed digit's notes in every peer
+		// cell (multiplayer item 1 of 2.2.0); dropping them here keeps the two in step between snapshots
+		// rather than waiting for the next one.
+		this.notes = withoutPeerNotes(cell, digit)
 		// The cell is solved, so the earlier wrong attempt at it has nothing left to warn anybody about.
 		this.mistakes = this.mistakes - cell
 		// A pending hint on this cell is not cleared here: the match owns it and sends its own HINT frame, so
@@ -437,6 +450,23 @@ class CoopViewModel @AssistedInject constructor(
 		if (this.hintTarget?.cellIndex() == cell) clearHintRun()
 		refresh()
 	}
+
+	/**
+	 * Multiplayer item 1 of 2.2.0: feature-spec 5.6's auto-clear-peers, over the group's shared notes.
+	 *
+	 * Single-player gets this from `BoardEditor`, which co-op never goes through - a pen entry is a `PLACE`
+	 * frame, and the digit reaches the board as the `BOARD_UPDATE` this is called from. So the notes stood:
+	 * four people worked off a note grid that still offered a digit already sitting in the row, column or
+	 * region, which is worse here than anywhere else because the grid they are reading is the same one.
+	 *
+	 * The server clears the same notes on its own copy and is the authority on them (it is what a reconnect
+	 * is handed); this keeps this device in step until the next snapshot, and does the same thing, so the two
+	 * cannot disagree.
+	 *
+	 * @return [notes] without the filled cell and without [digit] anywhere it is now impossible
+	 */
+	private fun withoutPeerNotes(cell: Int, digit: Int): Map<Int, Int> =
+		PeerNotes.cleared(this.notes, cell, this.session.peersOf(cell), digit)
 
 	private fun applyNote(payload: JsonObject) {
 		if (!this.ready) return
@@ -633,12 +663,33 @@ class CoopViewModel @AssistedInject constructor(
 	}
 
 	fun regionOf(index: Int): Int = this.session.regionOf(index)
+	/** Beta item 8 of 2.2.0 needs the peers of cells the player never focused, so the board asks per index. */
+	fun peersOf(index: Int): Set<Int> = this.session.peersOf(index)
+
 	fun peersOfActive(): Set<Int> = this.activeIndex?.let(this.session::peersOf) ?: emptySet()
 
 	/** Closes the socket for good - the player is leaving, so no reconnect should follow. */
+	/**
+	 * Leaves the match: the others are told **now** rather than waiting out the reconnect grace for
+	 * somebody who is not coming back (issue 2.2.0/7).
+	 *
+	 * Every way out of this screen ends here, the top bar's X included, because [onCleared] is the one
+	 * point they all pass through. Two things were wrong with the teardown it used to do:
+	 *
+	 * - it ran on `viewModelScope`, which is **already cancelled** by the time `onCleared` is called, so
+	 *   the socket was never actually closed and the server saw a player who was simply still there;
+	 * - a bare close is a dropped connection as far as the server is concerned (server-spec 10.4), so even
+	 *   when it did land the other players were shown a grace countdown for a player who had quit.
+	 *
+	 * `RESIGN` says which of the two it is, and only while the match is still running: once it has ended
+	 * there is nothing to resign from, and the socket is just closed.
+	 */
 	fun leave() {
+		if (this.leaving) {
+			return
+		}
 		this.leaving = true
-		this.viewModelScope.launch { this@CoopViewModel.socketClient.close() }
+		this.socketClient.leave(resign = this.endReason == null)
 	}
 
 	private fun refresh() {

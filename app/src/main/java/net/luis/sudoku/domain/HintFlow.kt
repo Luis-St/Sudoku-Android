@@ -64,9 +64,18 @@ enum class HintStep {
  * without notes as wrong in step one. [complete] is the exception and covers every empty cell, because that
  * is what step three fills in.
  *
- * @param missing cell index -> the candidates that are legal there but not noted, for the cells that carry notes
+ * Item 5 of 2.2.0 narrowed what counts as a gap. A candidate a **technique** has already ruled out is not
+ * missing from an annotated cell, it was *removed* from it, and the review says so by leaving it out of
+ * [missing] and out of [complete] - see [TechniqueCandidates]. Everything else is unchanged: an outright
+ * impossible note is still [wrong], and a cell the player never annotated is still filled with everything
+ * the board allows, since there is no removal to respect in a cell nothing was removed from.
+ *
+ * @param missing cell index -> the candidates that survive every technique there but are not noted, for the
+ *   cells that carry notes
  * @param wrong cell index -> the noted digits a peer already holds as a placed digit, so they cannot be right
- * @param complete cell index -> every legal candidate, for **all** empty cells
+ * @param complete cell index -> what the fill step should leave in the cell, for **all** empty cells: the
+ *   player's own notes minus the impossible ones plus what is [missing], or simply every legal candidate in
+ *   a cell that carries no notes at all
  * @param noted cell index -> what the player has actually noted there
  */
 data class MarkReview(
@@ -126,22 +135,35 @@ object HintMarkReview {
 		val wrong = mutableMapOf<Int, Int>()
 		val complete = mutableMapOf<Int, Int>()
 		val noted = mutableMapOf<Int, Int>()
+		// Item 5 of 2.2.0: what the techniques have already taken off the board, so a mark the player rubbed
+		// out with one is not read as a mark they forgot. Computed once for the whole board - it is a scan of
+		// the position, not of a cell.
+		val surviving = TechniqueCandidates.reduced(session)
 
 		for (index in 0 until session.cellCount) {
 			val snapshot = session.snapshot(index)
 			if (snapshot.given || !snapshot.empty) continue
 
 			val legal = CandidateCalculator.legalDigits(session, index)
-			complete[index] = legal
 
 			val marks = if (notes != null) notes[index] ?: 0 else snapshot.pencilMarks
-			if (marks == 0) continue
+			if (marks == 0) {
+				// Nothing was removed from a cell nothing was written in, so there is nothing to respect:
+				// the fill puts everything the board allows into it, exactly as it always has.
+				complete[index] = legal
+				continue
+			}
 			noted[index] = marks
 
-			val unnoted = legal and marks.inv()
+			// A digit no technique has ruled out yet is the only kind that can still be *missing* here.
+			val unnoted = (surviving[index] ?: legal) and marks.inv()
 			if (unnoted != 0) missing[index] = unnoted
 			val impossible = marks and legal.inv()
 			if (impossible != 0) wrong[index] = impossible
+			// The player's own notes are kept as they are, bar the impossible ones. A note a technique could
+			// remove but the player has not removed is *their* mark to make: the fill answers for what is
+			// missing, not for the eliminations they have not got to yet.
+			complete[index] = (marks and legal) or unnoted
 		}
 		return MarkReview(missing, wrong, complete, noted)
 	}

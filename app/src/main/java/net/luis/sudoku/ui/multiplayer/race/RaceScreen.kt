@@ -93,6 +93,7 @@ fun RaceScreen(
 				lock = viewModel.lock,
 				activeIndex = viewModel.activeIndex,
 				peersOfActive = viewModel.peersOfActive(),
+				peersOf = viewModel::peersOf,
 				regionOf = viewModel::regionOf,
 				palette = palette,
 				onCellTap = viewModel::onCellTap,

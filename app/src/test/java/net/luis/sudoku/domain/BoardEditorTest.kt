@@ -192,7 +192,7 @@ class BoardEditorTest {
 		val editor = BoardEditor(session, undoStack)
 		val index = firstEmptyNonGiven(session)
 
-		assertTrue(editor.fillAllCandidates())
+		assertTrue(editor.fillAllCandidates(HintMarkReview.of(session).complete))
 
 		assertEquals(CandidateCalculator.legalDigits(session, index), session.snapshot(index).pencilMarks)
 		// One command for the whole fill (game item 19), so one undo takes all of it back rather than one cell.
@@ -211,7 +211,7 @@ class BoardEditorTest {
 			.first { digit -> CandidateCalculator.legalDigits(session, index) shr digit and 1 == 0 }
 		session.togglePencilMark(index, impossible)
 
-		editor.fillAllCandidates()
+		editor.fillAllCandidates(HintMarkReview.of(session).complete)
 
 		assertEquals(0, session.snapshot(index).pencilMarks and (1 shl impossible))
 	}
@@ -222,10 +222,10 @@ class BoardEditorTest {
 		val undoStack = UndoStack()
 		val editor = BoardEditor(session, undoStack)
 
-		editor.fillAllCandidates()
+		editor.fillAllCandidates(HintMarkReview.of(session).complete)
 
 		// Nothing left to write, so nothing is pushed: an undo would otherwise appear to do nothing at all.
-		assertFalse(editor.fillAllCandidates())
+		assertFalse(editor.fillAllCandidates(HintMarkReview.of(session).complete))
 		assertTrue(undoStack.canUndo)
 	}
 }

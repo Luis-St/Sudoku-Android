@@ -41,7 +41,7 @@ class BoardEditor(
 	}
 
 	/**
-	 * Writes the full candidate set into every empty cell, as **one undoable move**.
+	 * Writes the reviewed candidate set into every empty cell, as **one undoable move**.
 	 *
 	 * Step three of a hint (game item 19 of 2.1.0): the partial marks the step before only drew are actually
 	 * put on the board here, wrong ones dropped and missing ones added, because every technique the next two
@@ -49,18 +49,25 @@ class BoardEditor(
 	 * the player asked for, so it goes on the undo stack, and one undo takes the whole fill back rather than
 	 * one cell of it.
 	 *
+	 * The set comes from the caller rather than from [CandidateCalculator] here (item 5 of 2.2.0). What the
+	 * step should leave in a cell is a question about the *player's* notes as much as about the board - a
+	 * candidate they rubbed out with a technique must not be written back in - and [MarkReview.complete] is
+	 * where that has already been answered, for the same board this is about to write to.
+	 *
+	 * @param target cell index -> the marks that cell should end up with, i.e. [MarkReview.complete]. A cell
+	 *   absent from the map is left exactly as it is.
 	 * @return whether anything changed, i.e. whether the notes were not already complete
 	 */
-	fun fillAllCandidates(): Boolean {
+	fun fillAllCandidates(target: Map<Int, Int>): Boolean {
 		val edits = mutableListOf<CellEdit>()
 		for (index in 0 until this.session.cellCount) {
 			val snapshot = this.session.snapshot(index)
 			if (snapshot.given || !snapshot.empty) continue
-			val legal = CandidateCalculator.legalDigits(this.session, index)
-			if (snapshot.pencilMarks == legal) continue
+			val marks = target[index] ?: continue
+			if (snapshot.pencilMarks == marks) continue
 			val cell = this.session.cellForUndo(index)
 			val before = cell.copy()
-			cell.setPencilMarks(legal)
+			cell.setPencilMarks(marks)
 			edits += CellEdit(index, before, cell.copy())
 		}
 		if (edits.isEmpty()) return false

@@ -42,6 +42,24 @@ class HintFlowTest {
 
 	private fun firstEmptyCell(session: GameSession) = (0 until session.cellCount).first { session.snapshot(it).empty }
 
+	/**
+	 * A harder board than [session], so the techniques have something to eliminate on it - the whole subject
+	 * of item 5 of 2.2.0 is a candidate the board still allows but a technique has already ruled out.
+	 */
+	private fun eliminatingSession() = GameSession.generate(PuzzleKey.of(GridSize.NINE, Variant.CLASSIC, Difficulty.FIVE, 1L))
+
+	/** An empty cell and a digit the board allows there but a technique has proved impossible. */
+	private fun eliminatedCandidate(session: GameSession): Pair<Int, Int> {
+		val reduced = TechniqueCandidates.reduced(session)
+		for ((cell, surviving) in reduced) {
+			val eliminated = CandidateCalculator.legalDigits(session, cell) and surviving.inv()
+			if (eliminated != 0) {
+				return cell to (1..session.edgeLength).first { (eliminated shr it) and 1 == 1 }
+			}
+		}
+		throw IllegalStateException("no technique eliminates anything on this board")
+	}
+
 	private fun legalDigit(session: GameSession, cell: Int): Int {
 		val legal = CandidateCalculator.legalDigits(session, cell)
 		return (1..session.edgeLength).first { (legal shr it) and 1 == 1 }
@@ -85,15 +103,86 @@ class HintFlowTest {
 	@Test
 	fun `a half written cell is missing the rest of its candidates`() {
 		val session = session()
-		val cell = firstEmptyCell(session)
-		val digit = legalDigit(session, cell)
+		// A cell with room to be half written: one whose candidates the techniques do not already settle,
+		// or there would be nothing left over to report as missing.
+		val cell = (0 until session.cellCount).first { index ->
+			session.snapshot(index).empty && Integer.bitCount(TechniqueCandidates.reduced(session)[index] ?: 0) > 1
+		}
+		val surviving = TechniqueCandidates.reduced(session)[cell]!!
+		val digit = (1..session.edgeLength).first { (surviving shr it) and 1 == 1 }
 		session.togglePencilMark(cell, digit)
 
 		val review = HintMarkReview.of(session)
 
 		val missing = review.missing[cell]!!
 		assertEquals(0, missing and (1 shl digit))
-		assertEquals(CandidateCalculator.legalDigits(session, cell) and (1 shl digit).inv(), missing)
+		assertEquals(surviving and (1 shl digit).inv(), missing)
+	}
+
+	@Test
+	fun `a mark a technique removed is not reported as missing`() {
+		// Item 5 of 2.2.0: the player worked the elimination out and rubbed the note out, which is the game
+		// being played correctly. The review used to call that note missing and hand it back.
+		val session = eliminatingSession()
+		val (cell, digit) = eliminatedCandidate(session)
+		// Everything the board allows there except the digit the technique rules out - the notes of a player
+		// who has applied it.
+		for (candidate in 1..session.edgeLength) {
+			if (candidate != digit && CandidateCalculator.legalDigits(session, cell) shr candidate and 1 == 1) {
+				session.togglePencilMark(cell, candidate)
+			}
+		}
+
+		val review = HintMarkReview.of(session)
+
+		assertNull("the note was removed on purpose, not forgotten", review.missing[cell])
+		assertNull("and removing it was not a mistake either", review.wrong[cell])
+	}
+
+	@Test
+	fun `a mark a technique removed is not written back by the fill`() {
+		val session = eliminatingSession()
+		val (cell, digit) = eliminatedCandidate(session)
+		for (candidate in 1..session.edgeLength) {
+			if (candidate != digit && CandidateCalculator.legalDigits(session, cell) shr candidate and 1 == 1) {
+				session.togglePencilMark(cell, candidate)
+			}
+		}
+
+		BoardEditor(session, UndoStack()).fillAllCandidates(HintMarkReview.of(session).complete)
+
+		assertEquals(
+			"step three fills the notes in, and filling them in must not undo a technique",
+			0,
+			session.snapshot(cell).pencilMarks and (1 shl digit)
+		)
+	}
+
+	@Test
+	fun `a mark a technique could remove but the player kept is left alone`() {
+		// The other direction: the hint answers for what is missing from the notes, not for the eliminations
+		// the player has not made yet. Writing those in would be the hint playing the puzzle.
+		val session = eliminatingSession()
+		val (cell, digit) = eliminatedCandidate(session)
+		session.togglePencilMark(cell, digit)
+
+		val review = HintMarkReview.of(session)
+		BoardEditor(session, UndoStack()).fillAllCandidates(review.complete)
+
+		assertNull("a candidate still on the board is not an impossible note", review.wrong[cell])
+		assertEquals(1 shl digit, session.snapshot(cell).pencilMarks and (1 shl digit))
+	}
+
+	@Test
+	fun `an unannotated cell is still filled with everything the board allows`() {
+		// Nothing was removed from a cell nothing was written in, so there is no elimination to respect and
+		// the fill behaves exactly as it did before item 5.
+		val session = eliminatingSession()
+		val (cell, _) = eliminatedCandidate(session)
+
+		val review = HintMarkReview.of(session)
+
+		assertEquals(CandidateCalculator.legalDigits(session, cell), review.complete[cell])
 	}
 
 	@Test

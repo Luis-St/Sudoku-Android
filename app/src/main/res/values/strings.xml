@@ -394,7 +394,9 @@
 	<string name="settings_header_beta">Beta features</string>
 	<string name="settings_beta_note">Features that are still being tried out. They stay off until you switch them on, and they can still change.</string>
 	<string name="pref_beta_dual_ink">Separate colours for numbers and notes</string>
-	<string name="pref_beta_dual_ink_note">Numbers you place get their own colour and notes get another. The pen and pencil buttons, the number buttons and the highlights follow whichever of the two you are using.</string>
+	<string name="pref_beta_dual_ink_note">Numbers you place are always orange, and the notes for the number you have selected are blue. The pen and pencil buttons, the number buttons and the highlights follow whichever of the two you are using.</string>
+	<string name="pref_beta_every_occurrence_peers">Highlight every place a number already is</string>
+	<string name="pref_beta_every_occurrence_peers_note">Selecting a number lights up the row, column and box of every cell that already holds it, so you can see where it can still go. Without this, only the cell you tapped lights up its row, column and box.</string>
 	<string name="account_step_server">Server</string>
 	<string name="account_step_sign_in">Sign in</string>
 	<string name="account_step_account">Account</string>

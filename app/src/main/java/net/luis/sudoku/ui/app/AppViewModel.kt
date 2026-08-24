@@ -254,6 +254,11 @@ class AppViewModel @Inject constructor(
 	fun setBetaDualInk(enabled: Boolean) {
 		this.viewModelScope.launch { this@AppViewModel.settingsStore.setBetaDualInk(enabled) }
 	}
+
+	/** Beta item 8 of 2.2.0: the peer highlight follows every occurrence of the selected number. */
+	fun setBetaEveryOccurrencePeers(enabled: Boolean) {
+		this.viewModelScope.launch { this@AppViewModel.settingsStore.setBetaEveryOccurrencePeers(enabled) }
+	}
 }
 
 /**

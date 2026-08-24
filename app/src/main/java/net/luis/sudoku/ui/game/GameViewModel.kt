@@ -641,6 +641,9 @@ class GameViewModel @Inject constructor(
 
 	fun regionOf(index: Int): Int = this.session.regionOf(index)
 
+	/** Beta item 8 of 2.2.0 needs the peers of cells the player never focused, so the board asks per index. */
+	fun peersOf(index: Int): Set<Int> = this.session.peersOf(index)
+
 	fun peersOfActive(): Set<Int> = this.activeIndex?.let(this.session::peersOf) ?: emptySet()
 
 	fun onScreenResumed() {
@@ -784,7 +787,9 @@ class GameViewModel @Inject constructor(
 			// from here on the notes the next two steps argue from are the ones actually in the cells, so a
 			// player who reads the technique's name can check it against what they are looking at.
 			if (next == HintStep.FULL_MARKS) {
-				this.editor.fillAllCandidates()
+				// Item 5 of 2.2.0: the review's own set, not a fresh legal-digit scan - it is what keeps a
+				// mark the player eliminated with a technique off the board.
+				this.editor.fillAllCandidates(this.hintReview.complete)
 				refresh()
 			}
 			this.hintStep = next

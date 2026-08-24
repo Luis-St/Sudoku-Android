@@ -137,8 +137,20 @@ fun CellView(
 		val cellSize = minOf(this.maxWidth, this.maxHeight)
 		val valueFontSize = (cellSize.value * VALUE_TEXT_FRACTION).sp
 
+		// Issue 2.2.0/6: the wrong digit's ink is picked from the cell it lands on, in the same order the
+		// background above was picked - not from the theme, which is what left it invisible in dark mode.
+		val mistakeInk = when {
+			// The single-player flash, on `conflict`: a pale red on a light board and a deep one on a dark
+			// board, and `error` is tuned against each.
+			highlight.mistakeDigit != null && !highlight.mistakeMade -> palette.error
+			// A hint offered on a cell somebody already got wrong, so the strong hint colour is underneath.
+			highlight.hintCandidate -> palette.error
+			// The lasting mark, `summaryMistake` - the same pale pink in both themes, hence its own ink.
+			else -> palette.summaryMistakeInk
+		}
+
 		when {
-			highlight.mistakeDigit != null -> CellValueText(highlight.mistakeDigit, palette.error, valueFontSize)
+			highlight.mistakeDigit != null -> CellValueText(highlight.mistakeDigit, mistakeInk, valueFontSize)
 
 			// Game item 2: the locked digit is marked by recolouring the *glyph*. Not the cell behind it, and
 			// not a shape drawn around it - both of those are marks on the cell, and what the player is looking
@@ -146,13 +158,20 @@ fun CellView(
 			snapshot.value != 0 -> CellValueText(
 				value = snapshot.value,
 				color = when {
-					// Beta item 1: the pen's ink marks the **locked digit** and nothing else (owner's call,
-					// and the same rule the notes below follow with the blue). Every placed digit in orange
-					// said only that somebody had placed it, which the board shows anyway; on the one digit
-					// the player is scanning for it says where that digit is.
-					highlight.markedValue -> ink.inkOf(InputMode.PEN) ?: palette.sameValuePen
-					snapshot.given -> palette.given
-					else -> palette.penEntry
+					// A given is the puzzle rather than something the pen wrote, so it keeps the palette's
+					// own colour - but its *same-value mark* is the pen's ink while the beta is on. The dark
+					// palette marks a same-value digit in its teal, which is a blue, and the pencil's ink on
+					// a dark board is a blue too: locking a digit therefore lit the givens and the notes in
+					// one and the same colour, and a dark board is mostly givens. Light mode never showed it,
+					// because its own mark happens to be this exact orange.
+					snapshot.given -> if (highlight.markedValue) ink.inkOf(InputMode.PEN) ?: palette.sameValuePen else palette.given
+					// Beta item 2 of 2.2.0 (owner's call, replacing 2.1.0's locked-digit-only rule): what the
+					// ink says is which of the two modes wrote the digit, and that is true of every digit the
+					// pen placed, not only the one the player is scanning for. So a placed digit is always
+					// orange while the beta is on, and the locked one is told apart by the bold weight below,
+					// exactly as the notes are told apart in the pencil's blue.
+					else -> ink.inkOf(InputMode.PEN)
+						?: if (highlight.markedValue) palette.sameValuePen else palette.penEntry
 				},
 				fontSize = valueFontSize,
 				bold = highlight.markedValue
@@ -219,7 +238,7 @@ private fun PencilMarkGrid(
 	edgeLength: Int,
 	palette: BoardPalette,
 	cellSize: Dp,
-	/** Beta item 1: the ink the locked digit's note is marked in, or `null` for the palette's own mark. */
+	/** Beta item 2 of 2.2.0: the ink the *selected* note is written in, or `null` while the beta is off. */
 	pencilInk: Color?,
 	/** Game item 2: this one note is the locked digit, and is the only thing in the cell that gets marked. */
 	markedDigit: Int?,
@@ -277,12 +296,14 @@ private fun PencilMarkGrid(
 								text = digit.toString(),
 								color = when {
 									proposalColor != null -> proposalColor
-									// Beta item 1: the pencil's ink marks the **locked digit's** note and
-									// nothing else (owner's call). Colouring every note blue said only that
-									// it was a note, which the note grid already says by being one; on the one
-									// note the player is hunting for it says something they cannot see
-									// otherwise. Notes a hint is proposing keep their green and red above,
-									// and every other note keeps the palette's grey.
+									// Beta item 2 of 2.2.0, as the owner amended it: the pencil's blue is on
+									// the notes of the *locked digit* only, not on every note in the cell.
+									// Colouring them all made the ink the loudest thing on a board of notes
+									// and took the same-value mark with it - what the player is scanning for
+									// is where this digit is still possible, and that reads only while the
+									// rest stay grey. So the blue replaces the palette's own same-value mark
+									// here and changes nothing else; a hint's proposals keep their green and
+									// red above, and with the beta off the whole grid is untouched.
 									marked -> pencilInk ?: palette.sameValuePencil
 									else -> palette.pencilMark
 								},

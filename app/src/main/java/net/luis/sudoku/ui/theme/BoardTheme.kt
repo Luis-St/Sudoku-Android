@@ -66,6 +66,17 @@ data class BoardPalette(
 	val hintMarkWrong: Color = Color(0xFFC4443E),
 	/** A cell the player entered a wrong digit into, on the end-of-game summary board (game item 7). */
 	val summaryMistake: Color = Color(0xFFFFB3B3),
+	/**
+	 * The digit drawn *on* [summaryMistake] - the wrong number a multiplayer mistake leaves standing in the
+	 * cell (issue 2.2.0/6).
+	 *
+	 * It has its own entry because [summaryMistake] is the one board colour that is the same pale pink in
+	 * light and dark, so the ink on it cannot come from [error], which is a deep red on a light board and a
+	 * pale one on a dark board. In dark mode that pale red *was* the mark's own pink, and the digit the peer
+	 * got wrong was drawn in the colour of the cell it sat in: there was nothing to see. Light mode was
+	 * always right, and this is exactly the red it used.
+	 */
+	val summaryMistakeInk: Color = Color(0xFFBA1A1A),
 	/** A cell the player spent a hint on, on the end-of-game summary board (game item 7). */
 	val summaryHint: Color = Color(0xFFFFE08A),
 	/**

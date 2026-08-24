@@ -172,6 +172,12 @@ fun SudokuAndroidTheme(
 	 * mode toggles at once, and two of those are drawn by four screens each.
 	 */
 	dualInk: Boolean = false,
+	/**
+	 * Beta item 8 of 2.2.0: the peer highlight follows every occurrence of the selected number
+	 * (see [net.luis.sudoku.domain.PeerHighlightRules]). Provided here for the same reason [dualInk] is -
+	 * four screens draw a board, and none of them owns this decision.
+	 */
+	everyOccurrencePeers: Boolean = false,
 	content: @Composable () -> Unit
 ) {
 	val darkTheme = isDarkTheme(themeMode)
@@ -187,6 +193,7 @@ fun SudokuAndroidTheme(
 	CompositionLocalProvider(
 		LocalBoardPalette provides boardPalette,
 		LocalInkColors provides if (dualInk) InkColors.of(darkTheme) else InkColors.OFF,
+		LocalEveryOccurrencePeers provides everyOccurrencePeers,
 		LocalAppGradients provides gradients,
 		LocalDarkTheme provides darkTheme
 	) {

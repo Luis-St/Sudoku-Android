@@ -32,7 +32,7 @@ import net.luis.sudoku.ui.common.MatchOverDialog
 import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.common.PlayLayout
 import net.luis.sudoku.ui.common.ToggleActionButton
-import net.luis.sudoku.ui.game.hintStepText
+import net.luis.sudoku.ui.game.HintStepRow
 import net.luis.sudoku.ui.input.NumberPad
 import net.luis.sudoku.ui.multiplayer.MatchStatusHolder
 import net.luis.sudoku.ui.multiplayer.PublishMatchStatus
@@ -140,6 +140,7 @@ fun CoopScreen(
 				lock = viewModel.lock,
 				activeIndex = viewModel.activeIndex,
 				peersOfActive = viewModel.peersOfActive(),
+				peersOf = viewModel::peersOf,
 				regionOf = viewModel::regionOf,
 				palette = palette,
 				onCellTap = viewModel::onCellTap,
@@ -155,13 +156,14 @@ fun CoopScreen(
 				darkTheme = darkTheme
 			)
 
-			// Game item 19: the same stepped hint the single-player board runs, worded by the same code.
+			// Game item 19: the same stepped hint the single-player board runs - the same row now, not only the
+			// same wording, so item 4 of 2.2.0's scrolling tip is the same tip on both boards.
 			viewModel.hintStep?.let { step ->
-				Text(
-					text = hintStepText(step, viewModel.hintReview, viewModel.hintTechnique, hexDisplay = false),
-					style = MaterialTheme.typography.bodySmall,
-					color = MaterialTheme.colorScheme.onSurfaceVariant,
-					modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+				HintStepRow(
+					step = step,
+					review = viewModel.hintReview,
+					technique = viewModel.hintTechnique,
+					hexDisplay = false
 				)
 			}
 		},

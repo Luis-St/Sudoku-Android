@@ -99,6 +99,28 @@ class MatchSocketClient @Inject constructor(private val client: HttpClient, priv
 		this.session = null
 	}
 
+	/**
+	 * Leaves the match on this client's **own** scope: [resign] first when asked, then close (issue
+	 * 2.2.0/7).
+	 *
+	 * For callers that are already going away, which is every way out of a match screen. A view model's
+	 * `onCleared` runs *after* `viewModelScope` has been cancelled, so the `launch { close() }` those
+	 * teardowns used never ran a single line: the socket stayed open, the server saw no disconnect at all,
+	 * and the other players sat at a board waiting for somebody who had gone back to the home screen. This
+	 * scope belongs to the client and outlives the model that owned it.
+	 *
+	 * Best effort by nature - a socket that is already gone cannot be told anything, and the server's own
+	 * grace window is the backstop for exactly that case.
+	 */
+	fun leave(resign: Boolean) {
+		this.scope.launch {
+			if (resign) {
+				runCatching { this@MatchSocketClient.resign() }
+			}
+			runCatching { this@MatchSocketClient.close() }
+		}
+	}
+
 	private companion object {
 		val EMPTY_PAYLOAD = JsonObject(emptyMap())
 	}

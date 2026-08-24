@@ -7,8 +7,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -190,6 +193,7 @@ fun GameScreen(
 					lock = viewModel.lock,
 					activeIndex = viewModel.activeIndex,
 					peersOfActive = viewModel.peersOfActive(),
+				peersOf = viewModel::peersOf,
 					regionOf = viewModel::regionOf,
 					palette = palette,
 					onCellTap = viewModel::onCellTap,
@@ -403,17 +407,35 @@ internal fun formatElapsed(millis: Long): String {
  * technique's wiki page, which is a way *out* of a running, timed puzzle offered at the exact moment the
  * player is trying to get back into it. The wiki is still one tap away on the app bar for anyone who wants
  * it; what is gone is the board asking.
+ *
+ * Shared with the co-op board, which used to keep a copy of the same `Text` and now calls this: one tip, so
+ * a change to how it behaves (item 4 of 2.2.0's scrolling, below) cannot land on one board and miss the other.
  */
 @Composable
-private fun HintStepRow(step: HintStep, review: MarkReview, technique: Technique?, hexDisplay: Boolean) {
+internal fun HintStepRow(step: HintStep, review: MarkReview, technique: Technique?, hexDisplay: Boolean) {
 	Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
 		Text(
 			text = hintStepText(step, review, technique, hexDisplay),
 			style = MaterialTheme.typography.bodySmall,
-			color = MaterialTheme.colorScheme.onSurfaceVariant
+			color = MaterialTheme.colorScheme.onSurfaceVariant,
+			// Item 4 of 2.2.0: past a few lines the tip scrolls **inside itself** instead of growing.
+			// It sits between the board and the number pad, and it is the one thing here whose height is
+			// written rather than measured: the longest step (the green-and-red explanation, and longer
+			// again in German) is five or six lines on a narrow screen, and every one of them pushed the
+			// pad further down and the board further up. Nothing else about the screen moves - see the
+			// scrolling `PlayLayout` around it, which stays exactly as it was.
+			modifier = Modifier.heightIn(max = HINT_TEXT_MAX_HEIGHT).verticalScroll(rememberScrollState())
 		)
 	}
 }
+
+/**
+ * How tall the hint's sentence is allowed to get before it scrolls: about five lines of `bodySmall`.
+ *
+ * Enough that no step a 9x9 produces is ever cut off, and short enough that the longest one cannot walk the
+ * number pad off the bottom of a small phone.
+ */
+private val HINT_TEXT_MAX_HEIGHT = 96.dp
 
 /**
  * The wording of one hint step, shared by the single-player board and the co-op one.

@@ -31,7 +31,9 @@ import kotlin.math.roundToInt
 import net.luis.sudoku.core.CellSnapshot
 import net.luis.sudoku.domain.LockState
 import net.luis.sudoku.domain.LockTarget
+import net.luis.sudoku.domain.PeerHighlightRules
 import net.luis.sudoku.ui.theme.BoardPalette
+import net.luis.sudoku.ui.theme.LocalEveryOccurrencePeers
 import net.luis.sudoku.ui.theme.ChaosRegionColors
 
 /**
@@ -47,6 +49,14 @@ fun BoardScreen(
 	activeIndex: Int?,
 	peersOfActive: Set<Int>,
 	regionOf: (Int) -> Int,
+	/**
+	 * The cells sharing a row, column or region with one index - `GameSession.peersOf`.
+	 *
+	 * Only needed for beta item 8 of 2.2.0, where the highlight has to be worked out for cells the caller
+	 * never focused, so a board that cannot answer it (the summary) simply leaves it null and keeps
+	 * [peersOfActive] as the whole answer.
+	 */
+	peersOf: ((Int) -> Set<Int>)? = null,
 	palette: BoardPalette,
 	onCellTap: (Int) -> Unit,
 	modifier: Modifier = Modifier,
@@ -83,6 +93,23 @@ fun BoardScreen(
 	if (cells.size < edgeLength * edgeLength) return
 
 	val lockedDigit = (lock.target as? LockTarget.Digit)?.digit
+	// Beta item 8 of 2.2.0: with the feature on, the row, column and box highlight is drawn around *every*
+	// cell already holding the locked digit, which is what turns it from "what does this cell see" into
+	// "where can this number still go". Off, and the set is exactly what the caller passed.
+	val everyOccurrence = LocalEveryOccurrencePeers.current
+	val peers = if (everyOccurrence && peersOf != null) {
+		remember(cells, lockedDigit, peersOfActive, activeIndex) {
+			PeerHighlightRules.peers(
+				activeIndex = activeIndex,
+				lockedDigit = lockedDigit,
+				everyOccurrence = true,
+				values = cells.map { it.value },
+				peersOf = peersOf
+			)
+		}
+	} else {
+		peersOfActive
+	}
 
 	ZoomableBoard(enabled = edgeLength >= ZOOMABLE_FROM_EDGE_LENGTH, modifier = modifier.fillMaxWidth()) {
 		// Grid item 9: the cells paint fills only, and *one* canvas on top paints every line. When each cell
@@ -111,8 +138,14 @@ fun BoardScreen(
 									snapshot = snapshot,
 									edgeLength = edgeLength,
 									highlight = CellHighlight(
-										selected = activeIndex == index,
-										peer = index in peersOfActive,
+										selected = PeerHighlightRules.isSelected(
+											index = index,
+											activeIndex = activeIndex,
+											lockedDigit = lockedDigit,
+											everyOccurrence = everyOccurrence,
+											value = snapshot.value
+										),
+										peer = index in peers,
 										markedValue = lockedDigit != null && snapshot.value == lockedDigit,
 										markedPencilDigit = lockedDigit?.takeIf { snapshot.empty && snapshot.hasPencilMark(it) },
 										conflict = snapshot.conflicted,

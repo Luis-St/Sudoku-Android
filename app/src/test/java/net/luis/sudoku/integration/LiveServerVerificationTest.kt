@@ -269,6 +269,70 @@ class LiveServerVerificationTest {
 		joinerClient.close()
 	}
 
+	/**
+	 * Issue 2.2.0/7: leaving a match has to *tell* the other player, and the only proof of that is a second
+	 * socket receiving the frame.
+	 *
+	 * The bug was on both halves of this call. `MatchSocketClient.leave` did not exist, so a match screen's
+	 * teardown ran `viewModelScope.launch { close() }` from `onCleared` - after that scope is cancelled, so
+	 * the socket was never closed and the server saw a player who was still connected. And a close alone is
+	 * a dropped connection (server-spec 10.4), so even when it landed the other side got a reconnect
+	 * countdown rather than "somebody left".
+	 */
+	@Test
+	fun leavingAMatch_endsItForTheOtherPlayerImmediately() = runBlocking {
+		assumeTrue("No local Sudoku-Server reachable at $baseUrl - skipping live verification", serverReachable())
+
+		val http = httpClient()
+		val api = ApiClient(http, AuthFailureListener.NONE)
+
+		val creatorToken = adminSessionToken()
+		val inviteCode = createInvite(http, creatorToken)
+		val joinerKeys = keyPair()
+		val joinerSession = api.register(baseUrl, publicKeyBase64(joinerKeys), "ECDSA_P256", inviteCode, "LJoiner-${UUID.randomUUID().toString().take(8)}", "jvm-test")
+
+		val created = api.createMatch(baseUrl, creatorToken, "RACE", MatchConfigDto(GridSize.FOUR.n(), Variant.CLASSIC.name, Difficulty.ONE.index()), MatchSettingsDto(livesEnabled = true, stake = 0))
+		api.joinMatch(baseUrl, joinerSession.sessionToken, created.matchId, created.inviteToken)
+
+		val leaverClient = MatchSocketClient(http, AuthFailureListener.NONE)
+		val stayerClient = MatchSocketClient(http, AuthFailureListener.NONE)
+
+		val stayerRunning = CompletableDeferred<JsonObject>()
+		val matchEnded = CompletableDeferred<JsonObject>()
+
+		leaverClient.connect(
+			url = "ws://localhost:7000/ws/v1/matches/${created.matchId}?token=$creatorToken",
+			onMessage = {},
+			onClosed = {}
+		)
+		stayerClient.connect(
+			url = "ws://localhost:7000/ws/v1/matches/${created.matchId}?token=${joinerSession.sessionToken}",
+			onMessage = { envelope ->
+				val payload = envelope.payload as? JsonObject ?: JsonObject(emptyMap())
+				when (envelope.type) {
+					MessageType.MATCH_STATE -> if (payload.stringOrNull("state") == "RUNNING") stayerRunning.complete(payload)
+					MessageType.MATCH_ENDED -> matchEnded.complete(payload)
+					else -> Unit
+				}
+			},
+			onClosed = {}
+		)
+
+		leaverClient.ready()
+		stayerClient.ready()
+		withTimeout(10_000) { stayerRunning.await() }
+
+		// Exactly what a match screen's teardown now does, X at the top included.
+		leaverClient.leave(resign = true)
+
+		// Seconds, not the reconnect grace: the point of the RESIGN is that nobody waits for a player who
+		// has already gone home. `reason` is the field the view models read.
+		val ended = withTimeout(10_000) { matchEnded.await() }
+		assertEquals("RESIGNED", ended.stringOrNull("reason"))
+
+		stayerClient.close()
+	}
+
 	@Test
 	fun duelMatch_endToEnd_matchesThisClientsParsingAssumptions() = runBlocking {
 		assumeTrue("No local Sudoku-Server reachable at $baseUrl - skipping live verification", serverReachable())
