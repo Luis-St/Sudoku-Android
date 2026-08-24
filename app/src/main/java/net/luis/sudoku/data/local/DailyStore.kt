@@ -121,6 +121,9 @@ class DailyStore @Inject constructor(@DailyDataStore private val dataStore: Data
 			solvedElapsedMillis = prefs[SOLVED_ELAPSED],
 			streak = prefs[STREAK] ?: 0,
 			lastCompletedDate = prefs[LAST_COMPLETED_DATE]?.let(LocalDate::parse),
+			restorableMissedDays = prefs[RESTORABLE_MISSED_DAYS] ?: 0,
+			restorableUntil = prefs[RESTORABLE_UNTIL]?.let(LocalDate::parse),
+			restoreNoticeSeenFor = prefs[RESTORE_NOTICE_SEEN_FOR]?.let(LocalDate::parse),
 			activeDifficulty = prefs[ACTIVE_DIFFICULTY].toDifficulty() ?: DEFAULT_DIFFICULTY,
 			pendingDifficulty = prefs[PENDING_DIFFICULTY].toDifficulty(),
 			pendingEffectiveDate = prefs[PENDING_EFFECTIVE_DATE]?.let(LocalDate::parse)
@@ -135,6 +138,9 @@ class DailyStore @Inject constructor(@DailyDataStore private val dataStore: Data
 			record.solvedElapsedMillis?.let { prefs[SOLVED_ELAPSED] = it } ?: prefs.remove(SOLVED_ELAPSED)
 			prefs[STREAK] = record.streak
 			record.lastCompletedDate?.let { prefs[LAST_COMPLETED_DATE] = it.toString() } ?: prefs.remove(LAST_COMPLETED_DATE)
+			prefs[RESTORABLE_MISSED_DAYS] = record.restorableMissedDays
+			record.restorableUntil?.let { prefs[RESTORABLE_UNTIL] = it.toString() } ?: prefs.remove(RESTORABLE_UNTIL)
+			record.restoreNoticeSeenFor?.let { prefs[RESTORE_NOTICE_SEEN_FOR] = it.toString() } ?: prefs.remove(RESTORE_NOTICE_SEEN_FOR)
 			prefs[ACTIVE_DIFFICULTY] = record.activeDifficulty.name
 			record.pendingDifficulty?.let { prefs[PENDING_DIFFICULTY] = it.name } ?: prefs.remove(PENDING_DIFFICULTY)
 			record.pendingEffectiveDate?.let { prefs[PENDING_EFFECTIVE_DATE] = it.toString() } ?: prefs.remove(PENDING_EFFECTIVE_DATE)
@@ -148,6 +154,9 @@ class DailyStore @Inject constructor(@DailyDataStore private val dataStore: Data
 		val SOLVED_ELAPSED = longPreferencesKey("solved_elapsed")
 		val STREAK = intPreferencesKey("streak")
 		val LAST_COMPLETED_DATE = stringPreferencesKey("last_completed_date")
+		val RESTORABLE_MISSED_DAYS = intPreferencesKey("restorable_missed_days")
+		val RESTORABLE_UNTIL = stringPreferencesKey("restorable_until")
+		val RESTORE_NOTICE_SEEN_FOR = stringPreferencesKey("restore_notice_seen_for")
 		val ACTIVE_DIFFICULTY = stringPreferencesKey("active_difficulty")
 		val PENDING_DIFFICULTY = stringPreferencesKey("pending_difficulty")
 		val PENDING_EFFECTIVE_DATE = stringPreferencesKey("pending_effective_date")

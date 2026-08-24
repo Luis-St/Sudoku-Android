@@ -40,6 +40,19 @@ fun StreakRestoreDialog(preview: StreakRestorePreview, onDismiss: () -> Unit, on
 					text = stringResource(R.string.dialog_streak_restore_balance, preview.balance),
 					modifier = Modifier.padding(top = 2.dp)
 				)
+				// Issue 2.2.0/6: the offer expires, so it says when. Solving today's daily no longer cancels
+				// it, but a week of not spending it does, and that used to be invisible.
+				preview.daysLeft?.takeIf { preview.missedDays > 0 }?.let { daysLeft ->
+					Text(
+						text = if (daysLeft <= 1) {
+							stringResource(R.string.dialog_streak_restore_window_last_day)
+						} else {
+							stringResource(R.string.dialog_streak_restore_window, daysLeft)
+						},
+						color = MaterialTheme.colorScheme.tertiary,
+						modifier = Modifier.padding(top = 8.dp)
+					)
+				}
 				if (preview.missedDays > preview.restorePoints) {
 					Text(
 						text = stringResource(R.string.dialog_streak_restore_not_enough_points),

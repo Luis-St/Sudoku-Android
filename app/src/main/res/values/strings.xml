@@ -220,6 +220,14 @@
 	<string name="dialog_streak_restore_nothing_to_restore">Your streak has no gap to restore.</string>
 	<string name="dialog_streak_restore_not_enough_points">You need one restore point per missed day. Restore points are earned at one per seven days played, up to three.</string>
 	<string name="dialog_streak_restore_not_enough_currency">You don\'t have enough Rhubarb for this.</string>
+	<!-- Issue 2.2.0/6: a break stays restorable for a week after the run restarts, and both the card and
+	     the dialog say how long is left, so the window never closes unannounced. Counts are read as a
+	     trailing number rather than an inflected noun, so no form depends on the amount. -->
+	<string name="daily_streak_break_notice">Streak break, missed days you can restore: %1$d</string>
+	<string name="daily_streak_break_window">Days left to restore them, today included: %1$d</string>
+	<string name="daily_streak_break_last_day">Today is the last day to restore them.</string>
+	<string name="dialog_streak_restore_window">Days left to restore this gap, today included: %1$d</string>
+	<string name="dialog_streak_restore_window_last_day">Today is the last day this gap can be restored.</string>
 	<string name="action_restore">Restore</string>
 
 	<!-- Error copy, keyed by ApiException.code (net.luis.sudoku.ui.common.friendlyErrorMessage) -->

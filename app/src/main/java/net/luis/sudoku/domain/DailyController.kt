@@ -28,6 +28,21 @@ data class DailyRecord(
 	 * never solved a daily - see `StreakPublisher`, which reconstructs a best-effort anchor for the former.
 	 */
 	val lastCompletedDate: LocalDate? = null,
+	/**
+	 * The missed days a streak restore would repair right now, as the server last reported them, and the
+	 * last day it will accept that restore (issue 2.2.0/6).
+	 *
+	 * Held here so the home screen can *warn* about a closing window without asking the server every time
+	 * it is shown: the streak is already read on every heartbeat, and these two ride along with it. 0 and
+	 * null mean there is nothing to restore, which is also what a server that predates the window reports.
+	 */
+	val restorableMissedDays: Int = 0,
+	val restorableUntil: LocalDate? = null,
+	/**
+	 * The [restorableUntil] of the break whose home-screen notice has already been shown, so the next
+	 * launch stays quiet about it and a *new* break is announced again (see `StreakBreakNotice`).
+	 */
+	val restoreNoticeSeenFor: LocalDate? = null,
 	val activeDifficulty: Difficulty,
 	val pendingDifficulty: Difficulty?,
 	val pendingEffectiveDate: LocalDate?
@@ -40,6 +55,9 @@ data class DailyRecord(
 			solvedElapsedMillis = null,
 			streak = 0,
 			lastCompletedDate = null,
+			restorableMissedDays = 0,
+			restorableUntil = null,
+			restoreNoticeSeenFor = null,
 			// Matches the server's PreferenceRepository.DEFAULT_DIFFICULTY, which is the whole requirement:
 			// a player with no stored preference must be handed the same tier whether the answer came from
 			// here or from a row the server never wrote. Tier 3 was a sensible starting point out of five

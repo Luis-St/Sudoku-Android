@@ -12,6 +12,7 @@ import net.luis.sudoku.data.local.DailyStore
 import net.luis.sudoku.data.local.ServerConfigStore
 import net.luis.sudoku.data.remote.ApiClient
 import net.luis.sudoku.data.remote.ApiException
+import net.luis.sudoku.domain.StreakBreakNotice
 import net.luis.sudoku.domain.StreakRestoreCalculator
 import net.luis.sudoku.domain.StreakRestorePreview
 import java.time.LocalDate
@@ -30,13 +31,28 @@ class HomeViewModel @Inject constructor(
 	private val dailyStore: DailyStore,
 	private val currencyStore: CurrencyStore,
 	private val serverConfigStore: ServerConfigStore,
-	private val apiClient: ApiClient
+	private val apiClient: ApiClient,
+	private val streakBreakNotice: StreakBreakNotice
 ) : ViewModel() {
 
 	var streak by mutableStateOf(0)
 		private set
 
 	var dailySolvedToday by mutableStateOf(false)
+		private set
+
+	/**
+	 * The break the server still offers to repair, and how many days are left to do it (issue 2.2.0/6).
+	 *
+	 * On the card rather than only inside the restore dialog, because a player who never opens that dialog
+	 * is exactly the one who loses the window: nothing used to say a break had happened, what it would cost
+	 * to undo, or that the offer expires. Announced on the launch that first learns of the break and no
+	 * later one - see [StreakBreakNotice], which is what makes this 0 again on the next start.
+	 */
+	var restorableMissedDays by mutableStateOf(0)
+		private set
+
+	var restoreDaysLeft by mutableStateOf<Int?>(null)
 		private set
 
 	var currencyBalance by mutableStateOf(0L)
@@ -64,6 +80,13 @@ class HomeViewModel @Inject constructor(
 			this@HomeViewModel.dailyStore.record.collect { record ->
 				this@HomeViewModel.streak = record.streak
 				this@HomeViewModel.dailySolvedToday = record.solved && record.date == today()
+				val daysLeft = StreakRestoreCalculator.daysLeftToRestore(record.restorableUntil, today())
+				// An expired window is not an offer: the record keeps what the server last said, and the
+				// next heartbeat clears it, but the card must not go on inviting a restore in between.
+				val open = record.restorableMissedDays > 0 && (daysLeft == null || daysLeft > 0) &&
+					this@HomeViewModel.streakBreakNotice.shouldShow(record.restorableUntil)
+				this@HomeViewModel.restorableMissedDays = if (open) record.restorableMissedDays else 0
+				this@HomeViewModel.restoreDaysLeft = if (open) daysLeft else null
 			}
 		}
 		this.viewModelScope.launch {
@@ -89,13 +112,25 @@ class HomeViewModel @Inject constructor(
 			try {
 				val streak = this@HomeViewModel.apiClient.dailyStreak(baseUrl, token)
 				val today = config.cachedTimezone?.let { LocalDate.now(ZoneId.of(it)) } ?: LocalDate.now()
-				val missedDays = StreakRestoreCalculator.missedDays(streak.lastCompletedDate?.let(LocalDate::parse), today)
+				val restorableUntil = streak.restorableUntil?.let(LocalDate::parse)
+				// The server's own count wins where it reports one: since issue 2.2.0/6 it also remembers a
+				// break the player has already solved past, which no distance from the last completed date
+				// can show. The local gap stays as the fallback for a server that predates that.
+				val missedDays = streak.restorableMissedDays.takeIf { it > 0 }
+					?: StreakRestoreCalculator.missedDays(streak.lastCompletedDate?.let(LocalDate::parse), today)
 				this@HomeViewModel.restorePreview = StreakRestorePreview(
 					missedDays = missedDays,
 					cost = StreakRestoreCalculator.rhubarbCost(missedDays),
 					restorePoints = streak.restorePoints,
 					longest = streak.longest,
-					balance = this@HomeViewModel.currencyStore.current().balance
+					balance = this@HomeViewModel.currencyStore.current().balance,
+					daysLeft = StreakRestoreCalculator.daysLeftToRestore(restorableUntil, today)
+				)
+
+				// The card reads the same two fields, and this is a fresher answer than the last heartbeat's.
+				val record = this@HomeViewModel.dailyStore.current()
+				this@HomeViewModel.dailyStore.save(
+					record.copy(restorableMissedDays = streak.restorableMissedDays, restorableUntil = restorableUntil)
 				)
 			} catch (e: ApiException) {
 				this@HomeViewModel.errorMessage = e.message ?: e.code
@@ -120,8 +155,15 @@ class HomeViewModel @Inject constructor(
 				val streak = this@HomeViewModel.apiClient.restoreDailyStreak(baseUrl, token)
 				val record = this@HomeViewModel.dailyStore.current()
 				// The collector repaints `streak` from this write - it is no longer set by hand, or the
-				// store and the screen could disagree about a number that now comes from two places.
-				this@HomeViewModel.dailyStore.save(record.copy(streak = streak.current))
+				// store and the screen could disagree about a number that now comes from two places. The
+				// repaired break goes with it, so the card stops offering what has just been paid for.
+				this@HomeViewModel.dailyStore.save(
+					record.copy(
+						streak = streak.current,
+						restorableMissedDays = streak.restorableMissedDays,
+						restorableUntil = streak.restorableUntil?.let(LocalDate::parse)
+					)
+				)
 
 				// A read, not a sync: the restore has just *spent* Rhubarb, so reporting the balance this
 				// device still remembers is precisely how the cost would be handed straight back.

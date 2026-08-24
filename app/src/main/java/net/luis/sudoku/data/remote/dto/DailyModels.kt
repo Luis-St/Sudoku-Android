@@ -39,8 +39,23 @@ data class DailyResultRequest(
 @Serializable
 data class DailyResultResponse(val accepted: Boolean, val verified: Boolean, val attemptNo: Int = 0)
 
+/**
+ * `GET /api/v1/daily/streak` and the answer to every call that moves it.
+ *
+ * [restorableMissedDays] and [restorableUntil] are what a server since issue 2.2.0/6 reports about a break
+ * it still remembers: a gap no longer stops existing the moment today's daily is solved, so the offer
+ * outlives the solve and carries the day it expires on. Both default for a server that predates them, in
+ * which case the gap is worked out from [lastCompletedDate] as before.
+ */
 @Serializable
-data class StreakResponse(val current: Int, val longest: Int, val lastCompletedDate: String? = null, val restorePoints: Int)
+data class StreakResponse(
+	val current: Int,
+	val longest: Int,
+	val lastCompletedDate: String? = null,
+	val restorePoints: Int,
+	val restorableMissedDays: Int = 0,
+	val restorableUntil: String? = null
+)
 
 /**
  * Body of `POST /api/v1/daily/streak/sync` (server-spec §8.3): the streak this device counted, offered to a

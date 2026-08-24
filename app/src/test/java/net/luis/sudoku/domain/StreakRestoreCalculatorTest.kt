@@ -1,6 +1,7 @@
 package net.luis.sudoku.domain
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.LocalDate
 
@@ -29,5 +30,27 @@ class StreakRestoreCalculatorTest {
 	fun rhubarbCost_isTenTimesMissedDays() {
 		assertEquals(0L, StreakRestoreCalculator.rhubarbCost(0))
 		assertEquals(40L, StreakRestoreCalculator.rhubarbCost(4))
+	}
+
+	// Issue 2.2.0/6: the restore window the server reports, counted in days the player still has.
+
+	@Test
+	fun daysLeftToRestore_noDeadline_isNull() {
+		assertNull(StreakRestoreCalculator.daysLeftToRestore(null, today))
+	}
+
+	@Test
+	fun daysLeftToRestore_theLastDay_isOne() {
+		assertEquals(1, StreakRestoreCalculator.daysLeftToRestore(today, today))
+	}
+
+	@Test
+	fun daysLeftToRestore_aWeekOut_countsTodayIn() {
+		assertEquals(7, StreakRestoreCalculator.daysLeftToRestore(today.plusDays(6), today))
+	}
+
+	@Test
+	fun daysLeftToRestore_aWindowThatHasClosed_isZero() {
+		assertEquals(0, StreakRestoreCalculator.daysLeftToRestore(today.minusDays(1), today))
 	}
 }

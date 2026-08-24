@@ -54,6 +54,10 @@ object AccountSyncRules {
 	 * not verified yet - `StreakPublisher` offers those - and adopting a shorter count here would take them
 	 * away in between the offer and its acceptance.
 	 *
+	 * [remoteRestorableMissedDays] and [remoteRestorableUntil] are the break the server still offers to
+	 * repair, carried into the record so the home screen can say the window is closing without a request of
+	 * its own (issue 2.2.0/6).
+	 *
 	 * [remoteLastCompleted] equal to [today] also marks today solved, which is what stops a second device
 	 * presenting a daily the account has already completed as unplayed. It is applied only when the record
 	 * is actually about today: the flag is read against [DailyRecord.date], so setting it on a record left
@@ -63,13 +67,19 @@ object AccountSyncRules {
 		record: DailyRecord,
 		remoteCurrent: Int,
 		remoteLastCompleted: LocalDate?,
-		today: LocalDate
+		today: LocalDate,
+		remoteRestorableMissedDays: Int = 0,
+		remoteRestorableUntil: LocalDate? = null
 	): DailyRecord {
 		val solvedToday = record.solved || remoteLastCompleted == today
 		return record.copy(
 			streak = maxOf(record.streak, remoteCurrent),
 			lastCompletedDate = listOfNotNull(record.lastCompletedDate, remoteLastCompleted).maxOrNull(),
-			solved = if (record.date == today) solvedToday else record.solved
+			solved = if (record.date == today) solvedToday else record.solved,
+			// Adopted outright rather than merged upward: only the server knows whether a break is still
+			// repairable, so a restore spent on another device has to be able to clear this back to none.
+			restorableMissedDays = remoteRestorableMissedDays,
+			restorableUntil = remoteRestorableUntil
 		)
 	}
 }

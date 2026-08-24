@@ -287,6 +287,11 @@
 	<string name="dialog_streak_restore_nothing_to_restore">Deine Serie hat keine Lücke zum Wiederherstellen.</string>
 	<string name="dialog_streak_restore_not_enough_points">Du brauchst einen Wiederherstellungspunkt pro verpasstem Tag. Punkte gibt es alle sieben gespielten Tage, höchstens drei.</string>
 	<string name="dialog_streak_restore_not_enough_currency">Du hast dafür nicht genug Rhabarber.</string>
+	<string name="daily_streak_break_notice">Serie unterbrochen, wiederherstellbare Tage: %1$d</string>
+	<string name="daily_streak_break_window">Verbleibende Tage dafür, heute eingeschlossen: %1$d</string>
+	<string name="daily_streak_break_last_day">Heute ist der letzte Tag, um sie wiederherzustellen.</string>
+	<string name="dialog_streak_restore_window">Verbleibende Tage für diese Lücke, heute eingeschlossen: %1$d</string>
+	<string name="dialog_streak_restore_window_last_day">Heute ist der letzte Tag, an dem diese Lücke wiederhergestellt werden kann.</string>
 
 	<!-- Statistik (UI-Punkt 8) -->
 	<string name="stats_tile_played">Gespielt</string>

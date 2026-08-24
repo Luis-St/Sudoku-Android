@@ -15,6 +15,19 @@ object StreakRestoreCalculator {
 	}
 
 	fun rhubarbCost(missedDays: Int): Long = missedDays * 10L
+
+	/**
+	 * Days the player still has to spend a restore on a break, counting today, or null when the server
+	 * named no deadline.
+	 *
+	 * Always at least 1 while the window is open: [restorableUntil] *is* the last day it is accepted, so
+	 * the day it names counts as one.
+	 */
+	fun daysLeftToRestore(restorableUntil: LocalDate?, today: LocalDate): Int? {
+		if (restorableUntil == null) return null
+		val left = ChronoUnit.DAYS.between(today, restorableUntil) + 1
+		return left.coerceAtLeast(0L).toInt()
+	}
 }
 
 /**
@@ -31,7 +44,12 @@ data class StreakRestorePreview(
 	val cost: Long,
 	val restorePoints: Int,
 	val longest: Int,
-	val balance: Long
+	val balance: Long,
+	/**
+	 * Days left to spend it, counting today, or null when there is no deadline to name (nothing to
+	 * restore, or a server that predates the window of issue 2.2.0/6).
+	 */
+	val daysLeft: Int? = null
 ) {
 	val affordable: Boolean
 		get() = this.missedDays in 1..this.restorePoints && this.balance >= this.cost

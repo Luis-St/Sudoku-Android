@@ -70,6 +70,8 @@ fun HomeScreen(
 			streak = viewModel.streak,
 			solvedToday = viewModel.dailySolvedToday,
 			restoreAvailable = viewModel.restoreAvailable,
+			restorableMissedDays = viewModel.restorableMissedDays,
+			restoreDaysLeft = viewModel.restoreDaysLeft,
 			onPlay = onOpenDaily,
 			onRestore = viewModel::openStreakRestore,
 			modifier = Modifier.padding(top = 12.dp)
@@ -190,6 +192,8 @@ private fun DailyCard(
 	streak: Int,
 	solvedToday: Boolean,
 	restoreAvailable: Boolean,
+	restorableMissedDays: Int,
+	restoreDaysLeft: Int?,
 	onPlay: () -> Unit,
 	onRestore: () -> Unit,
 	modifier: Modifier = Modifier
@@ -242,6 +246,30 @@ private fun DailyCard(
 			}
 
 			if (restoreAvailable) {
+				// Issue 2.2.0/6. The restore used to be a bare button that said nothing: a player whose streak
+				// had broken was never told it had, what it would cost to undo, or that the offer runs out -
+				// they found out by opening the dialog, if they ever did. The break and its remaining days are
+				// stated here, on the card they are already looking at.
+				if (restorableMissedDays > 0) {
+					Text(
+						text = stringResource(R.string.daily_streak_break_notice, restorableMissedDays),
+						style = MaterialTheme.typography.bodyMedium,
+						color = MaterialTheme.colorScheme.tertiary,
+						modifier = Modifier.padding(top = 8.dp)
+					)
+					restoreDaysLeft?.let { daysLeft ->
+						Text(
+							text = if (daysLeft <= 1) {
+								stringResource(R.string.daily_streak_break_last_day)
+							} else {
+								stringResource(R.string.daily_streak_break_window, daysLeft)
+							},
+							style = MaterialTheme.typography.bodyMedium,
+							color = MaterialTheme.colorScheme.tertiary,
+							modifier = Modifier.padding(top = 2.dp)
+						)
+					}
+				}
 				TextButton(onClick = onRestore, modifier = Modifier.padding(top = 4.dp)) {
 					Text(stringResource(R.string.daily_streak_restore_button))
 				}

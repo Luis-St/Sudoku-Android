@@ -23,7 +23,9 @@ class AccountSyncRulesTest {
 		date: LocalDate? = today,
 		solved: Boolean = false,
 		streak: Int = 0,
-		lastCompletedDate: LocalDate? = null
+		lastCompletedDate: LocalDate? = null,
+		restorableMissedDays: Int = 0,
+		restorableUntil: LocalDate? = null
 	) = DailyRecord(
 		date = date,
 		solved = solved,
@@ -31,6 +33,8 @@ class AccountSyncRulesTest {
 		solvedElapsedMillis = null,
 		streak = streak,
 		lastCompletedDate = lastCompletedDate,
+		restorableMissedDays = restorableMissedDays,
+		restorableUntil = restorableUntil,
 		activeDifficulty = Difficulty.FIVE,
 		pendingDifficulty = null,
 		pendingEffectiveDate = null
@@ -148,5 +152,36 @@ class AccountSyncRulesTest {
 		val local = record(streak = 6, solved = true, lastCompletedDate = today)
 
 		assertEquals(local, AccountSyncRules.mergeStreak(local, remoteCurrent = 0, remoteLastCompleted = null, today = today))
+	}
+
+	@Test
+	fun mergeStreak_aBreakTheServerStillOffersToRepair_isCarriedIntoTheRecord() {
+		// Issue 2.2.0/6: the home card warns about the closing window, and this is where it learns of it.
+		val merged = AccountSyncRules.mergeStreak(
+			record(streak = 1, lastCompletedDate = today),
+			remoteCurrent = 1,
+			remoteLastCompleted = today,
+			today = today,
+			remoteRestorableMissedDays = 2,
+			remoteRestorableUntil = today.plusDays(6)
+		)
+
+		assertEquals(2, merged.restorableMissedDays)
+		assertEquals(today.plusDays(6), merged.restorableUntil)
+	}
+
+	@Test
+	fun mergeStreak_aBreakRepairedOnAnotherDevice_isClearedHere() {
+		// Adopted outright rather than merged upward, or this device would go on offering a restore that
+		// has already been paid for elsewhere.
+		val merged = AccountSyncRules.mergeStreak(
+			record(streak = 8, lastCompletedDate = today, restorableMissedDays = 2, restorableUntil = today.plusDays(4)),
+			remoteCurrent = 8,
+			remoteLastCompleted = today,
+			today = today
+		)
+
+		assertEquals(0, merged.restorableMissedDays)
+		assertNull(merged.restorableUntil)
 	}
 }

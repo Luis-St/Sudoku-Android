@@ -222,7 +222,9 @@ class AccountSync @Inject constructor(
 				record,
 				remote.current,
 				remote.lastCompletedDate?.let(LocalDate::parse),
-				today(config)
+				today(config),
+				remote.restorableMissedDays,
+				remote.restorableUntil?.let(LocalDate::parse)
 			)
 
 			if (merged != record) {

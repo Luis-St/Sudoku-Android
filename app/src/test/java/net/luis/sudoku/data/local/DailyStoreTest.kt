@@ -59,6 +59,37 @@ class DailyStoreTest {
 		assertEquals(emptyList<List<Int>>(), newStore().currentSolveOrder(LocalDate.of(2026, 8, 6)))
 	}
 
+	/**
+	 * Issue 2.2.0/6: the restorable break and the launch that announced it both have to outlive the
+	 * process, or the home card would either forget a break the server still offers to repair or announce
+	 * the same one on every start.
+	 */
+	@Test
+	fun saveThenCurrent_roundTripsTheRestorableBreak() = runBlocking {
+		val store = newStore()
+		val until = LocalDate.of(2026, 8, 31)
+
+		store.save(DailyRecord.INITIAL.copy(restorableMissedDays = 2, restorableUntil = until, restoreNoticeSeenFor = until))
+
+		val record = store.current()
+		assertEquals(2, record.restorableMissedDays)
+		assertEquals(until, record.restorableUntil)
+		assertEquals(until, record.restoreNoticeSeenFor)
+	}
+
+	@Test
+	fun saveThenCurrent_withTheBreakRepaired_clearsBothDates() = runBlocking {
+		val store = newStore()
+		val until = LocalDate.of(2026, 8, 31)
+		store.save(DailyRecord.INITIAL.copy(restorableMissedDays = 2, restorableUntil = until, restoreNoticeSeenFor = until))
+
+		store.save(store.current().copy(restorableMissedDays = 0, restorableUntil = null))
+
+		val record = store.current()
+		assertEquals(0, record.restorableMissedDays)
+		assertNull(record.restorableUntil)
+	}
+
 	@Test
 	fun clearSolveOrder_dropsTheStoredAttempt() = runBlocking {
 		val store = newStore()
