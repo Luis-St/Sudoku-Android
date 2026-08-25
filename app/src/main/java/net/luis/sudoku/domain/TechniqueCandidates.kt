@@ -47,13 +47,14 @@ object TechniqueCandidates {
 	const val MAX_LEVEL: Int = 9
 
 	/**
-	 * How many times the strategies are swept before the reduction is called done.
+	 * How many eliminations are applied before the reduction is called done.
 	 *
-	 * One elimination can be what lets the next technique see its pattern, so the sweep repeats until a
-	 * whole pass proves nothing new. The bound is a guard against a strategy that keeps reporting an
-	 * elimination the grid already has, not a limit the reduction is expected to reach.
+	 * Every applied deduction takes at least one candidate off a finite grid, so the reduction always ends
+	 * on its own; this is a guard against a strategy that reports an elimination the grid already has, not
+	 * a limit the reduction is expected to reach. Sized well past what a 16x16 needs, which is under a
+	 * hundred steps in the worst position measured.
 	 */
-	private const val MAX_PASSES: Int = 32
+	private const val MAX_STEPS: Int = 4096
 
 	/**
 	 * @param session the board to read; it is not modified
@@ -71,18 +72,42 @@ object TechniqueCandidates {
 		}
 	}
 
-	/** Applies every elimination the strategies up to [MAX_LEVEL] can prove, to a fixpoint. */
+	/**
+	 * Applies every elimination the strategies up to [MAX_LEVEL] can prove, in [TechniqueSolver]'s **own
+	 * driver order**: always the cheapest technique that can prove something, and back to the top of the
+	 * ladder after every step.
+	 *
+	 * The order is the whole correctness of this (issue 2.2.1/3). The reduction used to sweep the strategy
+	 * list straight through, taking one deduction from each technique in turn before starting the list
+	 * again, and that reaches a **different** set from the driver's - because an elimination can destroy the
+	 * pattern another technique was about to argue from. A unique rectangle needs the four candidates it is
+	 * named for to still be there; a naked pair stops being a naked pair once a third candidate is gone from
+	 * one of its cells. Sweeping straight through lets a level-9 technique fire in the same pass as a
+	 * level-4 one and take a pattern off the board that the cheaper technique would have used, which the
+	 * driver never does.
+	 *
+	 * What that cost the player: a board worked exactly the way the solver works it - cheapest technique
+	 * first, every time - came back with up to fourteen notes on a 9x9 and thirty-two on a 16x16 reported as
+	 * *missing*, shown in green, and written back by the fill step. The hint undid correct work, which is
+	 * the very thing this class exists to prevent. Following the driver is also what the class comment has
+	 * always claimed: the candidate set the solver itself argues from.
+	 *
+	 * Placements are still passed over rather than applied (see the class comment), so a technique that only
+	 * ever offers one is simply skipped and the scan carries on down the ladder.
+	 */
 	private fun reduce(grid: CandidateGrid) {
-		repeat(MAX_PASSES) {
+		var steps = 0
+		while (steps++ < MAX_STEPS) {
 			var progressed = false
 			for (strategy in TechniqueSolver.STRATEGIES) {
 				// The strategies are in escalating level order, so the first one above the cap ends the
-				// sweep: everything after it is at least as hard.
+				// scan: everything after it is at least as hard.
 				if (strategy.technique().level() > MAX_LEVEL) break
 				val deduction = strategy.find(grid).orElse(null)
-				// A placement is not applied - see the class comment - and it does not end the sweep either,
-				// since a harder technique may still have an elimination to prove in this same position.
-				if (deduction is Deduction.Eliminations && deduction.applyTo(grid)) progressed = true
+				if (deduction !is Deduction.Eliminations || !deduction.applyTo(grid)) continue
+				// Back to the cheapest technique, exactly as the driver does after every deduction.
+				progressed = true
+				break
 			}
 			if (!progressed) return
 		}

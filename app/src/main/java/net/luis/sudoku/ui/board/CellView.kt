@@ -158,20 +158,28 @@ fun CellView(
 			snapshot.value != 0 -> CellValueText(
 				value = snapshot.value,
 				color = when {
-					// A given is the puzzle rather than something the pen wrote, so it keeps the palette's
-					// own colour - but its *same-value mark* is the pen's ink while the beta is on. The dark
-					// palette marks a same-value digit in its teal, which is a blue, and the pencil's ink on
-					// a dark board is a blue too: locking a digit therefore lit the givens and the notes in
-					// one and the same colour, and a dark board is mostly givens. Light mode never showed it,
-					// because its own mark happens to be this exact orange.
-					snapshot.given -> if (highlight.markedValue) ink.inkOf(InputMode.PEN) ?: palette.sameValuePen else palette.given
-					// Beta item 2 of 2.2.0 (owner's call, replacing 2.1.0's locked-digit-only rule): what the
-					// ink says is which of the two modes wrote the digit, and that is true of every digit the
-					// pen placed, not only the one the player is scanning for. So a placed digit is always
-					// orange while the beta is on, and the locked one is told apart by the bold weight below,
-					// exactly as the notes are told apart in the pencil's blue.
-					else -> ink.inkOf(InputMode.PEN)
-						?: if (highlight.markedValue) palette.sameValuePen else palette.penEntry
+					// Game item 2, and since issue 2.2.1/5 the *only* place the pen's ink lands: the digit
+					// the player has locked, whatever wrote it. The ink stands in for the palette's own
+					// same-value mark here and replaces nothing else, which is exactly the rule the pencil's
+					// blue already follows in `PencilMarkGrid`.
+					//
+					// It reaches a given too. The dark palette marks a same-value digit in its teal, which is
+					// a blue, and the pencil's ink on a dark board is a blue as well: locking a digit lit the
+					// givens and the notes in one and the same colour, and a dark board is mostly givens.
+					highlight.markedValue -> ink.inkOf(InputMode.PEN) ?: palette.sameValuePen
+					// A given is the puzzle rather than something the pen wrote, so it keeps its own colour.
+					snapshot.given -> palette.given
+					// Everything the player has placed and is *not* looking for keeps the palette's ordinary
+					// pen colour (issue 2.2.1/5, replacing beta item 2 of 2.2.0).
+					//
+					// That rule painted every placed digit orange for as long as it was on the board, and the
+					// pen's ink is byte-identical to the light palette's `sameValuePen` - so a player's own
+					// digits wore the "this is the number you selected" colour permanently, and the bold
+					// weight was left carrying the whole distinction between three different meanings. What
+					// gets reported is that pen numbers stay highlighted, and there is no state behind it to
+					// reproduce. Only the selected digit is highlighted; the ink says which mode is being
+					// marked, not which mode wrote what.
+					else -> palette.penEntry
 				},
 				fontSize = valueFontSize,
 				bold = highlight.markedValue

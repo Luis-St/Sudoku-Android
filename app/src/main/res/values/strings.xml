@@ -153,6 +153,8 @@
 	<string name="settings_language_system">System default</string>
 	<string name="settings_language_english">English</string>
 	<string name="settings_language_german">Deutsch</string>
+	<!-- Issue 2.2.1/1: the toggle's label is the language you are reading, so its description is the action. -->
+	<string name="learn_language_switch_to">Switch to %1$s</string>
 	<string name="settings_theme_label">Theme</string>
 	<!-- The header toggle (game item 3). It names the mode it switches *to*, which is what the icon shows. -->
 	<string name="action_theme_light">Switch to light mode</string>
@@ -394,7 +396,7 @@
 	<string name="settings_header_beta">Beta features</string>
 	<string name="settings_beta_note">Features that are still being tried out. They stay off until you switch them on, and they can still change.</string>
 	<string name="pref_beta_dual_ink">Separate colours for numbers and notes</string>
-	<string name="pref_beta_dual_ink_note">Numbers you place are always orange, and the notes for the number you have selected are blue. The pen and pencil buttons, the number buttons and the highlights follow whichever of the two you are using.</string>
+	<string name="pref_beta_dual_ink_note">The number you have selected is orange wherever it already is, and its notes are blue. The pen and pencil buttons, the number buttons and the highlights follow whichever of the two you are using.</string>
 	<string name="pref_beta_every_occurrence_peers">Highlight every place a number already is</string>
 	<string name="pref_beta_every_occurrence_peers_note">Selecting a number lights up the row, column and box of every cell that already holds it, so you can see where it can still go. Without this, only the cell you tapped lights up its row, column and box.</string>
 	<string name="account_step_server">Server</string>

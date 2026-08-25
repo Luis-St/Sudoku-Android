@@ -29,9 +29,13 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.luis.sudoku.domain.InputMode
+import net.luis.sudoku.domain.PeerHighlightRules
 import net.luis.sudoku.learn.LearnPuzzle
 import net.luis.sudoku.solver.UnitKind
 import net.luis.sudoku.ui.theme.BoardPalette
+import net.luis.sudoku.ui.theme.LocalEveryOccurrencePeers
+import net.luis.sudoku.ui.theme.LocalInkColors
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -72,6 +76,22 @@ fun LearnBoard(
 ) {
 	val board = puzzle.board()
 	val pencil = puzzle.pencilMarks()
+	// Issue 2.2.1/2 and 2.2.1/4: the two beta features reach the lesson board as well. They are the player's
+	// own reading aids rather than anything about the lesson - what a locked digit does to a board is the same
+	// question in a training exercise as it is in a game, and having it answered differently on the two boards
+	// was the feature simply not being there for half the app.
+	val everyOccurrence = LocalEveryOccurrencePeers.current
+	val ink = LocalInkColors.current
+	val values = board.indices.map { index -> entries[index] ?: board[index] }
+	// The same rule object the play board uses, so the beta cannot mean one thing here and another there. Only
+	// [peersOf] is local, and on a 9x9 classic grid that is arithmetic (see [isPeer]).
+	val peers = PeerHighlightRules.peers(
+		activeIndex = activeIndex,
+		lockedDigit = lockedDigit,
+		everyOccurrence = everyOccurrence,
+		values = values,
+		peersOf = { index -> (0 until SIZE * SIZE).filterTo(HashSet()) { it != index && isPeer(index, it) } }
+	)
 
 	BoxWithConstraints(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
 		val density = LocalDensity.current
@@ -86,7 +106,25 @@ fun LearnBoard(
 						for (column in 0 until SIZE) {
 							val index = row * SIZE + column
 							val role = frame.roles[index]
-							val peer = activeIndex != null && index != activeIndex && isPeer(index, activeIndex)
+							val peer = index in peers
+							// The cell the player is actually on, which now gets the play board's own fill: with
+							// the beta on, every *other* cell holding the locked digit lights up, and leaving the
+							// tapped one blank in the middle of them says the opposite of what the feature is for.
+							val focused = index == selected || index == activeIndex
+							// The rest of the digit's occurrences (beta item 8 of 2.2.0). Below the lesson's own
+							// colours rather than above them, unlike [focused]: a locked digit can occur in half
+							// the cells an argument has coloured in, and painting a reading aid over the argument
+							// would take the lesson off the screen. The focused cell is one cell and is where the
+							// player just pressed, so it still wins.
+							// `activeIndex = null` on purpose: that argument is the [focused] half above, which is
+							// already handled, so what is left of the rule is exactly the occurrence half.
+							val occurrence = !focused && PeerHighlightRules.isSelected(
+								index = index,
+								activeIndex = null,
+								lockedDigit = lockedDigit,
+								everyOccurrence = everyOccurrence,
+								value = values[index]
+							)
 							// The board's inks are chosen against the board's background, and a role fill is not it.
 							val roleInk = role?.let { LearnRoleColors.inkOn(darkTheme) }
 							// Learn item 10: everything the argument has named stays on the board, but the cells this
@@ -95,11 +133,12 @@ fun LearnBoard(
 							// that has not changed since the last press points at nothing.
 							val faded = frame.currentCells.isNotEmpty() && index !in frame.currentCells
 							val background = when {
-								index == selected -> palette.selectedCell
+								focused -> palette.selectedCell
 								// The lesson's own colours outrank the peer highlight: they are the content of the
 								// screen, and the highlight is only there to say where the player is standing.
 								role != null -> LearnRoleColors.of(role, darkTheme)
 									.copy(alpha = if (faded) EARLIER_STEP_ALPHA else 1f)
+								occurrence -> palette.selectedCell
 								peer -> palette.peerHighlight
 								else -> MaterialTheme.colorScheme.background
 							}
@@ -121,8 +160,15 @@ fun LearnBoard(
 									struck = frame.struck[index] ?: 0,
 									placed = frame.placement?.takeIf { it.first == index }?.second,
 									focusDigit = frame.focusDigit,
+									// Issue 2.2.1/4: the locked digit's *note* is marked, exactly as on the play
+									// board. Marking only the cells that already hold the digit answered half the
+									// question a player locks a digit to ask - the other half is where it can
+									// still go, and that is written in the notes.
+									markedDigit = lockedDigit,
 									palette = palette,
 									roleInk = roleInk,
+									penInk = ink.inkOf(InputMode.PEN),
+									pencilInk = ink.inkOf(InputMode.PENCIL),
 									cellSize = cellSize
 								)
 							}
@@ -223,9 +269,15 @@ private fun LearnCell(
 	struck: Int,
 	placed: Int?,
 	focusDigit: Int,
+	/** Issue 2.2.1/4: the digit the player has locked, whose note in this cell is marked. */
+	markedDigit: Int?,
 	palette: BoardPalette,
 	/** The ink to write on the cell's role fill, or `null` on a cell the lesson has not coloured. */
 	roleInk: Color?,
+	/** The dual-ink beta: the ink a marked *digit* is written in, or `null` while that beta is off. */
+	penInk: Color?,
+	/** The same for a marked note. */
+	pencilInk: Color?,
 	cellSize: Dp
 ) {
 	if (value != 0) {
@@ -235,7 +287,9 @@ private fun LearnCell(
 				// Game item 2's rule, borrowed whole: the locked digit is marked by recolouring the glyph. It
 				// gives way on a coloured cell, where the mark colour was chosen against the board and not
 				// against the fill: the digit stays bold, which is the half of the mark that still reads.
-				marked && roleInk == null -> palette.sameValuePen
+				// The dual-ink beta reaches the mark here for the same reason it does on the play board -
+				// it stands in for `sameValuePen` and touches nothing else (issue 2.2.1/2 and 2.2.1/5).
+				marked && roleInk == null -> penInk ?: palette.sameValuePen
 				roleInk != null -> roleInk
 				entered -> palette.penEntry
 				else -> palette.given
@@ -263,7 +317,7 @@ private fun LearnCell(
 		return
 	}
 
-	PencilMarks(pencilMarks, emphasised, struck, focusDigit, palette, roleInk, cellSize)
+	PencilMarks(pencilMarks, emphasised, struck, focusDigit, markedDigit, palette, roleInk, pencilInk, cellSize)
 }
 
 /**
@@ -279,8 +333,10 @@ private fun PencilMarks(
 	emphasised: Int,
 	struck: Int,
 	focusDigit: Int,
+	markedDigit: Int?,
 	palette: BoardPalette,
 	roleInk: Color?,
+	pencilInk: Color?,
 	cellSize: Dp
 ) {
 	if (pencilMarks == 0) {
@@ -306,18 +362,25 @@ private fun PencilMarks(
 						if (pencilMarks and (1 shl digit) != 0) {
 							val isStruck = struck and (1 shl digit) != 0
 							val isEmphasised = emphasised and (1 shl digit) != 0 || (focusDigit != 0 && digit == focusDigit)
+							// Issue 2.2.1/4, the play board's rule (`CellView`): the locked digit's note is the
+							// ink and a weight heavier, and nothing else in the cell is touched. Below the
+							// lesson's own emphasis and strike, which are what the screen is *about*, and above
+							// the dimming, which is only there to push the rest of the cell back - a note the
+							// player just asked for is not something to look past.
+							val isMarked = markedDigit != null && digit == markedDigit
 							Text(
 								text = digit.toString(),
 								color = when {
 									isStruck -> palette.error
 									isEmphasised -> palette.sameValuePencil
+									isMarked -> pencilInk ?: palette.sameValuePencil
 									emphasised != 0 || focusDigit != 0 -> dimmed
 									else -> plain
 								},
 								textDecoration = if (isStruck) TextDecoration.LineThrough else null,
 								fontSize = fontSize,
 								lineHeight = fontSize,
-								fontWeight = if (isEmphasised || isStruck) FontWeight.Bold else FontWeight.Normal,
+								fontWeight = if (isEmphasised || isStruck || isMarked) FontWeight.Bold else FontWeight.Normal,
 								maxLines = 1,
 								softWrap = false,
 								textAlign = TextAlign.Center

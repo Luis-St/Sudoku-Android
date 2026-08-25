@@ -34,6 +34,7 @@ import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.domain.MarkReview
 import net.luis.sudoku.domain.PeerNotes
 import net.luis.sudoku.domain.LockState
+import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.domain.TapAction
 import net.luis.sudoku.domain.focusFollowsTap
 import net.luis.sudoku.domain.resolveNumberButtonTap
@@ -519,7 +520,19 @@ class CoopViewModel @AssistedInject constructor(
 			// the cell rather than on who placed it (this screen does not know its own user id, and the
 			// broadcast reaches everybody): a cell somebody else just got wrong is red for this player too,
 			// so it is not what anybody is still working on.
-			if (this.activeIndex == cell) this.activeIndex = null
+			if (this.activeIndex == cell) {
+				this.activeIndex = null
+				// Issue 2.2.1/5, single-player's `lockAfter` rule arriving here at last: a wrong digit
+				// releases the digit lock too. Without it the digit stays locked - so the very next tap on
+				// an empty cell enters the same wrong digit again, and with the every-occurrence beta on
+				// every cell already holding it stays lit after the move that was supposed to end. Guarded
+				// on the focus having been on this cell, which is what makes it *this* player's entry: the
+				// verdict is broadcast, and another player's mistake must not unlock what this one is
+				// holding.
+				if ((this.lock.target as? LockTarget.Digit)?.digit == digit) {
+					this.lock = this.lock.withTarget(LockTarget.None)
+				}
+			}
 		}
 	}
 

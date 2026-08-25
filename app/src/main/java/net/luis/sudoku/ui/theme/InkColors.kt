@@ -19,21 +19,24 @@ import net.luis.sudoku.domain.InputMode
  *
  * They are the colours the same-value mark uses (owner's call: reuse what the board already has).
  *
- * Since 2.2.0 the pen's ink is on **every** digit it placed, not only on the locked one (owner's call, beta
- * item 2): a placed digit is always orange, and the same-value mark is carried by the bold weight alone -
- * see `CellView`. Givens are not the pen's, so they keep the palette's own colour.
+ * **Both inks land on the locked digit only** (issue 2.2.1/5, owner's call), which is the rule the pencil
+ * has followed since 2.2.0 and the pen now follows too: the blue is on the notes of the locked digit and
+ * the orange on the *cells* holding it, givens included, and everything else on the board keeps the
+ * palette's own colour. What the ink says is which of the two modes the mark being drawn belongs to.
  *
- * **The pencil's is not** (owner's amendment to the same item): the blue is on the notes of the locked digit
- * only, where it stands in for the palette's same-value mark, and every other note stays grey. A cell holds
- * up to sixteen notes against one value, so colouring them all made the ink the loudest thing on the board
- * and erased the very mark the player scans the notes for.
+ * Beta item 2 of 2.2.0 briefly had the pen's ink on **every** digit it placed. That could not work, because
+ * the pen's orange *is* `BoardPalette.sameValuePen` on a light board: a player's own digits then wore the
+ * "this is the number you selected" colour for as long as they were on the board, leaving the bold weight
+ * to carry the whole distinction, and it was reported as pen numbers staying highlighted. A cell holds up
+ * to sixteen notes against one value, which is why the pencil half was pulled back first; the pen half is
+ * the same mistake spread over the whole board instead of one cell.
  *
  * Nothing else on the board is affected, since neither hue is the mistake red, the hint yellow or either
  * hint-note colour.
  */
 data class InkColors(
 	val enabled: Boolean,
-	/** The ink a placed digit is written in, and the accent of everything that places one. */
+	/** The ink the *marked* digit is written in, and the accent of everything that places one. */
 	val pen: Color,
 	/** The same for a note. */
 	val pencil: Color,
@@ -82,24 +85,26 @@ data class InkColors(
 		 * other colour the board assigns a meaning to. The light board's blue is [InkBlueLight], which is that
 		 * same statement at the strength a white cell and a note-sized glyph need.
 		 *
-		 * One colour per *mode* rather than per light/dark: what the ink says is which of the two the player
-		 * is writing in, and a colour that changed with the theme would say it differently on each. That is
-		 * also why the pen's orange now reaches the same-value mark on a *given* while the beta is on: the
-		 * dark palette marks those in its own teal, which on a dark board is the pencil's colour, so the two
-		 * modes were saying the same thing there while light mode said them apart.
+		 * One *hue* per mode rather than per light/dark: what the ink says is which of the two the player is
+		 * writing in, and a colour that changed hue with the theme would say it differently on each. The
+		 * **value** does change with the theme, for both inks and for the same reason a palette has a light
+		 * and a dark variant at all - a pigment picked against white is not legible against near-black. That
+		 * is also why the pen's ink reaches the same-value mark on a *given*: the dark palette marks those in
+		 * its own teal, which on a dark board is the pencil's colour, so the two modes were saying the same
+		 * thing there while light mode said them apart.
 		 */
 		val LIGHT = InkColors(
 			enabled = true,
-			pen = InkOrange,
+			pen = InkOrangeLight,
 			pencil = InkBlueLight,
 			penAccent = ActionAccent.AMBER,
 			pencilAccent = ActionAccent.SKY
 		)
 
-		/** The same two, each at the value a near-black cell needs - the blue is the dark board's own. */
+		/** The same two hues, each at the value a near-black cell needs. */
 		val DARK = InkColors(
 			enabled = true,
-			pen = InkOrange,
+			pen = InkOrangeDark,
 			pencil = InkBlueDark,
 			penAccent = ActionAccent.AMBER,
 			pencilAccent = ActionAccent.SKY
@@ -110,7 +115,24 @@ data class InkColors(
 }
 
 /** The classic palette's light-mode same-value mark, which is where the pen's ink comes from. */
-private val InkOrange = Color(0xFFEF6C00)
+private val InkOrangeLight = Color(0xFFEF6C00)
+
+/**
+ * The pen's ink on a dark board: the same orange lifted to the value a near-black cell needs.
+ *
+ * [InkOrangeLight] is a pigment chosen against a white cell, and using it unchanged on a dark board made
+ * the beta's mark the *dimmest* thing on the board rather than the brightest. Measured against the classic
+ * dark palette, the mark it replaces ([BoardPalette.sameValuePen], #4DD9E0) reaches 10.9:1 on the board
+ * background and 6.9:1 on a selected cell, while an unmarked digit (#E8E2F5) reaches 14.7:1. #EF6C00 gets
+ * 6.0:1 and **3.8:1** - under AA for anything but large text, which a 12x12 or 16x16 glyph is not, and
+ * within 1.08:1 of the grey the ordinary pencil marks are drawn in. A mark that is darker than everything
+ * it is marking is not a mark.
+ *
+ * This is 10.7:1 and 6.8:1, which is the teal's own strength to within a hundredth on every background the
+ * board can put behind it - the hint cell and the mistake red included. So the beta changes the mark's
+ * hue on a dark board and nothing else about how loudly it reads, which is all it was ever meant to do.
+ */
+private val InkOrangeDark = Color(0xFFFFB74D)
 
 /**
  * The pencil's ink on a light board: a saturated blue that is clearly *stronger* than the grey the other

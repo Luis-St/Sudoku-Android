@@ -5,7 +5,10 @@ import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.grid.Variant
 import net.luis.sudoku.key.PuzzleKey
+import net.luis.sudoku.solver.Deduction
+import net.luis.sudoku.solver.TechniqueSolver
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -66,6 +69,109 @@ class TechniqueCandidatesTest {
 			Integer.bitCount(CandidateCalculator.legalDigits(session, cell) and surviving.inv())
 		}
 		assertTrue("nothing was eliminated, so the review cannot tell a removal from a gap", eliminated > 0)
+	}
+
+	/**
+	 * The reduction runs to a **fixpoint**: nothing at or below the cap may be left to prove afterwards.
+	 *
+	 * Checked by definition rather than against a second copy of the algorithm - the reduced set is put back
+	 * onto a grid, and every strategy up to the cap is asked once more. It is also what proves the step
+	 * budget is never the binding constraint: a reduction cut short by it would leave a technique with
+	 * something to say.
+	 */
+	@Test
+	fun `nothing at or below the cap is left to eliminate afterwards`() {
+		for (size in listOf(GridSize.NINE, GridSize.SIXTEEN)) {
+			for (difficulty in listOf(Difficulty.ONE, Difficulty.FIVE, Difficulty.TEN)) {
+				val session = session(difficulty, size)
+				val reduced = TechniqueCandidates.reduced(session)
+
+				val grid = session.candidateGrid()
+				for ((cell, surviving) in reduced) {
+					for (digit in 1..grid.n()) {
+						if (surviving shr digit and 1 == 0) grid.eliminate(cell, digit)
+					}
+				}
+
+				for (strategy in TechniqueSolver.STRATEGIES) {
+					if (strategy.technique().level() > TechniqueCandidates.MAX_LEVEL) break
+					val left = strategy.find(grid).orElse(null)
+					assertNull(
+						"$size/$difficulty: ${strategy.technique()} can still eliminate after the reduction",
+						left as? Deduction.Eliminations
+					)
+				}
+			}
+		}
+	}
+
+	/**
+	 * Issue 2.2.1/3: a player who works the puzzle the way the solver works it is accused of nothing.
+	 *
+	 * This is the whole feature stated as the player experiences it. The board is annotated with every
+	 * candidate (what auto-candidate mode writes, and what a thorough player writes by hand), then worked
+	 * with the technique ladder itself - always the cheapest technique that can prove something, back to the
+	 * top after every step, which is [TechniqueSolver]'s own driver. Every note rubbed out along the way was
+	 * rubbed out for a reason at or below the cap, so the review must have nothing to report.
+	 *
+	 * It used to have plenty. The reduction swept the strategy list straight through instead of restarting
+	 * from the cheapest technique after each step, and because an elimination can destroy the pattern
+	 * another technique argues from, the two orders end up with different candidate sets: up to fourteen
+	 * notes on a 9x9 and thirty-two on a 16x16 came back as *missing*, were drawn in green, and were written
+	 * back onto the board by the fill step.
+	 *
+	 * Several sizes, difficulties and seeds because the divergence is a property of the position - the
+	 * uniqueness techniques are where it bites, and which of them a board offers is luck of the draw.
+	 */
+	@Test
+	fun `a board worked with the technique ladder is reported as clean`() {
+		for (size in listOf(GridSize.NINE, GridSize.SIXTEEN)) {
+			for (difficulty in listOf(Difficulty.THREE, Difficulty.FIVE, Difficulty.EIGHT, Difficulty.TEN)) {
+				for (seed in 1L..3L) {
+					val session = session(difficulty, size, seed)
+					val editor = BoardEditor(session, UndoStack())
+					val everything = (0 until session.cellCount)
+						.filter { session.snapshot(it).empty }
+						.associateWith { CandidateCalculator.legalDigits(session, it) }
+					editor.fillAllCandidates(everything)
+
+					workWithTheLadder(session, editor)
+
+					val review = HintMarkReview.of(session)
+					assertEquals(
+						"$size/$difficulty/seed $seed: the hint calls correctly removed notes missing",
+						emptyMap<Int, Int>(),
+						review.missing
+					)
+					assertTrue("$size/$difficulty/seed $seed: nothing removed was impossible", review.wrong.isEmpty())
+				}
+			}
+		}
+	}
+
+	/**
+	 * Plays the eliminations of every technique up to the cap onto the board's notes, in the driver's order.
+	 *
+	 * Only the notes are touched: a placement would answer the review about a different board, which is the
+	 * same reason [TechniqueCandidates] passes them over.
+	 */
+	private fun workWithTheLadder(session: GameSession, editor: BoardEditor) {
+		val grid = session.candidateGrid()
+		var steps = 0
+		while (steps++ < 500) {
+			var progressed = false
+			for (strategy in TechniqueSolver.STRATEGIES) {
+				if (strategy.technique().level() > TechniqueCandidates.MAX_LEVEL) break
+				val deduction = strategy.find(grid).orElse(null)
+				if (deduction !is Deduction.Eliminations || !deduction.applyTo(grid)) continue
+				val cells = deduction.cells()
+				val digits = deduction.digits()
+				for (i in cells.indices) editor.apply(TapAction.TogglePencil(cells[i], digits[i]))
+				progressed = true
+				break
+			}
+			if (!progressed) return
+		}
 	}
 
 	@Test

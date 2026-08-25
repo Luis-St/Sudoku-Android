@@ -31,8 +31,10 @@ import net.luis.sudoku.data.remote.match.longOrNull
 import net.luis.sudoku.data.remote.match.matchSocketUrl
 import net.luis.sudoku.data.remote.match.stringOrNull
 import net.luis.sudoku.domain.LockState
+import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.domain.PeerNotes
 import net.luis.sudoku.domain.TapAction
+import net.luis.sudoku.domain.focusFollowsTap
 import net.luis.sudoku.domain.resolveNumberButtonTap
 import net.luis.sudoku.domain.resolveTap
 import net.luis.sudoku.domain.tapReleasedFocus
@@ -332,7 +334,19 @@ class DuelViewModel @AssistedInject constructor(
 			// A wrong digit selects nothing, exactly as in single-player - the difference is only that the
 			// verdict gets here after the tap, so the focus is taken off rather than never put on. Guarded on
 			// the cell so a result for somewhere else cannot unmark whatever the player has moved on to.
-			if (this.activeIndex == cell) this.activeIndex = null
+			if (this.activeIndex == cell) {
+				this.activeIndex = null
+				// Issue 2.2.1/5, single-player's `lockAfter` rule arriving here at last: a wrong digit
+				// releases the digit lock too. Without it the digit stays locked - so the very next tap on
+				// an empty cell enters the same wrong digit again, and with the every-occurrence beta on
+				// every cell already holding it stays lit after the move that was supposed to end. Guarded
+				// on the focus having been on this cell, which is what makes it *this* player's entry: the
+				// verdict is broadcast, and another player's mistake must not unlock what this one is
+				// holding.
+				if ((this.lock.target as? LockTarget.Digit)?.digit == digit) {
+					this.lock = this.lock.withTarget(LockTarget.None)
+				}
+			}
 			this.viewModelScope.launch {
 				delay(1000)
 				this@DuelViewModel.mistake = null
@@ -351,13 +365,24 @@ class DuelViewModel @AssistedInject constructor(
 		if (!this.ready) return
 		val (action, nextLock) = resolveTap(this.cells[index], this.lock, this.activeIndex)
 		// Game item 4: tapping the marked cell again unmarks it, here as everywhere else.
-		this.activeIndex = if (tapReleasedFocus(action, nextLock, this.activeIndex, index)) null else index
+		// Game item 1: writing a pencil mark is annotation, not selection, so it leaves the focus where it
+		// is - the single-player and co-op boards have always used [focusFollowsTap] for that and this one
+		// did not, which dragged the row and column highlight along behind every note (issue 2.2.1/5).
+		when {
+			tapReleasedFocus(action, nextLock, this.activeIndex, index) -> this.activeIndex = null
+			focusFollowsTap(action) -> this.activeIndex = index
+		}
 		sendIfEntry(action)
 		this.lock = nextLock
 	}
 
 	fun onNumberTap(digit: Int, longPress: Boolean = false) {
 		if (!this.ready) return
+		// Game item 3, which this board was missing (issue 2.2.1/5): picking a digit off the pad means the
+		// player has stopped working on one cell, so the cell they were on stops being highlighted. Without
+		// it a row and column stayed lit around a cell that had nothing to do with what was being entered,
+		// and with the every-occurrence beta on that is a large part of the board left standing.
+		this.activeIndex = null
 		val (action, nextLock) = resolveNumberButtonTap(this.lock, digit, longPress)
 		sendIfEntry(action)
 		this.lock = nextLock

@@ -494,9 +494,12 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 /**
  * The learn area's language switch (learn item 12): one tap, between the two languages the app ships.
  *
- * A short label rather than a glyph, and the label names the language the tap leads *to*. A globe says only
- * that something about languages happens here, which on a page the reader cannot read is the one thing they
- * already know; "DE" says what they will get.
+ * A short label rather than a glyph, and the label names the language the page is **in** (issue 2.2.1/1).
+ * It used to name the one the tap leads to, which is the reading every other toggle in the bar contradicts:
+ * the theme toggle shows the theme you are in, the mode toggle the mode you are writing in, and a control
+ * that shows its own opposite is read as a state display that is simply wrong. Two languages ship, so the
+ * state and the action are the same tap either way, and the one the reader can verify against the words
+ * around it is the current one. What the tap will do is said in the content description instead.
  *
  * It is an [IconButton] with two letters where the glyph goes, rather than the `TextButton` it started as.
  * A button and an icon button are not the same shape: `ButtonDefaults.MinWidth` is 58dp against an icon
@@ -512,13 +515,19 @@ private fun LanguageToggle(current: String, onSelect: (String?) -> Unit) {
 	val german = current == GERMAN
 	val target = if (german) ENGLISH else GERMAN
 	val targetName = stringResource(if (german) R.string.settings_language_english else R.string.settings_language_german)
+	// The label is the state, so the description has to be the action - otherwise a reader who cannot see the
+	// two letters is told the language twice and never told what pressing does. Read out, "DE" is two letters
+	// and says nothing at all either way.
+	val description = stringResource(R.string.learn_language_switch_to, targetName)
+	// Not [current] itself: that is the *locale*, and on a device set to a third language the app is still
+	// drawing its English resources - a label reading "FR" would name a language nothing on the page is in.
+	// Only the two the app ships can ever be shown, and anything that is not German is English.
+	val label = if (german) GERMAN else ENGLISH
 	IconButton(onClick = { onSelect(target) }) {
 		Text(
-			text = target.uppercase(Locale.ROOT),
+			text = label.uppercase(Locale.ROOT),
 			style = MaterialTheme.typography.labelLarge,
-			// The label names the language, the way an icon's description would: read out, "DE" is two letters
-			// and says nothing at all.
-			modifier = Modifier.clearAndSetSemantics { this.contentDescription = targetName }
+			modifier = Modifier.clearAndSetSemantics { this.contentDescription = description }
 		)
 	}
 }
