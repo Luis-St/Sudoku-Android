@@ -20,7 +20,7 @@ annotation class SettingsDataStore
 
 /**
  * Light/dark choice. [SYSTEM] is the default and follows the device. Deliberately separate from the
- * *board* theme (see `BoardThemeCatalog`): a purchasable board theme ships its own light and dark
+ * theme (see `AppThemeCatalog`): a purchasable theme ships its own light and dark
  * palette, so buying one never decides which mode the app is in.
  */
 enum class ThemeMode {
@@ -39,8 +39,8 @@ data class PreferenceSettings(
 	val themeMode: ThemeMode,
 	/** BCP-47 tag, or `null` for "follow the system language" - the default. */
 	val languageTag: String?,
-	/** Selected board theme id, resolved through `BoardThemeCatalog.byId`. */
-	val boardThemeId: String,
+	/** Selected theme id, resolved through `AppThemeCatalog.byId`. */
+	val themeId: String,
 	/**
 	 * Beta feature: pen and pencil are drawn in inks of their own (see `InkColors`).
 	 *
@@ -74,7 +74,7 @@ data class PreferenceSettings(
 			soundEnabled = true,
 			themeMode = ThemeMode.SYSTEM,
 			languageTag = null,
-			boardThemeId = "classic",
+			themeId = "classic",
 			betaDualInk = false, // beta features are opt-in
 			betaEveryOccurrencePeers = false,
 			learnBriefSkipped = emptySet()
@@ -93,7 +93,7 @@ class SettingsStore @Inject constructor(@SettingsDataStore private val dataStore
 			soundEnabled = prefs[SOUND_ENABLED] ?: PreferenceSettings.DEFAULT.soundEnabled,
 			themeMode = ThemeMode.fromId(prefs[THEME_MODE]),
 			languageTag = prefs[LANGUAGE_TAG],
-			boardThemeId = prefs[BOARD_THEME_ID] ?: PreferenceSettings.DEFAULT.boardThemeId,
+			themeId = prefs[THEME_ID] ?: PreferenceSettings.DEFAULT.themeId,
 			betaDualInk = prefs[BETA_DUAL_INK] ?: PreferenceSettings.DEFAULT.betaDualInk,
 			betaEveryOccurrencePeers = prefs[BETA_EVERY_OCCURRENCE_PEERS] ?: PreferenceSettings.DEFAULT.betaEveryOccurrencePeers,
 			// Stored as strings because DataStore has no int set: anything unparseable is dropped rather than
@@ -157,8 +157,8 @@ class SettingsStore @Inject constructor(@SettingsDataStore private val dataStore
 		this.dataStore.edit { it[BETA_EVERY_OCCURRENCE_PEERS] = enabled }
 	}
 
-	suspend fun setBoardThemeId(id: String) {
-		this.dataStore.edit { it[BOARD_THEME_ID] = id }
+	suspend fun setThemeId(id: String) {
+		this.dataStore.edit { it[THEME_ID] = id }
 	}
 
 	/**
@@ -182,7 +182,9 @@ class SettingsStore @Inject constructor(@SettingsDataStore private val dataStore
 		val SOUND_ENABLED = booleanPreferencesKey("sound_enabled")
 		val THEME_MODE = stringPreferencesKey("theme_mode")
 		val LANGUAGE_TAG = stringPreferencesKey("language_tag")
-		val BOARD_THEME_ID = stringPreferencesKey("board_theme_id")
+		// The stored key keeps its old name. It used to select a *board* look and now selects the whole
+		// theme, but renaming it would reset every player's selection to Classic on update for nothing.
+		val THEME_ID = stringPreferencesKey("board_theme_id")
 		val BETA_DUAL_INK = booleanPreferencesKey("beta_dual_ink")
 		val BETA_EVERY_OCCURRENCE_PEERS = booleanPreferencesKey("beta_every_occurrence_peers")
 		val LAST_REMINDER_DATE = stringPreferencesKey("last_reminder_date")

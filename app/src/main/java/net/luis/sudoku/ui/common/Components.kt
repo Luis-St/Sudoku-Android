@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -30,8 +29,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -48,13 +47,20 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import net.luis.sudoku.ui.theme.ActionAccent
+import net.luis.sudoku.ui.theme.Accent
+import net.luis.sudoku.ui.theme.LocalAppShapes
 import net.luis.sudoku.ui.theme.accentBrush
 
 /**
- * Shared building blocks for the refactored UI. The house style is **outlined, not filled**: primary
- * actions get a hairline outline and the accent gradient only where emphasis is genuinely needed
- * ([GradientButton]), so a screen full of actions doesn't turn into a wall of solid color blocks.
+ * Shared building blocks for the UI. The house style is **outlined, not filled**: primary actions get a
+ * hairline outline and the accent gradient only where emphasis is genuinely needed ([GradientButton]), so
+ * a screen full of actions doesn't turn into a wall of solid color blocks.
+ *
+ * Nothing here holds a colour, a radius, a border width or an elevation of its own. Every one of those
+ * comes from `MaterialTheme.colorScheme` or from [net.luis.sudoku.ui.theme.AppShapes], which a theme
+ * supplies - so a purchased look reaches every button, panel, popup and switch in the app without any of
+ * these functions knowing which theme is on. A component that asked *which* theme it was drawing would
+ * have to be edited for every theme ever added; a component that reads named roles never does.
  */
 
 /**
@@ -86,7 +92,7 @@ fun OutlinedActionButton(
 		onClick = onClick,
 		modifier = modifier,
 		enabled = enabled,
-		shape = RAISED_SHAPE,
+		shape = raisedShape(),
 		colors = ButtonDefaults.outlinedButtonColors(
 			// Opaque, not transparent: a shadow cast by a see-through container shows through it as a
 			// grey haze instead of reading as lift.
@@ -94,12 +100,7 @@ fun OutlinedActionButton(
 			contentColor = MaterialTheme.colorScheme.onSurface
 		),
 		elevation = raisedElevation(),
-		// The disabled fade is applied to whichever colour is in use, so a board button greys out exactly
-		// like every other one rather than staying at full strength once its count runs out.
-		border = BorderStroke(
-			1.dp,
-			(borderColor ?: MaterialTheme.colorScheme.outline).copy(alpha = if (enabled) 0.7f else 0.25f)
-		),
+		border = controlBorder(enabled, borderColor),
 		contentPadding = ACTION_BUTTON_PADDING
 	) {
 		ButtonLabel(text, icon, iconPainter, iconIsArtwork)
@@ -122,11 +123,11 @@ fun OutlinedIconActionButton(
 		onClick = onClick,
 		// IconButton takes no elevation parameter, so the lift is drawn by the modifier instead - same
 		// depth as raisedElevation(), so both button shapes cast one shadow.
-		modifier = modifier.shadow(elevation = if (enabled) 3.dp else 0.dp, shape = RAISED_SHAPE),
+		modifier = modifier.shadow(elevation = if (enabled) LocalAppShapes.current.elevation else 0.dp, shape = raisedShape()),
 		enabled = enabled,
-		shape = RAISED_SHAPE,
+		shape = raisedShape(),
 		colors = IconButtonDefaults.outlinedIconButtonColors(containerColor = MaterialTheme.colorScheme.surface),
-		border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = if (enabled) 0.7f else 0.25f)),
+		border = controlBorder(enabled),
 		content = {
 			Icon(painter = iconPainter, contentDescription = contentDescription, modifier = Modifier.size(20.dp))
 		}
@@ -147,7 +148,7 @@ fun ToggleActionButton(
 	selected: Boolean,
 	onClick: () -> Unit,
 	modifier: Modifier = Modifier,
-	accent: ActionAccent? = null
+	accent: Accent? = null
 ) {
 	if (selected) {
 		GradientButton(text = text, onClick = onClick, accent = accent, modifier = modifier, fillWidth = false)
@@ -156,16 +157,35 @@ fun ToggleActionButton(
 	}
 }
 
-/** The corner radius shared by every raised control (visual item 5). */
-private val RAISED_SHAPE = RoundedCornerShape(14.dp)
+/** The corner radius shared by every raised control (visual item 5) - the theme's, not a constant. */
+@Composable
+@ReadOnlyComposable
+private fun raisedShape() = RoundedCornerShape(LocalAppShapes.current.controlCorner)
 
 /** How far off the page a raised control sits - enough to read as lift, not so far it looks detached. */
 @Composable
 private fun raisedElevation() = ButtonDefaults.buttonElevation(
-	defaultElevation = 3.dp,
-	pressedElevation = 1.dp,
+	defaultElevation = LocalAppShapes.current.elevation,
+	pressedElevation = LocalAppShapes.current.pressedElevation,
 	disabledElevation = 0.dp
 )
+
+/**
+ * A control's own outline: the theme's width, in [color] (or the scheme's outline), faded when disabled.
+ *
+ * The fade is applied to whichever colour is in use rather than swapping in a grey, so a board button
+ * greys out exactly like every other one rather than staying at full strength once its count runs out.
+ */
+@Composable
+@ReadOnlyComposable
+private fun controlBorder(enabled: Boolean, color: Color? = null): BorderStroke {
+	val shapes = LocalAppShapes.current
+	return BorderStroke(
+		shapes.borderWidth,
+		(color ?: MaterialTheme.colorScheme.outline)
+			.copy(alpha = if (enabled) shapes.borderAlpha else shapes.disabledBorderAlpha)
+	)
+}
 
 /**
  * A gradient-filled action button. [accent] picks which gradient (design item 2, home item 1); leaving it
@@ -184,15 +204,15 @@ fun GradientButton(
 	iconPainter: Painter? = null,
 	/** `true` when [iconPainter] is a full-color drawable rather than a tintable glyph - see `ButtonLabel`. */
 	iconIsArtwork: Boolean = false,
-	accent: ActionAccent? = null,
+	accent: Accent? = null,
 	/** `false` for a button that has to size itself to its label - the pen/pencil toggles (visual item 3). */
 	fillWidth: Boolean = true
 ) {
-	val shape = RAISED_SHAPE
-	val brush = accent?.brush() ?: accentBrush()
+	val shape = raisedShape()
+	val brush = accent?.gradient()?.brush() ?: accentBrush()
 	Box(
 		modifier = modifier
-			.shadow(elevation = if (enabled) 3.dp else 0.dp, shape = shape)
+			.shadow(elevation = if (enabled) LocalAppShapes.current.elevation else 0.dp, shape = shape)
 			.clip(shape)
 			.then(if (enabled) Modifier.background(brush) else Modifier)
 	) {
@@ -227,13 +247,13 @@ fun GradientIconActionButton(
 	contentDescription: String?,
 	onClick: () -> Unit,
 	modifier: Modifier = Modifier,
-	accent: ActionAccent? = null
+	accent: Accent? = null
 ) {
-	val shape = RAISED_SHAPE
-	val brush = accent?.brush() ?: accentBrush()
+	val shape = raisedShape()
+	val brush = accent?.gradient()?.brush() ?: accentBrush()
 	Box(
 		modifier = modifier
-			.shadow(elevation = 3.dp, shape = shape)
+			.shadow(elevation = LocalAppShapes.current.elevation, shape = shape)
 			.clip(shape)
 			.background(brush),
 		contentAlignment = Alignment.Center
@@ -271,7 +291,7 @@ fun <T> DropdownTrigger(
 	optionLabel: @Composable (T) -> String,
 	onSelect: (T) -> Unit,
 	modifier: Modifier = Modifier,
-	accent: ActionAccent? = null,
+	accent: Accent? = null,
 	/**
 	 * Settings item 1: draw the trigger as an [OutlinedActionButton] rather than a [GradientButton].
 	 *
@@ -311,9 +331,8 @@ fun <T> DropdownTrigger(
 			// Generator item 1: the same plain surface the info dialog uses. Material's default menu is a
 			// tonally elevated container, which lands as a grey-lavender panel next to a white popup on the
 			// very same screen.
-			containerColor = dialogContainerColor(),
-			shape = RoundedCornerShape(14.dp),
-			border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+			shape = raisedShape(),
+			border = popupBorder(),
 			modifier = Modifier.width(with(density) { widthPx.toDp() })
 		) {
 			options.forEach { option ->
@@ -348,6 +367,24 @@ private fun ButtonLabel(text: String, icon: ImageVector?, iconPainter: Painter?,
 	}
 }
 
+/**
+ * A container's outline: a card, a panel, a dialog. Quieter than a control's, since it is not pressable.
+ */
+@Composable
+@ReadOnlyComposable
+fun containerBorder(): BorderStroke {
+	val shapes = LocalAppShapes.current
+	return BorderStroke(shapes.borderWidth, MaterialTheme.colorScheme.outline.copy(alpha = shapes.containerBorderAlpha))
+}
+
+/** A popup's outline, between the two: a menu has an edge to find, but is not a thing to press. */
+@Composable
+@ReadOnlyComposable
+fun popupBorder(): BorderStroke {
+	val shapes = LocalAppShapes.current
+	return BorderStroke(shapes.borderWidth, MaterialTheme.colorScheme.outline.copy(alpha = shapes.popupBorderAlpha))
+}
+
 /** A titled, outlined container - the unit every settings/stats section is built from. */
 @Composable
 fun SectionCard(
@@ -355,15 +392,16 @@ fun SectionCard(
 	modifier: Modifier = Modifier,
 	content: @Composable () -> Unit
 ) {
+	val shapes = LocalAppShapes.current
 	Surface(
 		modifier = modifier.fillMaxWidth(),
-		shape = RoundedCornerShape(18.dp),
-		color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+		shape = RoundedCornerShape(shapes.containerCorner),
+		color = MaterialTheme.colorScheme.surface.copy(alpha = shapes.containerAlpha),
 		// Explicit, because Material3 derives contentColor via contentColorFor(color) and an
 		// alpha-modified surface matches no scheme role - it resolves to Unspecified and the text lands
 		// black, which is invisible in dark mode.
 		contentColor = MaterialTheme.colorScheme.onSurface,
-		border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+		border = containerBorder()
 	) {
 		Column(modifier = Modifier.padding(16.dp)) {
 			if (title != null) {
@@ -437,7 +475,7 @@ fun ProgressRow(
 				.fillMaxWidth()
 				.padding(top = 6.dp)
 				.height(8.dp)
-				.clip(RoundedCornerShape(4.dp))
+				.clip(RoundedCornerShape(LocalAppShapes.current.smallCorner))
 				.background(MaterialTheme.colorScheme.surfaceVariant)
 		) {
 			Box(
@@ -472,14 +510,11 @@ fun dialogContainerColor(): Color = MaterialTheme.colorScheme.surfaceContainerHi
 
 @Composable
 fun InfoDialog(title: String, body: String, onDismiss: () -> Unit) {
-	AlertDialog(
+	AppDialog(
 		onDismissRequest = onDismiss,
-		containerColor = dialogContainerColor(),
-		titleContentColor = MaterialTheme.colorScheme.onSurface,
-		textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
 		title = { Text(title) },
 		text = { Text(body) },
-		confirmButton = { TextButton(onClick = onDismiss) { Text(stringResourceOk()) } }
+		confirmButton = { AppTextButton(text = stringResourceOk(), onClick = onDismiss) }
 	)
 }
 

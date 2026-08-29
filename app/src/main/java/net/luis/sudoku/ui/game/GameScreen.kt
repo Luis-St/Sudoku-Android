@@ -12,10 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -37,6 +35,8 @@ import net.luis.sudoku.R
 import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.ui.board.BoardScreen
+import net.luis.sudoku.ui.common.AppTextButton
+import net.luis.sudoku.ui.common.AppDialog
 import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.common.PlayLayout
 import net.luis.sudoku.ui.common.ToggleActionButton
@@ -122,7 +122,6 @@ fun GameScreen(
 	// looks like every other board, so the player's selected board theme holds on every difficulty.
 	val palette = LocalBoardPalette.current
 	val lockedDigit = (viewModel.lock.target as? LockTarget.Digit)?.digit
-	val darkTheme = isDark()
 
 	// Game item 3: the app bar owns the share action now, so it sits next to settings instead of in a row
 	// of its own. The bar lives outside this navigation destination, so the action is published to it while
@@ -164,7 +163,6 @@ fun GameScreen(
 		GameSummaryScreen(
 			summary = summary,
 			palette = palette,
-			darkTheme = darkTheme,
 			onBackToHome = { viewModel.dismissSummary(); onBackToHome() },
 			onNewPuzzle = { viewModel.dismissSummary(); onNewPuzzle() },
 			onRetryDaily = { viewModel.dismissSummary(); viewModel.switchToDaily() },
@@ -201,7 +199,6 @@ fun GameScreen(
 					// Single-player keeps the timed flash (feature-spec §6): at most one wrong digit, briefly.
 					mistakeDigits = viewModel.mistake?.let { mapOf(it) }.orEmpty(),
 					tintRegions = viewModel.isChaos,
-					darkTheme = darkTheme,
 					// Game item 19: the notes the running hint is proposing, drawn on the board and written to
 					// it only once the player steps past them.
 					hintMissingMarks = viewModel.hintMissingMarks,
@@ -284,11 +281,11 @@ fun GameScreen(
 
 	viewModel.errorMessage?.let { message ->
 		val displayMessage = friendlyErrorMessage(viewModel.errorCode ?: "", message)
-		AlertDialog(
+		AppDialog(
 			onDismissRequest = viewModel::dismissError,
 			title = { Text(stringResource(R.string.dialog_error_title)) },
 			text = { Text(displayMessage) },
-			confirmButton = { TextButton(onClick = viewModel::dismissError) { Text(stringResource(R.string.action_ok)) } }
+			confirmButton = { AppTextButton(text = stringResource(R.string.action_ok), onClick = viewModel::dismissError) }
 		)
 	}
 }
@@ -312,7 +309,7 @@ class GameTopBarActions {
 	var leaveNeedsConfirm by mutableStateOf(true)
 }
 
-// The accent the pen/pencil toggles light up in used to be a constant here, `ActionAccent.INDIGO` for both.
+// The accent the pen/pencil toggles light up in used to be a constant here, `ActionAccent.SLOT_1` for both.
 // It is `InkColors.MODE_ACCENT` now and still indigo for both - until beta item 1 is switched on, where each
 // mode lights up in its own ink instead. See `InkColors`.
 
@@ -380,12 +377,6 @@ private fun StatusBar(viewModel: GameViewModel) {
 		)
 	}
 }
-
-@Composable
-private fun isDark(): Boolean = MaterialTheme.colorScheme.background.luminance() < 0.5f
-
-private fun androidx.compose.ui.graphics.Color.luminance(): Float =
-	0.2126f * this.red + 0.7152f * this.green + 0.0722f * this.blue
 
 /** Shared with [GameSummaryScreen] - `private` is file-scoped in Kotlin, and both show the same clock. */
 internal fun formatElapsed(millis: Long): String {

@@ -1,6 +1,5 @@
 package net.luis.sudoku.ui.settings.account
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,15 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -40,10 +33,16 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import net.luis.sudoku.R
 import net.luis.sudoku.data.local.ServerConfig
 import net.luis.sudoku.device.DeviceNames
+import net.luis.sudoku.ui.common.PanelShape
+import net.luis.sudoku.ui.common.AppPanel
+import net.luis.sudoku.ui.common.AppTextField
+import net.luis.sudoku.ui.common.AppSpinner
+import net.luis.sudoku.ui.common.AppDivider
+import net.luis.sudoku.ui.common.AppTextButton
+import net.luis.sudoku.ui.common.AppDialog
 import net.luis.sudoku.ui.common.GradientButton
 import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.common.SectionCard
-import net.luis.sudoku.ui.common.dialogContainerColor
 import net.luis.sudoku.ui.common.friendlyErrorMessage
 import net.luis.sudoku.ui.common.isValidEmail
 import net.luis.sudoku.ui.settings.EmailVerificationState
@@ -107,34 +106,31 @@ fun AccountScreen(
 	}
 
 	viewModel.errorMessage?.let { message ->
-		AlertDialog(
+		AppDialog(
 			onDismissRequest = viewModel::dismissError,
 			// Account item 1: the app's own popup surface, not Material's tonally elevated container. The
 			// theme pins that role too, so this is agreement rather than the only thing holding the colour up.
-			containerColor = dialogContainerColor(),
 			title = { Text(stringResource(R.string.dialog_error_title)) },
 			text = { Text(friendlyErrorMessage(viewModel.errorCode ?: "", message)) },
-			confirmButton = { TextButton(onClick = viewModel::dismissError) { Text(stringResource(R.string.action_ok)) } }
+			confirmButton = { AppTextButton(text = stringResource(R.string.action_ok), onClick = viewModel::dismissError) }
 		)
 	}
 
 	if (showGenVersionMismatch) {
-		AlertDialog(
+		AppDialog(
 			onDismissRequest = { showGenVersionMismatch = false },
-			containerColor = dialogContainerColor(),
 			title = { Text(stringResource(R.string.dialog_update_required_title)) },
 			text = { Text(stringResource(R.string.dialog_update_required_body)) },
-			confirmButton = { TextButton(onClick = { showGenVersionMismatch = false }) { Text(stringResource(R.string.action_ok)) } }
+			confirmButton = { AppTextButton(text = stringResource(R.string.action_ok), onClick = { showGenVersionMismatch = false }) }
 		)
 	}
 
 	viewModel.linkCode?.let { code ->
-		AlertDialog(
+		AppDialog(
 			onDismissRequest = viewModel::dismissLinkCode,
-			containerColor = dialogContainerColor(),
 			title = { Text(stringResource(R.string.dialog_link_code_title)) },
 			text = { SelectionContainer { Text(code) } },
-			confirmButton = { TextButton(onClick = viewModel::dismissLinkCode) { Text(stringResource(R.string.action_done)) } }
+			confirmButton = { AppTextButton(text = stringResource(R.string.action_done), onClick = viewModel::dismissLinkCode) }
 		)
 	}
 }
@@ -234,11 +230,10 @@ private fun ServerStep(busy: Boolean, onConnect: (String) -> Unit, modifier: Mod
 				style = MaterialTheme.typography.bodyMedium,
 				color = MaterialTheme.colorScheme.onSurfaceVariant
 			)
-			OutlinedTextField(
+			AppTextField(
 				value = url,
 				onValueChange = { url = it },
-				label = { Text(stringResource(R.string.settings_server_address_label)) },
-				singleLine = true,
+				label = stringResource(R.string.settings_server_address_label),
 				modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
 			)
 			Box(modifier = Modifier.padding(top = 12.dp)) {
@@ -342,12 +337,10 @@ private fun methodDescription(method: SignInMethod): Int = when (method) {
 
 @Composable
 private fun MethodOption(title: String, description: String, onClick: () -> Unit) {
-	Surface(
+	AppPanel(
 		modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-		shape = RoundedCornerShape(14.dp),
-		color = Color.Transparent,
-		contentColor = MaterialTheme.colorScheme.onSurface,
-		border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
+		shape = PanelShape.INLINE,
+		color = Color.Transparent
 	) {
 		Column(modifier = Modifier.clickable(onClick = onClick).padding(14.dp)) {
 			Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
@@ -371,36 +364,32 @@ private fun RegisterForm(viewModel: SettingsViewModel, onServerStateChanged: () 
 	var deviceLabel by remember { mutableStateOf(DeviceNames.default()) }
 
 	Column {
-		OutlinedTextField(
+		AppTextField(
 			value = code,
 			onValueChange = { code = it },
-			label = { Text(stringResource(R.string.settings_invite_code_label)) },
-			singleLine = true,
+			label = stringResource(R.string.settings_invite_code_label),
 			modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
 		)
-		OutlinedTextField(
+		AppTextField(
 			value = displayName,
 			onValueChange = { displayName = it },
-			label = { Text(stringResource(R.string.settings_display_name_label)) },
-			singleLine = true,
+			label = stringResource(R.string.settings_display_name_label),
 			modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 		)
 		// Server item 3: collected here and required - an account with no verified address has no way back
 		// once every device is gone.
-		OutlinedTextField(
+		AppTextField(
 			value = email,
 			onValueChange = { email = it },
-			label = { Text(stringResource(R.string.settings_email_label)) },
-			singleLine = true,
+			label = stringResource(R.string.settings_email_label),
 			isError = email.isNotBlank() && !isValidEmail(email),
-			supportingText = { Text(stringResource(R.string.settings_email_required_note)) },
+			supportingText = stringResource(R.string.settings_email_required_note),
 			modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 		)
-		OutlinedTextField(
+		AppTextField(
 			value = deviceLabel,
 			onValueChange = { deviceLabel = it },
-			label = { Text(stringResource(R.string.settings_device_label)) },
-			singleLine = true,
+			label = stringResource(R.string.settings_device_label),
 			modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 		)
 		Box(modifier = Modifier.padding(top = 12.dp)) {
@@ -427,18 +416,16 @@ private fun LinkForm(viewModel: SettingsViewModel, onServerStateChanged: () -> U
 	var deviceLabel by remember { mutableStateOf(DeviceNames.default()) }
 
 	Column {
-		OutlinedTextField(
+		AppTextField(
 			value = code,
 			onValueChange = { code = it },
-			label = { Text(stringResource(R.string.settings_link_code_label)) },
-			singleLine = true,
+			label = stringResource(R.string.settings_link_code_label),
 			modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
 		)
-		OutlinedTextField(
+		AppTextField(
 			value = deviceLabel,
 			onValueChange = { deviceLabel = it },
-			label = { Text(stringResource(R.string.settings_device_label)) },
-			singleLine = true,
+			label = stringResource(R.string.settings_device_label),
 			modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 		)
 		Box(modifier = Modifier.padding(top = 12.dp)) {
@@ -481,11 +468,10 @@ private fun RecoverForm(viewModel: SettingsViewModel, onServerStateChanged: () -
 				color = MaterialTheme.colorScheme.onSurfaceVariant,
 				modifier = Modifier.padding(top = 4.dp)
 			)
-			OutlinedTextField(
+			AppTextField(
 				value = email,
 				onValueChange = { email = it },
-				label = { Text(stringResource(R.string.settings_recovery_email_label)) },
-				singleLine = true,
+				label = stringResource(R.string.settings_recovery_email_label),
 				modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 			)
 			Box(modifier = Modifier.padding(top = 12.dp)) {
@@ -511,18 +497,16 @@ private fun RecoverForm(viewModel: SettingsViewModel, onServerStateChanged: () -
 			color = MaterialTheme.colorScheme.onSurfaceVariant,
 			modifier = Modifier.padding(top = 4.dp)
 		)
-		OutlinedTextField(
+		AppTextField(
 			value = code,
 			onValueChange = { code = it },
-			label = { Text(stringResource(R.string.settings_recovery_code_label)) },
-			singleLine = true,
+			label = stringResource(R.string.settings_recovery_code_label),
 			modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 		)
-		OutlinedTextField(
+		AppTextField(
 			value = deviceLabel,
 			onValueChange = { deviceLabel = it },
-			label = { Text(stringResource(R.string.settings_device_label)) },
-			singleLine = true,
+			label = stringResource(R.string.settings_device_label),
 			modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 		)
 		Box(modifier = Modifier.padding(top = 12.dp)) {
@@ -537,9 +521,11 @@ private fun RecoverForm(viewModel: SettingsViewModel, onServerStateChanged: () -
 		}
 		// The way back out of a mistyped address, which otherwise strands the player on a code that will
 		// never arrive.
-		TextButton(onClick = viewModel::dismissRecoveryRequest, modifier = Modifier.padding(top = 4.dp)) {
-			Text(stringResource(R.string.account_recover_restart))
-		}
+		AppTextButton(
+			text = stringResource(R.string.account_recover_restart),
+			onClick = viewModel::dismissRecoveryRequest,
+			modifier = Modifier.padding(top = 4.dp)
+		)
 	}
 }
 
@@ -629,7 +615,7 @@ private fun AccountStepContent(viewModel: SettingsViewModel, onServerStateChange
 							)
 						}
 					}
-					HorizontalDivider()
+					AppDivider()
 				}
 				OutlinedActionButton(
 					text = stringResource(R.string.action_link_new_device),
@@ -682,7 +668,7 @@ private fun EmailVerificationPanel(viewModel: SettingsViewModel) {
 				modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
 				contentAlignment = Alignment.Center
 			) {
-				CircularProgressIndicator()
+				AppSpinner()
 			}
 
 			viewModel.emailState == EmailVerificationState.VERIFIED -> Text(
@@ -699,11 +685,10 @@ private fun EmailVerificationPanel(viewModel: SettingsViewModel) {
 					color = MaterialTheme.colorScheme.onSurfaceVariant,
 					modifier = Modifier.padding(top = 4.dp)
 				)
-				OutlinedTextField(
+				AppTextField(
 					value = code,
 					onValueChange = { code = it },
-					label = { Text(stringResource(R.string.settings_email_code_label)) },
-					singleLine = true,
+					label = stringResource(R.string.settings_email_code_label),
 					modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 				)
 				Box(modifier = Modifier.padding(top = 12.dp)) {
@@ -715,18 +700,19 @@ private fun EmailVerificationPanel(viewModel: SettingsViewModel) {
 				}
 				// The way out of a persisted sent-state: a mistyped address would otherwise leave the account on
 				// this field permanently, since it now survives leaving the screen.
-				TextButton(onClick = viewModel::changeEmailAddress, modifier = Modifier.padding(top = 4.dp)) {
-					Text(stringResource(R.string.settings_email_change_address))
-				}
+				AppTextButton(
+					text = stringResource(R.string.settings_email_change_address),
+					onClick = viewModel::changeEmailAddress,
+					modifier = Modifier.padding(top = 4.dp)
+				)
 			}
 
 			else -> {
 				SubStageLabel(index = 1, total = 2, label = stringResource(R.string.account_email_stage_address), active = true)
-				OutlinedTextField(
+				AppTextField(
 					value = email,
 					onValueChange = { email = it },
-					label = { Text(stringResource(R.string.settings_email_label)) },
-					singleLine = true,
+					label = stringResource(R.string.settings_email_label),
 					isError = email.isNotBlank() && !isValidEmail(email),
 					modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 				)

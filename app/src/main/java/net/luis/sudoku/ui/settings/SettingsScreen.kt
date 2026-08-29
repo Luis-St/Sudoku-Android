@@ -12,9 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +32,7 @@ import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.grid.Variant
 import net.luis.sudoku.notification.NotificationPermission
 import net.luis.sudoku.ui.app.AppViewModel
+import net.luis.sudoku.ui.common.AppSwitch
 import net.luis.sudoku.ui.common.DropdownTrigger
 import net.luis.sudoku.ui.common.difficultyLabel
 import net.luis.sudoku.ui.common.OutlinedActionButton
@@ -248,7 +247,7 @@ private fun SettingSwitch(
 			style = MaterialTheme.typography.bodyLarge,
 			modifier = Modifier.weight(1f).padding(end = 12.dp)
 		)
-		Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+		AppSwitch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
 	}
 }
 

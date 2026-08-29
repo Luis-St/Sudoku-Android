@@ -1,6 +1,5 @@
 package net.luis.sudoku.ui.learn
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,11 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,6 +22,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import net.luis.sudoku.R
 import net.luis.sudoku.learn.LearnPuzzle
+import net.luis.sudoku.ui.common.PanelShape
+import net.luis.sudoku.ui.common.AppPanel
+import net.luis.sudoku.ui.common.AppSpinner
 import net.luis.sudoku.ui.common.GradientButton
 import net.luis.sudoku.ui.common.SectionCard
 import net.luis.sudoku.ui.theme.ActionAccent
@@ -85,7 +84,7 @@ fun LearnTechniqueScreen(
 		SectionCard(title = stringResource(R.string.learn_section_examples)) {
 			when {
 				viewModel.loading -> Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-					CircularProgressIndicator()
+					AppSpinner()
 				}
 				// The asset is bundled, so it is missing only if the app was built wrong. Said plainly rather
 				// than dressed up as a network problem, which it never is.
@@ -130,7 +129,7 @@ fun LearnTechniqueScreen(
 					if (viewModel.progress?.isStarted == true) R.string.learn_continue_training else R.string.learn_start_training
 				),
 				onClick = onStartTraining,
-				accent = ActionAccent.LIME,
+				accent = ActionAccent.SLOT_7,
 				modifier = Modifier.fillMaxWidth()
 			)
 		}
@@ -155,10 +154,9 @@ private fun ExampleTile(
 	onClick: () -> Unit
 ) {
 	Column(horizontalAlignment = Alignment.CenterHorizontally) {
-		Surface(
-			shape = RoundedCornerShape(12.dp),
+		AppPanel(
+			shape = PanelShape.INLINE,
 			color = MaterialTheme.colorScheme.background,
-			border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
 			modifier = Modifier.clickable(onClick = onClick)
 		) {
 			LearnBoardThumbnail(

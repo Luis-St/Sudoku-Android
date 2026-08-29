@@ -40,8 +40,8 @@ data class InkColors(
 	val pen: Color,
 	/** The same for a note. */
 	val pencil: Color,
-	val penAccent: ActionAccent,
-	val pencilAccent: ActionAccent
+	val penAccent: Accent,
+	val pencilAccent: Accent
 ) {
 
 	/**
@@ -56,7 +56,7 @@ data class InkColors(
 	}
 
 	/** The gradient a mode's controls light up in. [MODE_ACCENT] for both while the beta is off. */
-	fun accentOf(mode: InputMode): ActionAccent = when {
+	fun accentOf(mode: InputMode): Accent = when {
 		!this.enabled -> MODE_ACCENT
 		mode == InputMode.PEN -> this.penAccent
 		else -> this.pencilAccent
@@ -64,8 +64,13 @@ data class InkColors(
 
 	companion object {
 
-		/** The accent both toggles have always used, and still do while the beta is off. */
-		val MODE_ACCENT = ActionAccent.INDIGO
+		/**
+		 * The accent both toggles have always used, and still do while the beta is off.
+		 *
+		 * A themed slot, unlike the two below: with the beta off the toggles say nothing about ink, they are
+		 * simply the app's own primary action, and that is a thing a theme is allowed to recolour.
+		 */
+		val MODE_ACCENT: Accent = ActionAccent.SLOT_1
 
 		/** The beta switched off: what every screen drew before it existed. */
 		val OFF = InkColors(
@@ -97,8 +102,8 @@ data class InkColors(
 			enabled = true,
 			pen = InkOrangeLight,
 			pencil = InkBlueLight,
-			penAccent = ActionAccent.AMBER,
-			pencilAccent = ActionAccent.SKY
+			penAccent = PenAccent,
+			pencilAccent = PencilAccent
 		)
 
 		/** The same two hues, each at the value a near-black cell needs. */
@@ -106,13 +111,26 @@ data class InkColors(
 			enabled = true,
 			pen = InkOrangeDark,
 			pencil = InkBlueDark,
-			penAccent = ActionAccent.AMBER,
-			pencilAccent = ActionAccent.SKY
+			penAccent = PenAccent,
+			pencilAccent = PencilAccent
 		)
 
 		fun of(dark: Boolean): InkColors = if (dark) DARK else LIGHT
 	}
 }
+
+/**
+ * The gradient the **pen** toggle lights up in, and a [FixedAccent] rather than a theme slot.
+ *
+ * What the toggle says is "you are writing in the orange ink", so it has to stay the orange the ink writes
+ * in on every theme there will ever be. It went through the accent slot that happened to be amber until
+ * accents became themeable, at which point recolouring a theme's third button would silently have moved
+ * the pen toggle away from the pen - with nothing on screen to say the two had stopped matching.
+ */
+private val PenAccent = FixedAccent(GradientAmberStart, GradientAmberEnd)
+
+/** The same for the pencil, pinned to the blue its notes are written in. */
+private val PencilAccent = FixedAccent(GradientSkyStart, GradientSkyEnd)
 
 /** The classic palette's light-mode same-value mark, which is where the pen's ink comes from. */
 private val InkOrangeLight = Color(0xFFEF6C00)

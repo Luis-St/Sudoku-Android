@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -18,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import net.luis.sudoku.R
 import net.luis.sudoku.sharecode.ShareCodeCodec
+import net.luis.sudoku.ui.common.AppTextField
 import net.luis.sudoku.ui.common.GradientButton
 import net.luis.sudoku.ui.common.SectionCard
 
@@ -45,14 +45,13 @@ fun EnterCodeScreen(
 					color = MaterialTheme.colorScheme.onSurfaceVariant
 				)
 
-				OutlinedTextField(
+				AppTextField(
 					value = code,
 					onValueChange = {
 						code = it
 						invalid = false
 					},
-					label = { Text(stringResource(R.string.enter_code_label)) },
-					singleLine = true,
+					label = stringResource(R.string.enter_code_label),
 					isError = invalid,
 					modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
 				)

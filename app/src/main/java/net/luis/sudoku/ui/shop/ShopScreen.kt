@@ -19,10 +19,16 @@ import net.luis.sudoku.R
 /**
  * UI item 10: the shop exists as a destination but is deliberately empty for now.
  *
- * The machinery it will need is already in place - `BoardThemeCatalog` carries a price and an
- * owned-by-default flag per theme, `SettingsStore.setBoardThemeId` persists the selection, and the board
- * only ever reads `LocalBoardPalette` - so filling this in later is a catalog entry plus an unlock
- * check, not a rewrite.
+ * What it needs on the client is in place: `AppThemeCatalog` carries a price and an owned-by-default flag
+ * per theme, `SettingsStore.setThemeId` persists the selection, and every screen reads named roles that
+ * `SudokuAndroidTheme` fills from the selected theme - chrome, board, accents, region tints and shapes
+ * alike. So a new look is a catalog entry.
+ *
+ * What is *not* in place, and is deliberately not faked here, is ownership. Nothing on the device and
+ * nothing on the server records a purchase yet, and it cannot be a local spend: `CurrencyService.sync`
+ * only ever raises a balance (`delta = max(0, accepted - current)`), so a locally deducted price would be
+ * handed straight back on the next connect. Buying has to be a server endpoint that writes the ledger row
+ * and the entitlement in one transaction, with the client adopting the balance it returns.
  */
 @Composable
 fun ShopScreen(modifier: Modifier = Modifier) {

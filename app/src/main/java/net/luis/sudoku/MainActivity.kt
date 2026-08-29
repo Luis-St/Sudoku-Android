@@ -19,7 +19,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -64,6 +63,9 @@ import net.luis.sudoku.data.local.ThemeMode
 import net.luis.sudoku.data.remote.SessionEndReason
 import net.luis.sudoku.ui.app.AppViewModel
 import net.luis.sudoku.ui.code.EnterCodeScreen
+import net.luis.sudoku.ui.common.AppDialog
+import net.luis.sudoku.ui.common.AppIconButton
+import net.luis.sudoku.ui.common.AppTextButton
 import net.luis.sudoku.ui.common.InfoDialog
 import net.luis.sudoku.ui.game.GameScreen
 import net.luis.sudoku.ui.game.GameTopBarActions
@@ -94,7 +96,7 @@ import net.luis.sudoku.ui.learn.LearnSettingsScreen
 import net.luis.sudoku.ui.learn.LearnTrainScreen
 import net.luis.sudoku.ui.learn.LearnTechniqueScreen
 import net.luis.sudoku.ui.stats.StatsScreen
-import net.luis.sudoku.ui.theme.BoardThemeCatalog
+import net.luis.sudoku.ui.theme.AppThemeCatalog
 import net.luis.sudoku.ui.theme.SudokuAndroidTheme
 import net.luis.sudoku.ui.theme.isDarkTheme
 import net.luis.sudoku.ui.theme.appBackground
@@ -148,7 +150,7 @@ class MainActivity : ComponentActivity() {
 			) {
 				SudokuAndroidTheme(
 					themeMode = preferences.themeMode,
-					boardTheme = BoardThemeCatalog.byId(preferences.boardThemeId),
+					theme = AppThemeCatalog.byId(preferences.themeId),
 					dualInk = preferences.betaDualInk,
 					everyOccurrencePeers = preferences.betaEveryOccurrencePeers
 				) {
@@ -252,14 +254,13 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 						// that made sense. The play screen publishes which of the two it is (see
 						// `GameTopBarActions.leaveNeedsConfirm`); a result gets the ordinary back arrow.
 						val confirmLeave = onGameScreen && gameTopBarActions.leaveNeedsConfirm
-						IconButton(onClick = { if (confirmLeave) showLeaveGameConfirm = true else navController.popBackStack() }) {
-							Icon(
-								imageVector = if (confirmLeave) Icons.Filled.Close else Icons.Filled.ArrowBack,
-								contentDescription = stringResource(
-									if (confirmLeave) R.string.action_leave_game else R.string.action_back
-								)
-							)
-						}
+						AppIconButton(
+							icon = if (confirmLeave) Icons.Filled.Close else Icons.Filled.ArrowBack,
+							contentDescription = stringResource(
+								if (confirmLeave) R.string.action_leave_game else R.string.action_back
+							),
+							onClick = { if (confirmLeave) showLeaveGameConfirm = true else navController.popBackStack() }
+						)
 					}
 				},
 				actions = {
@@ -283,17 +284,18 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 					// examples and not the training. There is a puzzle running behind this screen; the way out
 					// of it is not a second one (see `Routes.ARG_REFERENCE`).
 					if (onGameScreen) {
-						IconButton(onClick = { navController.navigate(Routes.learn(reference = true)) }) {
-							Icon(
-								painter = painterResource(R.drawable.ic_learn),
-								contentDescription = stringResource(R.string.learn_open_wiki)
-							)
-						}
+						AppIconButton(
+							iconPainter = painterResource(R.drawable.ic_learn),
+							contentDescription = stringResource(R.string.learn_open_wiki),
+							onClick = { navController.navigate(Routes.learn(reference = true)) }
+						)
 					}
 					gameTopBarActions.onShare?.let { share ->
-						IconButton(onClick = share) {
-							Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.action_share))
-						}
+						AppIconButton(
+							icon = Icons.Filled.Share,
+							contentDescription = stringResource(R.string.action_share),
+							onClick = share
+						)
 					}
 					// Game item 3: light and dark, one tap - **on a board only**.
 					//
@@ -309,14 +311,13 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 					// player sits on for a long stretch, it is the one that is nothing but body text, and the settings
 					// icon that used to be the way to the switch is deliberately gone from here (learn item 9).
 					if (onGameScreen || inLearnArea) {
-						IconButton(onClick = { appViewModel.setThemeMode(if (darkTheme) ThemeMode.LIGHT else ThemeMode.DARK) }) {
-							Icon(
-								painter = painterResource(if (darkTheme) R.drawable.ic_theme_light else R.drawable.ic_theme_dark),
-								contentDescription = stringResource(
-									if (darkTheme) R.string.action_theme_light else R.string.action_theme_dark
-								)
-							)
-						}
+						AppIconButton(
+							iconPainter = painterResource(if (darkTheme) R.drawable.ic_theme_light else R.drawable.ic_theme_dark),
+							contentDescription = stringResource(
+								if (darkTheme) R.string.action_theme_light else R.string.action_theme_dark
+							),
+							onClick = { appViewModel.setThemeMode(if (darkTheme) ThemeMode.LIGHT else ThemeMode.DARK) }
+						)
 					}
 					// Learn item 12: and the language, next to it, on the learn screens only.
 					//
@@ -373,9 +374,11 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 					}
 					// UI item 7: settings top right, except inside the settings or players area and on a board.
 					if (showTopLevelNavigation) {
-						IconButton(onClick = { navController.navigate(Routes.SETTINGS) }) {
-							Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.tab_settings))
-						}
+						AppIconButton(
+							icon = Icons.Filled.Settings,
+							contentDescription = stringResource(R.string.tab_settings),
+							onClick = { navController.navigate(Routes.SETTINGS) }
+						)
 					}
 				}
 			)
@@ -411,26 +414,27 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 			// player may be anywhere, including mid-puzzle. A dialog rather than the match request's banner
 			// because there is nothing to miss here: the session is already gone either way.
 			if (showLeaveGameConfirm) {
-				AlertDialog(
+				AppDialog(
 					onDismissRequest = { showLeaveGameConfirm = false },
 					title = { Text(stringResource(R.string.dialog_leave_game_title)) },
 					text = { Text(stringResource(R.string.dialog_leave_game_message)) },
 					confirmButton = {
-						TextButton(
+						AppTextButton(
+							text = stringResource(R.string.action_leave_game),
+							destructive = true,
 							onClick = {
 								showLeaveGameConfirm = false
 								// Straight home, and the board is taken off the back stack with it: a puzzle the
 								// player has just chosen to leave must not be one Back press away.
 								navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } }
 							}
-						) {
-							Text(stringResource(R.string.action_leave_game), color = MaterialTheme.colorScheme.error)
-						}
+						)
 					},
 					dismissButton = {
-						TextButton(onClick = { showLeaveGameConfirm = false }) {
-							Text(stringResource(R.string.action_keep_playing))
-						}
+						AppTextButton(
+							text = stringResource(R.string.action_keep_playing),
+							onClick = { showLeaveGameConfirm = false }
+						)
 					}
 				)
 			}
@@ -452,26 +456,27 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 			// are already back in one.
 			if (!onGameScreen) {
 				appViewModel.runningMatch?.let { match ->
-					AlertDialog(
+					AppDialog(
 						// No dismiss: both answers do something, and closing the popup by accident would leave
 						// the other players waiting for a decision that had already been made.
 						onDismissRequest = {},
 						title = { Text(stringResource(R.string.dialog_rejoin_match_title)) },
 						text = { Text(stringResource(R.string.dialog_rejoin_match_message)) },
 						confirmButton = {
-							TextButton(
+							AppTextButton(
+								text = stringResource(R.string.action_rejoin_match),
 								onClick = {
 									appViewModel.dismissRunningMatch()
 									navController.navigate(Routes.multiplayerMatch(match.matchId, match.mode, match.stake))
 								}
-							) {
-								Text(stringResource(R.string.action_rejoin_match))
-							}
+							)
 						},
 						dismissButton = {
-							TextButton(onClick = appViewModel::leaveRunningMatch) {
-								Text(stringResource(R.string.action_leave_match), color = MaterialTheme.colorScheme.error)
-							}
+							AppTextButton(
+								text = stringResource(R.string.action_leave_match),
+								destructive = true,
+								onClick = appViewModel::leaveRunningMatch
+							)
 						}
 					)
 				}
@@ -547,7 +552,7 @@ private const val GERMAN = "de"
 @Composable
 private fun SessionEndedDialog(reason: SessionEndReason, onDismiss: () -> Unit, onOpenSettings: () -> Unit) {
 	val removed = reason == SessionEndReason.REMOVED
-	AlertDialog(
+	AppDialog(
 		onDismissRequest = onDismiss,
 		title = {
 			Text(stringResource(if (removed) R.string.session_removed_title else R.string.session_ended_title))
@@ -556,10 +561,10 @@ private fun SessionEndedDialog(reason: SessionEndReason, onDismiss: () -> Unit, 
 			Text(stringResource(if (removed) R.string.session_removed_message else R.string.session_ended_message))
 		},
 		confirmButton = {
-			TextButton(onClick = onOpenSettings) { Text(stringResource(R.string.action_open_settings)) }
+			AppTextButton(text = stringResource(R.string.action_open_settings), onClick = onOpenSettings)
 		},
 		dismissButton = {
-			TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_ok)) }
+			AppTextButton(text = stringResource(R.string.action_ok), onClick = onDismiss)
 		}
 	)
 }

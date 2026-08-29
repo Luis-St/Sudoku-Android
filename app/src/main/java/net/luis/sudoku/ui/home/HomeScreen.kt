@@ -1,6 +1,5 @@
 package net.luis.sudoku.ui.home
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,16 +10,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -32,6 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import net.luis.sudoku.R
 import net.luis.sudoku.data.local.ServerConfig
+import net.luis.sudoku.ui.common.AppPanel
+import net.luis.sudoku.ui.common.AppTextButton
+import net.luis.sudoku.ui.common.AppDialog
 import net.luis.sudoku.ui.common.GradientButton
 import net.luis.sudoku.ui.common.SectionCard
 import net.luis.sudoku.ui.common.StreakRestoreDialog
@@ -86,21 +84,21 @@ fun HomeScreen(
 					text = stringResource(R.string.home_continue),
 					onClick = onContinue,
 					icon = Icons.Filled.PlayArrow,
-					accent = ActionAccent.TEAL,
+					accent = ActionAccent.SLOT_4,
 					modifier = Modifier.fillMaxWidth()
 				)
 				GradientButton(
 					text = stringResource(R.string.home_generator),
 					onClick = onOpenGenerator,
 					iconPainter = painterResource(R.drawable.ic_generator),
-					accent = ActionAccent.AMBER,
+					accent = ActionAccent.SLOT_2,
 					modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 				)
 				GradientButton(
 					text = stringResource(R.string.home_enter_code),
 					onClick = onOpenEnterCode,
 					iconPainter = painterResource(R.drawable.ic_import),
-					accent = ActionAccent.SKY,
+					accent = ActionAccent.SLOT_6,
 					modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 				)
 				// Home item 1: multiplayer is a way to play, so it belongs at the end of the play section rather
@@ -111,7 +109,7 @@ fun HomeScreen(
 						text = stringResource(R.string.home_multiplayer),
 						onClick = onOpenMultiplayer,
 						iconPainter = painterResource(R.drawable.ic_multiplayer),
-						accent = ActionAccent.INDIGO,
+						accent = ActionAccent.SLOT_1,
 						modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 					)
 				}
@@ -122,7 +120,7 @@ fun HomeScreen(
 					text = stringResource(R.string.learn_home_button),
 					onClick = onOpenLearn,
 					iconPainter = painterResource(R.drawable.ic_learn),
-					accent = ActionAccent.LIME,
+					accent = ActionAccent.SLOT_7,
 					modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 				)
 			}
@@ -134,14 +132,14 @@ fun HomeScreen(
 					text = stringResource(R.string.home_stats),
 					onClick = onOpenStats,
 					iconPainter = painterResource(R.drawable.ic_stats),
-					accent = ActionAccent.VIOLET,
+					accent = ActionAccent.SLOT_5,
 					modifier = Modifier.fillMaxWidth()
 				)
 				GradientButton(
 					text = stringResource(R.string.home_shop),
 					onClick = onOpenShop,
 					iconPainter = painterResource(R.drawable.ic_shop),
-					accent = ActionAccent.ROSE,
+					accent = ActionAccent.SLOT_3,
 					modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 				)
 			}
@@ -157,11 +155,11 @@ fun HomeScreen(
 	}
 
 	viewModel.errorMessage?.let { message ->
-		AlertDialog(
+		AppDialog(
 			onDismissRequest = viewModel::dismissError,
 			title = { Text(stringResource(R.string.dialog_error_title)) },
 			text = { Text(message) },
-			confirmButton = { TextButton(onClick = viewModel::dismissError) { Text(stringResource(R.string.action_ok)) } }
+			confirmButton = { AppTextButton(text = stringResource(R.string.action_ok), onClick = viewModel::dismissError) }
 		)
 	}
 }
@@ -198,14 +196,9 @@ private fun DailyCard(
 	onRestore: () -> Unit,
 	modifier: Modifier = Modifier
 ) {
-	Surface(
+	AppPanel(
 		modifier = modifier.fillMaxWidth(),
-		shape = RoundedCornerShape(20.dp),
-		color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-		// Same reason as SectionCard: an alpha-modified container resolves to no scheme role, so the
-		// content color has to be stated or the text renders black on a dark card.
-		contentColor = MaterialTheme.colorScheme.onSurface,
-		border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+		color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
 	) {
 		Column(modifier = Modifier.padding(18.dp)) {
 			Row(verticalAlignment = Alignment.CenterVertically) {
@@ -270,9 +263,11 @@ private fun DailyCard(
 						)
 					}
 				}
-				TextButton(onClick = onRestore, modifier = Modifier.padding(top = 4.dp)) {
-					Text(stringResource(R.string.daily_streak_restore_button))
-				}
+				AppTextButton(
+					text = stringResource(R.string.daily_streak_restore_button),
+					onClick = onRestore,
+					modifier = Modifier.padding(top = 4.dp)
+				)
 			}
 		}
 	}

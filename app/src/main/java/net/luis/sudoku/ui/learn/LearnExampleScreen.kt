@@ -10,10 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -26,6 +23,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import net.luis.sudoku.R
+import net.luis.sudoku.ui.common.PanelShape
+import net.luis.sudoku.ui.common.AppPanel
+import net.luis.sudoku.ui.common.AppSpinner
+import net.luis.sudoku.ui.common.AppProgressBar
 import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.theme.LocalBoardPalette
 import net.luis.sudoku.ui.theme.LocalDarkTheme
@@ -87,7 +88,7 @@ fun LearnExampleScreen(
 					modifier = Modifier.fillMaxWidth().padding(32.dp),
 					contentAlignment = Alignment.Center
 				) {
-					CircularProgressIndicator()
+					AppSpinner()
 				}
 				// The asset is bundled, so it is missing only if the app was built wrong. Said plainly rather than
 				// dressed up as a network problem, which it never is.
@@ -110,11 +111,12 @@ fun LearnExampleScreen(
 					// The caption keeps its height across the whole example: the sentences differ in length, and a
 					// box that grows and shrinks moves the two buttons under it out from under the finger that is
 					// stepping through the argument.
-					Surface(
+					AppPanel(
 						modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-						shape = RoundedCornerShape(14.dp),
+						shape = PanelShape.INLINE,
 						color = MaterialTheme.colorScheme.surfaceVariant,
-						contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+						contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+						outlined = false
 					) {
 						Box(
 							modifier = Modifier
@@ -214,10 +216,9 @@ private fun StepButtons(
 @Composable
 private fun StepProgress(step: Int, count: Int) {
 	Column(modifier = Modifier.fillMaxWidth()) {
-		LinearProgressIndicator(
+		AppProgressBar(
 			progress = { if (count == 0) 0f else step.toFloat() / count },
-			modifier = Modifier.fillMaxWidth(),
-			trackColor = MaterialTheme.colorScheme.surfaceVariant
+			modifier = Modifier.fillMaxWidth()
 		)
 		Text(
 			text = stringResource(R.string.learn_example_step_counter, step, count),

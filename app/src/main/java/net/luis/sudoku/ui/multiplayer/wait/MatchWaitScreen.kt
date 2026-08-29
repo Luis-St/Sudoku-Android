@@ -12,12 +12,8 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -28,6 +24,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import net.luis.sudoku.R
+import net.luis.sudoku.ui.common.AppSpinner
+import net.luis.sudoku.ui.common.AppDivider
+import net.luis.sudoku.ui.common.AppTextButton
+import net.luis.sudoku.ui.common.AppDialog
 import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.common.SectionCard
 import net.luis.sudoku.ui.common.friendlyErrorMessage
@@ -82,7 +82,7 @@ fun MatchWaitScreen(
 		SectionCard(title = stringResource(R.string.matchwait_header)) {
 			Column {
 				Row(verticalAlignment = Alignment.CenterVertically) {
-					CircularProgressIndicator(modifier = Modifier.size(20.dp))
+					AppSpinner(size = 20.dp)
 					Text(
 						text = stringResource(R.string.matchwait_waiting),
 						style = MaterialTheme.typography.bodyLarge,
@@ -123,7 +123,7 @@ fun MatchWaitScreen(
 					)
 				}
 				viewModel.invitablePlayers.forEachIndexed { index, player ->
-					if (index > 0) HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+					if (index > 0) AppDivider(modifier = Modifier.padding(vertical = 4.dp))
 					val name = player.displayName ?: player.id
 					Row(
 						modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
@@ -149,10 +149,11 @@ fun MatchWaitScreen(
 								color = MaterialTheme.colorScheme.secondary
 							)
 						} else {
-							TextButton(
+							AppTextButton(
+								text = stringResource(R.string.players_invite_to_match),
 								onClick = { viewModel.requestPlayer(matchId, player.id) },
 								enabled = !viewModel.busy
-							) { Text(stringResource(R.string.players_invite_to_match)) }
+							)
 						}
 					}
 				}
@@ -160,21 +161,21 @@ fun MatchWaitScreen(
 		}
 
 		Box(modifier = Modifier.fillMaxWidth().padding(top = 16.dp), contentAlignment = Alignment.Center) {
-			TextButton(onClick = { viewModel.cancel(matchId) }, enabled = !viewModel.busy) {
-				Text(
-					text = stringResource(R.string.matchwait_cancel),
-					color = MaterialTheme.colorScheme.error
-				)
-			}
+			AppTextButton(
+				text = stringResource(R.string.matchwait_cancel),
+				onClick = { viewModel.cancel(matchId) },
+				enabled = !viewModel.busy,
+				destructive = true
+			)
 		}
 	}
 
 	viewModel.errorMessage?.let { message ->
-		AlertDialog(
+		AppDialog(
 			onDismissRequest = viewModel::dismissError,
 			title = { Text(stringResource(R.string.dialog_error_title)) },
 			text = { Text(friendlyErrorMessage(viewModel.errorCode ?: "", message)) },
-			confirmButton = { TextButton(onClick = viewModel::dismissError) { Text(stringResource(R.string.action_ok)) } }
+			confirmButton = { AppTextButton(text = stringResource(R.string.action_ok), onClick = viewModel::dismissError) }
 		)
 	}
 }

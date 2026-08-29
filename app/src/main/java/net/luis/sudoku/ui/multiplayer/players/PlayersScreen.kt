@@ -14,16 +14,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,6 +37,11 @@ import kotlinx.coroutines.delay
 import net.luis.sudoku.R
 import net.luis.sudoku.data.remote.dto.MatchRequestResponse
 import net.luis.sudoku.data.remote.dto.PlayerResponse
+import net.luis.sudoku.ui.common.AppIconButton
+import net.luis.sudoku.ui.common.AppDivider
+import net.luis.sudoku.ui.common.AppTextButton
+import net.luis.sudoku.ui.common.AppAssistChip
+import net.luis.sudoku.ui.common.AppDialog
 import net.luis.sudoku.ui.common.GradientButton
 import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.common.friendlyErrorMessage
@@ -133,7 +132,7 @@ fun PlayersScreen(
 			) {
 				Column {
 					invites.forEachIndexed { index, request ->
-						if (index > 0) HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+						if (index > 0) AppDivider(modifier = Modifier.padding(vertical = 8.dp))
 						InviteRow(request = request, onJoin = { onJoinInvite(request) })
 					}
 				}
@@ -143,7 +142,7 @@ fun PlayersScreen(
 		SectionCard(title = stringResource(R.string.tab_players)) {
 			Column {
 				viewModel.players.forEachIndexed { index, player ->
-					if (index > 0) HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+					if (index > 0) AppDivider(modifier = Modifier.padding(vertical = 4.dp))
 					PlayerRow(
 						player = player,
 						streak = viewModel.streakOf(player),
@@ -174,11 +173,11 @@ fun PlayersScreen(
 	}
 
 	viewModel.errorMessage?.let { message ->
-		AlertDialog(
+		AppDialog(
 			onDismissRequest = viewModel::dismissError,
 			title = { Text(stringResource(R.string.dialog_error_title)) },
 			text = { Text(friendlyErrorMessage(viewModel.errorCode ?: "", message)) },
-			confirmButton = { TextButton(onClick = viewModel::dismissError) { Text(stringResource(R.string.action_ok)) } }
+			confirmButton = { AppTextButton(text = stringResource(R.string.action_ok), onClick = viewModel::dismissError) }
 		)
 	}
 }
@@ -258,7 +257,7 @@ private fun PlayerRow(
 				// Labelled as removed instead of by the role they still hold on paper: the role is not what an
 				// admin needs to know about this row, and a kicked ADMIN chip reads as somebody in charge.
 				if (player.revoked) {
-					AssistChip(
+					AppAssistChip(
 						onClick = onOpen,
 						label = { Text(stringResource(R.string.players_removed), style = MaterialTheme.typography.labelSmall) },
 						modifier = Modifier.padding(start = 8.dp)
@@ -268,7 +267,7 @@ private fun PlayerRow(
 				// unlabelled row means "NEW or MEMBER, no way to tell", which is the distinction an admin is
 				// on this screen to manage.
 				if (role != null && !player.revoked) {
-					AssistChip(
+					AppAssistChip(
 						onClick = onOpen,
 						label = { Text(stringResource(role.labelRes), style = MaterialTheme.typography.labelSmall) },
 						modifier = Modifier.padding(start = 8.dp)
@@ -306,9 +305,11 @@ private fun PlayerRow(
 		// match being invited to actually exists (multiplayer item 4).
 		if (isAdminViewer && !isSelf) {
 			Box {
-				IconButton(onClick = { menuOpen = true }) {
-					Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.players_more_actions))
-				}
+				AppIconButton(
+					icon = Icons.Filled.MoreVert,
+					contentDescription = stringResource(R.string.players_more_actions),
+					onClick = { menuOpen = true }
+				)
 				DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
 					// A removed player gets exactly one action. Changing the role of somebody who cannot
 					// authenticate would be setting a permission nobody can use.
@@ -345,24 +346,24 @@ private fun PlayerRow(
 	}
 
 	if (kickConfirmOpen) {
-		AlertDialog(
+		AppDialog(
 			onDismissRequest = { kickConfirmOpen = false },
 			title = { Text(stringResource(R.string.players_kick_confirm_title, name)) },
 			// Says what actually happens, because none of it is obvious from the word "remove": their keys
 			// stop working, their history survives, and an admin can undo it.
 			text = { Text(stringResource(R.string.players_kick_confirm_message)) },
 			confirmButton = {
-				TextButton(
+				AppTextButton(
+					text = stringResource(R.string.players_kick),
+					destructive = true,
 					onClick = {
 						kickConfirmOpen = false
 						onKick()
 					}
-				) {
-					Text(stringResource(R.string.players_kick), color = MaterialTheme.colorScheme.error)
-				}
+				)
 			},
 			dismissButton = {
-				TextButton(onClick = { kickConfirmOpen = false }) { Text(stringResource(R.string.action_cancel)) }
+				AppTextButton(text = stringResource(R.string.action_cancel), onClick = { kickConfirmOpen = false })
 			}
 		)
 	}
@@ -396,7 +397,7 @@ private fun RolePickerDialog(
 	onDismiss: () -> Unit,
 	onPick: (ServerRole) -> Unit
 ) {
-	AlertDialog(
+	AppDialog(
 		onDismissRequest = onDismiss,
 		title = { Text(stringResource(R.string.players_change_role_title, name)) },
 		text = {
@@ -428,7 +429,7 @@ private fun RolePickerDialog(
 				}
 			}
 		},
-		confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } }
+		confirmButton = { AppTextButton(text = stringResource(R.string.action_cancel), onClick = onDismiss) }
 	)
 }
 

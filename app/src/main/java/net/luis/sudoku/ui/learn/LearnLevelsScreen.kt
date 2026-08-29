@@ -12,18 +12,13 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,8 +34,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import net.luis.sudoku.R
 import net.luis.sudoku.domain.SubLevelState
 import net.luis.sudoku.learn.LearnContent
+import net.luis.sudoku.ui.common.PanelShape
+import net.luis.sudoku.ui.common.AppPanel
+import net.luis.sudoku.ui.common.AppIconButton
+import net.luis.sudoku.ui.common.AppTextButton
+import net.luis.sudoku.ui.common.AppDialog
 import net.luis.sudoku.ui.common.OutlinedActionButton
-import net.luis.sudoku.ui.common.dialogContainerColor
+import net.luis.sudoku.ui.theme.LocalAppShapes
 
 /**
  * A technique's training (learn item 3): three levels of three exercises, each level giving less help than
@@ -121,40 +121,37 @@ fun LearnLevelsScreen(
 	// The search runs on the phone and can take a few seconds, so it is announced before it starts rather
 	// than left to look like a screen that has stopped responding.
 	generateFor?.let { level ->
-		AlertDialog(
+		AppDialog(
 			onDismissRequest = { generateFor = null },
-			containerColor = dialogContainerColor(),
 			title = { Text(stringResource(R.string.learn_generate_confirm_title)) },
 			text = { Text(stringResource(R.string.learn_generate_confirm_message)) },
 			confirmButton = {
-				TextButton(
+				AppTextButton(
+					text = stringResource(R.string.learn_generate_confirm_action),
 					onClick = {
 						generateFor = null
 						// Exercise one's slot carries the practice run: nothing is recorded against it, and the
 						// screens it opens name it free practice rather than an exercise number.
 						onOpenExercise(TrainingRequest(level, subLevel = 0, fresh = true, brief = level !in viewModel.briefSkipped))
 					}
-				) {
-					Text(stringResource(R.string.learn_generate_confirm_action))
-				}
+				)
 			},
 			dismissButton = {
-				TextButton(onClick = { generateFor = null }) { Text(stringResource(R.string.action_cancel)) }
+				AppTextButton(text = stringResource(R.string.action_cancel), onClick = { generateFor = null })
 			}
 		)
 	}
 
 	if (viewModel.confirmingReset) {
-		AlertDialog(
+		AppDialog(
 			onDismissRequest = viewModel::dismissReset,
-			containerColor = dialogContainerColor(),
 			title = { Text(stringResource(R.string.learn_reset_confirm_title)) },
 			text = { Text(stringResource(R.string.learn_reset_confirm_message)) },
 			confirmButton = {
-				TextButton(onClick = viewModel::reset) { Text(stringResource(R.string.learn_reset_confirm_action)) }
+				AppTextButton(text = stringResource(R.string.learn_reset_confirm_action), onClick = viewModel::reset)
 			},
 			dismissButton = {
-				TextButton(onClick = viewModel::dismissReset) { Text(stringResource(R.string.action_cancel)) }
+				AppTextButton(text = stringResource(R.string.action_cancel), onClick = viewModel::dismissReset)
 			}
 		)
 	}
@@ -253,11 +250,12 @@ private const val LOCKED_ALPHA = 0.45f
 @Composable
 private fun SubLevelRow(subLevel: Int, state: SubLevelState, onClick: () -> Unit) {
 	val locked = state == SubLevelState.LOCKED
-	Surface(
+	val shapes = LocalAppShapes.current
+	AppPanel(
 		modifier = Modifier
 			.fillMaxWidth()
 			.then(if (locked) Modifier else Modifier.clickable(onClick = onClick)),
-		shape = RoundedCornerShape(14.dp),
+		shape = PanelShape.INLINE,
 		color = when (state) {
 			SubLevelState.SOLVED -> MaterialTheme.colorScheme.primaryContainer
 			// Its own colour, not the solved one dimmed: it is a different outcome, not a weaker one.
@@ -269,7 +267,14 @@ private fun SubLevelRow(subLevel: Int, state: SubLevelState, onClick: () -> Unit
 			SubLevelState.PARTIAL -> MaterialTheme.colorScheme.onTertiaryContainer
 			else -> MaterialTheme.colorScheme.onSurface
 		},
-		border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = if (locked) 0.15f else 0.25f))
+		// A locked exercise fades its outline to a fraction of an unlocked one's rather than to a fixed alpha,
+		// so the two stay a step apart under a theme that draws heavier borders.
+		border = BorderStroke(
+			shapes.borderWidth,
+			MaterialTheme.colorScheme.outline.copy(
+				alpha = shapes.containerBorderAlpha * (if (locked) 0.6f else 1f)
+			)
+		)
 	) {
 		Row(
 			// Every exercise is the same height, whatever it happens to carry on the right. Only the rows that
@@ -307,13 +312,13 @@ private fun SubLevelRow(subLevel: Int, state: SubLevelState, onClick: () -> Unit
 			// have something to repeat, and not on an untouched exercise, where the whole row is already the
 			// way in and a second control beside it would say there were two different ways to start.
 			if (state == SubLevelState.SOLVED || state == SubLevelState.PARTIAL) {
-				IconButton(onClick = onClick, modifier = Modifier.padding(start = 4.dp).size(28.dp)) {
-					Icon(
-						imageVector = Icons.Filled.Refresh,
-						contentDescription = stringResource(R.string.learn_sub_level_again),
-						modifier = Modifier.size(20.dp)
-					)
-				}
+				AppIconButton(
+					icon = Icons.Filled.Refresh,
+					contentDescription = stringResource(R.string.learn_sub_level_again),
+					onClick = onClick,
+					iconSize = 20.dp,
+					modifier = Modifier.padding(start = 4.dp).size(28.dp)
+				)
 			}
 		}
 	}

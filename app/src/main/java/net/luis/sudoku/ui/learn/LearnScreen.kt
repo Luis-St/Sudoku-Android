@@ -1,6 +1,5 @@
 package net.luis.sudoku.ui.learn
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,10 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -35,6 +31,9 @@ import net.luis.sudoku.R
 import net.luis.sudoku.domain.TechniqueProgress
 import net.luis.sudoku.learn.LearnContent
 import net.luis.sudoku.solver.Technique
+import net.luis.sudoku.ui.common.AppTextField
+import net.luis.sudoku.ui.common.AppPanel
+import net.luis.sudoku.ui.theme.LocalAppShapes
 
 /**
  * One row of the wiki list: a technique, the name the player knows it by, and how far they have got.
@@ -87,11 +86,10 @@ fun LearnScreen(
 			)
 		}
 
-		OutlinedTextField(
+		AppTextField(
 			value = query,
 			onValueChange = viewModel::search,
-			label = { Text(stringResource(R.string.learn_search_hint)) },
-			singleLine = true,
+			label = stringResource(R.string.learn_search_hint),
 			// The mastery card carries the gap under the app bar; without it the field has to carry its own.
 			modifier = Modifier.fillMaxWidth().padding(top = if (reference) 8.dp else 0.dp)
 		)
@@ -135,12 +133,9 @@ private fun MasteryCard(mastered: Int, total: Int, modifier: Modifier = Modifier
 	val trackColor = MaterialTheme.colorScheme.surfaceVariant
 	val masteredDescription = stringResource(R.string.learn_mastered_counter, mastered, total)
 
-	Surface(
+	AppPanel(
 		modifier = modifier.fillMaxWidth(),
-		shape = RoundedCornerShape(18.dp),
-		color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
-		contentColor = MaterialTheme.colorScheme.onSurface,
-		border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+		color = MaterialTheme.colorScheme.surface.copy(alpha = LocalAppShapes.current.containerAlpha)
 	) {
 		Row(
 			modifier = Modifier
@@ -223,12 +218,9 @@ private val RING_STROKE = 8.dp
  */
 @Composable
 private fun TechniqueRow(entry: WikiEntry, showProgress: Boolean, onClick: () -> Unit) {
-	Surface(
+	AppPanel(
 		modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-		shape = RoundedCornerShape(18.dp),
-		color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
-		contentColor = MaterialTheme.colorScheme.onSurface,
-		border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+		color = MaterialTheme.colorScheme.surface.copy(alpha = LocalAppShapes.current.containerAlpha)
 	) {
 		Row(
 			modifier = Modifier.fillMaxWidth().padding(16.dp),

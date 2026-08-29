@@ -8,11 +8,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,6 +18,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import net.luis.sudoku.R
+import net.luis.sudoku.ui.common.AppDivider
+import net.luis.sudoku.ui.common.AppTextButton
+import net.luis.sudoku.ui.common.AppDialog
 import net.luis.sudoku.ui.common.ProgressRow
 import net.luis.sudoku.ui.common.SectionCard
 
@@ -72,7 +72,7 @@ fun StatsScreen(modifier: Modifier = Modifier, viewModel: StatsViewModel = hiltV
 			SectionCard(title = stringResource(R.string.stats_by_tier_header), modifier = Modifier.padding(top = 12.dp)) {
 				Column {
 					viewModel.serverStatsByTier.forEachIndexed { index, entry ->
-						if (index > 0) HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+						if (index > 0) AppDivider(modifier = Modifier.padding(vertical = 8.dp))
 
 						val label = ("${entry.size}×${entry.size} " + (entry.variant ?: "")).trim() +
 							" " + stringResource(R.string.stats_tier_difficulty_suffix, entry.difficulty)
@@ -106,11 +106,11 @@ fun StatsScreen(modifier: Modifier = Modifier, viewModel: StatsViewModel = hiltV
 	}
 
 	viewModel.errorMessage?.let { message ->
-		AlertDialog(
+		AppDialog(
 			onDismissRequest = viewModel::dismissError,
 			title = { Text(stringResource(R.string.dialog_error_title)) },
 			text = { Text(message) },
-			confirmButton = { TextButton(onClick = viewModel::dismissError) { Text(stringResource(R.string.action_ok)) } }
+			confirmButton = { AppTextButton(text = stringResource(R.string.action_ok), onClick = viewModel::dismissError) }
 		)
 	}
 }

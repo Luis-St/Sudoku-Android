@@ -8,15 +8,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,6 +30,9 @@ import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.grid.Variant
 import net.luis.sudoku.domain.DifficultyOptions
+import net.luis.sudoku.ui.common.PanelShape
+import net.luis.sudoku.ui.common.AppPanel
+import net.luis.sudoku.ui.common.AppIconButton
 import net.luis.sudoku.ui.common.difficultyLabel
 import net.luis.sudoku.ui.common.sizeLabel
 import net.luis.sudoku.ui.common.variantLabel
@@ -177,11 +177,12 @@ private const val SCREEN_HORIZONTAL_PADDING_DP = 24
 
 @Composable
 private fun SmallScreenWarning(size: GridSize, modifier: Modifier = Modifier) {
-	Surface(
+	AppPanel(
 		modifier = modifier.fillMaxWidth().padding(top = 16.dp),
-		shape = RoundedCornerShape(14.dp),
+		shape = PanelShape.INLINE,
 		color = MaterialTheme.colorScheme.tertiaryContainer,
-		contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+		contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+		outlined = false
 	) {
 		Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
 			Icon(
@@ -224,14 +225,14 @@ private fun <T> OptionDropdown(
 	Column(modifier = modifier.fillMaxWidth()) {
 		Row(verticalAlignment = Alignment.CenterVertically) {
 			Text(label, style = MaterialTheme.typography.labelLarge)
-			IconButton(onClick = onInfo, modifier = Modifier.size(28.dp)) {
-				Icon(
-					imageVector = Icons.Filled.Info,
-					contentDescription = stringResource(R.string.action_info),
-					tint = MaterialTheme.colorScheme.primary,
-					modifier = Modifier.size(18.dp)
-				)
-			}
+			AppIconButton(
+				icon = Icons.Filled.Info,
+				contentDescription = stringResource(R.string.action_info),
+				onClick = onInfo,
+				iconSize = 18.dp,
+				tint = MaterialTheme.colorScheme.primary,
+				modifier = Modifier.size(28.dp)
+			)
 		}
 
 		DropdownTrigger(
@@ -245,7 +246,7 @@ private fun <T> OptionDropdown(
 }
 
 /** The one accent this whole screen uses - both dropdowns and the start button (new-puzzle items 1 and 2). */
-private val GENERATOR_ACCENT = ActionAccent.INDIGO
+private val GENERATOR_ACCENT = ActionAccent.SLOT_1
 
 @Composable
 private fun sizeDetail(size: GridSize): String = stringResource(R.string.generator_info_size_detail, size.n(), size.n() * size.n())

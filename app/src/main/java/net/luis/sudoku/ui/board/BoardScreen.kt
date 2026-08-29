@@ -22,7 +22,7 @@ import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.domain.PeerHighlightRules
 import net.luis.sudoku.ui.theme.BoardPalette
 import net.luis.sudoku.ui.theme.LocalEveryOccurrencePeers
-import net.luis.sudoku.ui.theme.ChaosRegionColors
+import net.luis.sudoku.ui.theme.regionTint
 
 /**
  * Renders one `N x N` grid for any of the five sizes (feature-spec 5), on the shared [BoardSurface] the
@@ -63,8 +63,6 @@ fun BoardScreen(
 	mistakeDigits: Map<Int, Int> = emptyMap(),
 	/** Game item 1: tint each region when the puzzle is a jigsaw, so regions read without tracing outlines. */
 	tintRegions: Boolean = false,
-	/** Game item 1: chaos tints need the dark variants; passed in because the palette itself is mode-agnostic. */
-	darkTheme: Boolean = false,
 	/** Cells marked as already got wrong: the summary board (game item 7), and co-op (multiplayer item 2). */
 	mistakeCells: Set<Int> = emptySet(),
 	/** Summary board only (game item 7). */
@@ -140,7 +138,7 @@ fun BoardScreen(
 					hintUsed = index in hintCells,
 					hintMissingMarks = hintMissingMarks[index] ?: 0,
 					hintWrongMarks = hintWrongMarks[index] ?: 0,
-					regionTint = if (tintRegions) ChaosRegionColors.of(regionOf(index), darkTheme) else null
+					regionTint = if (tintRegions) regionTint(regionOf(index)) else null
 				),
 				palette = palette,
 				onTap = { onCellTap(index) },

@@ -10,13 +10,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,6 +29,11 @@ import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.grid.Variant
 import net.luis.sudoku.domain.DifficultyOptions
+import net.luis.sudoku.ui.common.AppTextField
+import net.luis.sudoku.ui.common.AppTextButton
+import net.luis.sudoku.ui.common.AppFilterChip
+import net.luis.sudoku.ui.common.AppSwitch
+import net.luis.sudoku.ui.common.AppDialog
 import net.luis.sudoku.ui.common.DropdownTrigger
 import net.luis.sudoku.ui.common.GradientButton
 import net.luis.sudoku.ui.common.difficultyLabel
@@ -106,7 +106,7 @@ fun CreateMatchScreen(
 				Text(stringResource(R.string.matchsetup_mode_label), style = MaterialTheme.typography.labelLarge)
 				FlowRow {
 					OFFERED_MODES.forEach { candidate ->
-						FilterChip(
+						AppFilterChip(
 							selected = mode == candidate,
 							onClick = { mode = candidate },
 							label = { Text(candidate.name) },
@@ -122,7 +122,7 @@ fun CreateMatchScreen(
 				)
 				FlowRow {
 					GridSize.values().forEach { candidate ->
-						FilterChip(
+						AppFilterChip(
 							selected = size == candidate,
 							onClick = {
 								size = candidate
@@ -142,7 +142,7 @@ fun CreateMatchScreen(
 					)
 					FlowRow {
 						supportedVariants.forEach { candidate ->
-							FilterChip(
+							AppFilterChip(
 								selected = variant == candidate,
 								onClick = { variant = candidate },
 								label = { Text(variantLabel(candidate)) },
@@ -176,7 +176,7 @@ fun CreateMatchScreen(
 					verticalAlignment = Alignment.CenterVertically
 				) {
 					Text(stringResource(R.string.matchsetup_lives_label), style = MaterialTheme.typography.bodyLarge)
-					Switch(checked = livesEnabled, onCheckedChange = { livesEnabled = it })
+					AppSwitch(checked = livesEnabled, onCheckedChange = { livesEnabled = it })
 				}
 
 				// Multiplayer-game item 1: hints belong here, next to lives, not on the board. They were a
@@ -189,15 +189,14 @@ fun CreateMatchScreen(
 					verticalAlignment = Alignment.CenterVertically
 				) {
 					Text(stringResource(R.string.matchsetup_hints_label), style = MaterialTheme.typography.bodyLarge)
-					Switch(checked = hintsEnabled, onCheckedChange = { hintsEnabled = it })
+					AppSwitch(checked = hintsEnabled, onCheckedChange = { hintsEnabled = it })
 				}
 
 				if (mode == MatchMode.DUEL) {
-					OutlinedTextField(
+					AppTextField(
 						value = stakeText,
 						onValueChange = { stakeText = it.filter(Char::isDigit) },
-						label = { Text(stringResource(R.string.matchsetup_stake_label)) },
-						singleLine = true,
+						label = stringResource(R.string.matchsetup_stake_label),
 						modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 					)
 				}
@@ -217,11 +216,11 @@ fun CreateMatchScreen(
 	}
 
 	viewModel.errorMessage?.let { message ->
-		AlertDialog(
+		AppDialog(
 			onDismissRequest = viewModel::dismissError,
 			title = { Text(stringResource(R.string.dialog_error_title)) },
 			text = { Text(friendlyErrorMessage(viewModel.errorCode ?: "", message)) },
-			confirmButton = { TextButton(onClick = viewModel::dismissError) { Text(stringResource(R.string.action_ok)) } }
+			confirmButton = { AppTextButton(text = stringResource(R.string.action_ok), onClick = viewModel::dismissError) }
 		)
 	}
 }

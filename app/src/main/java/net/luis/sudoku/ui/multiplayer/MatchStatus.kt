@@ -7,10 +7,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Stable
@@ -26,6 +24,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import net.luis.sudoku.R
 import net.luis.sudoku.data.remote.match.GracePause
+import net.luis.sudoku.ui.common.AppTextButton
+import net.luis.sudoku.ui.common.AppDialog
 
 /**
  * What a running match is currently telling the player about the *connection*, published upwards so the top
@@ -117,7 +117,7 @@ fun MatchStatusAction(holder: MatchStatusHolder) {
 
 	if (showMessage) {
 		val pause = holder.pause
-		AlertDialog(
+		AppDialog(
 			onDismissRequest = { showMessage = false },
 			title = { Text(stringResource(R.string.match_status_title)) },
 			text = {
@@ -134,7 +134,7 @@ fun MatchStatusAction(holder: MatchStatusHolder) {
 				)
 			},
 			confirmButton = {
-				TextButton(onClick = { showMessage = false }) { Text(stringResource(R.string.action_ok)) }
+				AppTextButton(text = stringResource(R.string.action_ok), onClick = { showMessage = false })
 			}
 		)
 	}

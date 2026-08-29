@@ -2,10 +2,8 @@ package net.luis.sudoku.ui.common
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -22,7 +20,7 @@ import net.luis.sudoku.domain.StreakRestorePreview
  */
 @Composable
 fun StreakRestoreDialog(preview: StreakRestorePreview, onDismiss: () -> Unit, onConfirm: () -> Unit) {
-	AlertDialog(
+	AppDialog(
 		onDismissRequest = onDismiss,
 		title = { Text(stringResource(R.string.dialog_streak_restore_title)) },
 		text = {
@@ -69,10 +67,12 @@ fun StreakRestoreDialog(preview: StreakRestorePreview, onDismiss: () -> Unit, on
 			}
 		},
 		confirmButton = {
-			TextButton(onClick = onConfirm, enabled = preview.affordable) {
-				Text(stringResource(R.string.action_restore))
-			}
+			AppTextButton(
+				text = stringResource(R.string.action_restore),
+				onClick = onConfirm,
+				enabled = preview.affordable
+			)
 		},
-		dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } }
+		dismissButton = { AppTextButton(text = stringResource(R.string.action_cancel), onClick = onDismiss) }
 	)
 }

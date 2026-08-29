@@ -202,8 +202,8 @@ class AppViewModel @Inject constructor(
 		this.viewModelScope.launch { this@AppViewModel.settingsStore.setLanguageTag(tag) }
 	}
 
-	fun setBoardThemeId(id: String) {
-		this.viewModelScope.launch { this@AppViewModel.settingsStore.setBoardThemeId(id) }
+	fun setThemeId(id: String) {
+		this.viewModelScope.launch { this@AppViewModel.settingsStore.setThemeId(id) }
 	}
 
 	/**

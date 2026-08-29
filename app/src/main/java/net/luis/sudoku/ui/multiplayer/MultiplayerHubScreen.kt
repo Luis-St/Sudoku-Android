@@ -42,7 +42,7 @@ fun MultiplayerHubScreen(
 					text = stringResource(R.string.multiplayer_create_game),
 					onClick = onCreateGame,
 					iconPainter = painterResource(R.drawable.ic_multiplayer),
-					accent = ActionAccent.INDIGO,
+					accent = ActionAccent.SLOT_1,
 					modifier = Modifier.fillMaxWidth()
 				)
 				Text(
@@ -56,7 +56,7 @@ fun MultiplayerHubScreen(
 					text = stringResource(R.string.multiplayer_join_game),
 					onClick = onJoinGame,
 					iconPainter = painterResource(R.drawable.ic_import),
-					accent = ActionAccent.TEAL,
+					accent = ActionAccent.SLOT_4,
 					modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
 				)
 				Text(

@@ -29,6 +29,7 @@ import net.luis.sudoku.ui.common.GradientButton
 import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.theme.ActionAccent
 import net.luis.sudoku.ui.theme.BoardPalette
+import net.luis.sudoku.ui.theme.LocalAppShapes
 
 /**
  * The end-of-game review (game item 7). This replaced the win/loss `AlertDialog`, which showed a time and
@@ -47,7 +48,6 @@ import net.luis.sudoku.ui.theme.BoardPalette
 fun GameSummaryScreen(
 	summary: GameSummary,
 	palette: BoardPalette,
-	darkTheme: Boolean,
 	onBackToHome: () -> Unit,
 	onNewPuzzle: () -> Unit,
 	onRetryDaily: () -> Unit,
@@ -89,7 +89,6 @@ fun GameSummaryScreen(
 			palette = palette,
 			onCellTap = {},
 			tintRegions = summary.isChaos,
-			darkTheme = darkTheme,
 			mistakeCells = summary.mistakeCells,
 			hintCells = summary.hintCells,
 			modifier = Modifier.padding(top = 16.dp)
@@ -109,7 +108,7 @@ fun GameSummaryScreen(
 		GradientButton(
 			text = stringResource(R.string.summary_back_to_home),
 			onClick = onBackToHome,
-			accent = ActionAccent.TEAL,
+			accent = ActionAccent.SLOT_4,
 			modifier = Modifier.fillMaxWidth().padding(top = 20.dp)
 		)
 
@@ -146,7 +145,7 @@ private fun Legend(palette: BoardPalette, modifier: Modifier = Modifier) {
 @Composable
 private fun LegendEntry(color: Color, label: String, modifier: Modifier = Modifier) {
 	Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
-		Box(modifier = Modifier.size(14.dp).clip(RoundedCornerShape(3.dp)).background(color))
+		Box(modifier = Modifier.size(14.dp).clip(RoundedCornerShape(LocalAppShapes.current.smallCorner)).background(color))
 		Text(
 			text = label,
 			style = MaterialTheme.typography.bodySmall,

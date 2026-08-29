@@ -5,12 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -23,6 +19,9 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import net.luis.sudoku.R
+import net.luis.sudoku.ui.common.AppTextField
+import net.luis.sudoku.ui.common.AppTextButton
+import net.luis.sudoku.ui.common.AppDialog
 import net.luis.sudoku.ui.common.GradientButton
 import net.luis.sudoku.ui.common.SectionCard
 import net.luis.sudoku.ui.common.friendlyErrorMessage
@@ -64,17 +63,14 @@ fun JoinMatchScreen(
 					style = MaterialTheme.typography.bodySmall,
 					color = MaterialTheme.colorScheme.onSurfaceVariant
 				)
-				OutlinedTextField(
+				AppTextField(
 					value = code,
 					onValueChange = { code = it },
-					label = { Text(stringResource(R.string.matchsetup_match_code_label)) },
-					singleLine = true,
+					label = stringResource(R.string.matchsetup_match_code_label),
 					// The code is drawn from an alphabet with no lower case in it, so the keyboard should not
 					// offer one - and autocorrect has no business rewriting eight random symbols.
-					keyboardOptions = KeyboardOptions(
-						capitalization = KeyboardCapitalization.Characters,
-						autoCorrectEnabled = false
-					),
+					capitalization = KeyboardCapitalization.Characters,
+					autoCorrect = false,
 					modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
 				)
 				Box(modifier = Modifier.padding(top = 16.dp)) {
@@ -90,11 +86,11 @@ fun JoinMatchScreen(
 	}
 
 	viewModel.errorMessage?.let { message ->
-		AlertDialog(
+		AppDialog(
 			onDismissRequest = viewModel::dismissError,
 			title = { Text(stringResource(R.string.dialog_error_title)) },
 			text = { Text(friendlyErrorMessage(viewModel.errorCode ?: "", message)) },
-			confirmButton = { TextButton(onClick = viewModel::dismissError) { Text(stringResource(R.string.action_ok)) } }
+			confirmButton = { AppTextButton(text = stringResource(R.string.action_ok), onClick = viewModel::dismissError) }
 		)
 	}
 }

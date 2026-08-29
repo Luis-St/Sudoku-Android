@@ -30,6 +30,7 @@ import net.luis.sudoku.ui.common.difficultyLabel
 import net.luis.sudoku.ui.common.sizeLabel
 import net.luis.sudoku.ui.common.variantLabel
 import net.luis.sudoku.ui.theme.ActionAccent
+import net.luis.sudoku.ui.theme.LocalAppShapes
 
 /**
  * What the player looks at while a puzzle is being fetched or built.
@@ -127,14 +128,14 @@ private fun IndeterminateAccentBar(modifier: Modifier = Modifier) {
 		modifier = modifier
 			.fillMaxWidth()
 			.height(8.dp)
-			.clip(RoundedCornerShape(4.dp))
+			.clip(RoundedCornerShape(LocalAppShapes.current.smallCorner))
 			.background(MaterialTheme.colorScheme.surfaceVariant)
 	) {
 		Box(
 			modifier = Modifier
 				.fillMaxWidth(sweep)
 				.fillMaxSize()
-				.background(ActionAccent.INDIGO.brush())
+				.background(ActionAccent.SLOT_1.gradient().brush())
 		)
 	}
 }

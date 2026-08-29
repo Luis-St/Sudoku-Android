@@ -3,7 +3,6 @@ package net.luis.sudoku.ui.multiplayer
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,6 +22,7 @@ import net.luis.sudoku.ui.multiplayer.duel.DuelScreen
 import net.luis.sudoku.ui.multiplayer.race.RaceScreen
 import net.luis.sudoku.ui.multiplayer.setup.ActiveMatch
 import net.luis.sudoku.ui.multiplayer.setup.MatchSetupViewModel
+import net.luis.sudoku.ui.common.AppSpinner
 
 /**
  * A match being played, in whichever mode it is (feature-spec §9.1: re-checked here so nothing
@@ -73,7 +73,7 @@ fun MultiplayerScreen(
 	val match = activeMatch
 	if (match == null) {
 		Box(modifier = modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-			CircularProgressIndicator()
+			AppSpinner()
 		}
 		return
 	}

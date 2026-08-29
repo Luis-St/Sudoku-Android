@@ -10,15 +10,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -32,6 +29,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import net.luis.sudoku.R
 import net.luis.sudoku.learn.LearnContent
+import net.luis.sudoku.ui.common.PanelShape
+import net.luis.sudoku.ui.common.AppPanel
+import net.luis.sudoku.ui.common.AppSpinner
 import net.luis.sudoku.ui.common.GradientIconActionButton
 import net.luis.sudoku.ui.common.OutlinedIconActionButton
 import net.luis.sudoku.ui.input.NumberPad
@@ -87,7 +87,7 @@ fun LearnTrainScreen(
 		Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
 			when {
 				viewModel.loading -> Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-					CircularProgressIndicator()
+					AppSpinner()
 				}
 				puzzle == null -> Text(
 					text = stringResource(R.string.learn_examples_unavailable),
@@ -216,7 +216,7 @@ private fun TrainHeader(viewModel: LearnTrainViewModel, onFinished: () -> Unit) 
 				icon = Icons.Filled.Check,
 				contentDescription = stringResource(R.string.learn_train_continue),
 				onClick = onFinished,
-				accent = if (outcome == TrainOutcome.SOLVED) ActionAccent.LIME else ActionAccent.AMBER,
+				accent = if (outcome == TrainOutcome.SOLVED) ActionAccent.SLOT_7 else ActionAccent.SLOT_2,
 				modifier = Modifier.size(STEP_ARROW_SIZE)
 			)
 		} else {
@@ -301,11 +301,12 @@ private fun PromptLine(viewModel: LearnTrainViewModel) {
 		else -> stringResource(R.string.learn_train_prompt_select)
 	}
 
-	Surface(
+	AppPanel(
 		modifier = Modifier.fillMaxWidth(),
-		shape = RoundedCornerShape(14.dp),
+		shape = PanelShape.INLINE,
 		color = if (refused) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant,
-		contentColor = if (refused) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant
+		contentColor = if (refused) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+		outlined = false
 	) {
 		Box(
 			modifier = Modifier.fillMaxWidth().heightIn(min = PROMPT_MIN_HEIGHT).padding(12.dp),

@@ -1,7 +1,6 @@
 package net.luis.sudoku.ui.presence
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,9 +10,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -29,10 +26,15 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import net.luis.sudoku.R
 import net.luis.sudoku.data.remote.dto.MatchRequestResponse
+import net.luis.sudoku.ui.common.popupBorder
+import net.luis.sudoku.ui.common.PanelShape
+import net.luis.sudoku.ui.common.AppPanel
+import net.luis.sudoku.ui.common.AppTextButton
 import net.luis.sudoku.ui.common.GradientButton
 import net.luis.sudoku.ui.common.dialogContainerColor
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import net.luis.sudoku.ui.theme.LocalAppShapes
 
 /** How far across the banner has to be dragged for letting go to dismiss it rather than spring it back. */
 private const val SWIPE_DISMISS_FRACTION = 0.35f
@@ -62,13 +64,13 @@ fun MatchRequestOverlay(
 	onSwipeAway: () -> Unit,
 	modifier: Modifier = Modifier
 ) {
-	val shape = RoundedCornerShape(18.dp)
+	val shape = RoundedCornerShape(LocalAppShapes.current.containerCorner)
 	// Tracked as an Animatable rather than a plain float so the release can spring back or fly out; the
 	// drag itself snaps, which is what makes the card follow the finger exactly.
 	val offsetX = remember { Animatable(0f) }
 	val scope = rememberCoroutineScope()
 
-	Surface(
+	AppPanel(
 		modifier = modifier
 			.fillMaxWidth()
 			.padding(horizontal = 12.dp, vertical = 8.dp)
@@ -97,12 +99,13 @@ fun MatchRequestOverlay(
 				)
 			}
 			.shadow(elevation = 6.dp, shape = shape),
-		shape = shape,
+		shape = PanelShape.CARD,
 		// Opaque, unlike SectionCard's translucent surface: this floats over arbitrary content - including a
 		// board - and anything showing through it would read as a rendering fault rather than as depth.
 		color = dialogContainerColor(),
-		contentColor = MaterialTheme.colorScheme.onSurface,
-		border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+		// The popup stroke, not a container's: this floats over the page exactly as a dialog does, and it
+		// carried the heavier of the two alphas before the tokens existed.
+		border = popupBorder()
 	) {
 		Column(modifier = Modifier.padding(16.dp)) {
 			Text(
@@ -123,7 +126,7 @@ fun MatchRequestOverlay(
 			) {
 				// Declining is the quiet option and accepting is the emphasised one - the same pairing every
 				// other screen uses, rather than two identical text buttons giving both equal weight.
-				TextButton(onClick = onDecline) { Text(stringResource(R.string.action_decline)) }
+				AppTextButton(text = stringResource(R.string.action_decline), onClick = onDecline)
 				GradientButton(
 					text = stringResource(R.string.action_accept),
 					onClick = onAccept,

@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import net.luis.sudoku.core.CellSnapshot
 import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.ui.theme.LocalInkColors
+import net.luis.sudoku.ui.theme.LocalAppShapes
 
 /**
  * The `1..N` entry buttons (feature-spec 5.2), laid out as a **grid** rather than one long row
@@ -127,10 +128,11 @@ private fun NumberButton(
 	val labelColor = ink ?: MaterialTheme.colorScheme.onSurface
 	val lockedFill = ink?.copy(alpha = LOCKED_FILL_ALPHA) ?: MaterialTheme.colorScheme.primaryContainer
 	val lockedLabel = ink ?: MaterialTheme.colorScheme.onPrimaryContainer
+	val shapes = LocalAppShapes.current
 
 	Surface(
 		modifier = modifier.combinedClickable(onClick = onTap, onLongClick = onLongPress),
-		shape = RoundedCornerShape(12.dp),
+		shape = RoundedCornerShape(shapes.controlCorner),
 		color = if (locked) lockedFill else MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
 		// Stated explicitly - an alpha-modified surface resolves to no scheme role, so Material3 would
 		// otherwise hand the children a black content color.
@@ -140,8 +142,11 @@ private fun NumberButton(
 		// than as sixteen things to press. The locked one keeps its heavier stroke, so it still stands out
 		// of the row it is in.
 		border = BorderStroke(
-			width = if (locked) 1.5.dp else 1.dp,
-			color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (locked) 1f else 0.7f)
+			// The locked key keeps a heavier stroke than the theme's, so it still stands out of the row it is
+			// in - a ratio off the theme's width rather than a fixed 1.5dp, or a theme with a heavy outline
+			// would have sixteen keys that all look locked.
+			width = if (locked) shapes.borderWidth * 1.5f else shapes.borderWidth,
+			color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (locked) 1f else shapes.borderAlpha)
 		)
 	) {
 		Box(

@@ -8,7 +8,7 @@ import androidx.compose.ui.graphics.Color
  *
  * Every value exists in a light and a dark variant so [SudokuAndroidTheme] can switch without any
  * screen knowing which mode it is in. Board colors are deliberately NOT here - they live in
- * [BoardPalette], because those are swappable per purchased board theme (see [BoardThemeCatalog]).
+ * [BoardPalette], because those are swappable per purchased theme (see [AppThemeCatalog]).
  */
 
 // Light

@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -21,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import net.luis.sudoku.R
+import net.luis.sudoku.ui.common.AppSwitch
 import net.luis.sudoku.ui.common.GradientButton
 import net.luis.sudoku.ui.common.SectionCard
 import net.luis.sudoku.ui.theme.ActionAccent
@@ -134,14 +134,14 @@ fun LearnBriefScreen(
 					color = MaterialTheme.colorScheme.onSurfaceVariant
 				)
 			}
-			Switch(checked = viewModel.skipFromNowOn, onCheckedChange = viewModel::skipFromNowOn)
+			AppSwitch(checked = viewModel.skipFromNowOn, onCheckedChange = viewModel::skipFromNowOn)
 		}
 
 		Box(modifier = Modifier.size(16.dp))
 		GradientButton(
 			text = stringResource(R.string.learn_brief_start),
 			onClick = onStart,
-			accent = ActionAccent.LIME,
+			accent = ActionAccent.SLOT_7,
 			modifier = Modifier.fillMaxWidth()
 		)
 		Box(modifier = Modifier.size(24.dp))

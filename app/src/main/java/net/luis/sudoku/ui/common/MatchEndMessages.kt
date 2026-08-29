@@ -1,9 +1,7 @@
 package net.luis.sudoku.ui.common
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.res.stringResource
@@ -91,7 +89,7 @@ fun MatchOverDialog(
 	onLeave: () -> Unit,
 	extra: @Composable (() -> Unit)? = null
 ) {
-	AlertDialog(
+	AppDialog(
 		onDismissRequest = {},
 		title = { Text(title) },
 		text = {
@@ -101,6 +99,6 @@ fun MatchOverDialog(
 				extra?.invoke()
 			}
 		},
-		confirmButton = { TextButton(onClick = onLeave) { Text(stringResource(R.string.action_leave)) } }
+		confirmButton = { AppTextButton(text = stringResource(R.string.action_leave), onClick = onLeave) }
 	)
 }

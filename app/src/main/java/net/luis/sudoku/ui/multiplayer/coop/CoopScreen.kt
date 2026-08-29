@@ -2,18 +2,14 @@ package net.luis.sudoku.ui.multiplayer.coop
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -27,6 +23,9 @@ import net.luis.sudoku.domain.HintStep
 import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.ui.board.BoardScreen
+import net.luis.sudoku.ui.common.AppTextButton
+import net.luis.sudoku.ui.common.AppLoadingScreen
+import net.luis.sudoku.ui.common.AppDialog
 import net.luis.sudoku.ui.common.LeaveWhenAlreadyOver
 import net.luis.sudoku.ui.common.MatchOverDialog
 import net.luis.sudoku.ui.common.OutlinedActionButton
@@ -74,11 +73,13 @@ fun CoopScreen(
 
 	// The socket never opened: nothing can be played, so the only thing on offer is going back.
 	viewModel.connectionError?.let { message ->
-		AlertDialog(
+		AppDialog(
 			onDismissRequest = onLeave,
 			title = { Text(stringResource(R.string.dialog_error_title)) },
 			text = { Text(stringResource(R.string.error_match_connect, message)) },
-			confirmButton = { TextButton(onClick = { viewModel.leave(); onLeave() }) { Text(stringResource(R.string.action_leave)) } }
+			confirmButton = {
+				AppTextButton(text = stringResource(R.string.action_leave), onClick = { viewModel.leave(); onLeave() })
+			}
 		)
 		return
 	}
@@ -94,13 +95,12 @@ fun CoopScreen(
 	}
 
 	if (!viewModel.ready) {
-		Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+		AppLoadingScreen(modifier)
 		return
 	}
 
 	val palette = LocalBoardPalette.current
 	val lockedDigit = (viewModel.lock.target as? LockTarget.Digit)?.digit
-	val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
 	// The pad and the hint row ride the bottom edge, whatever is left over opens up under the board, and it
 	// still scrolls when a large grid does not fit (see PlayLayout).
@@ -152,8 +152,7 @@ fun CoopScreen(
 				// Multiplayer item 2: the digit and the mark are the same fact, so they arrive together and leave
 				// together - the number stays readable for exactly as long as the cell is red.
 				mistakeDigits = viewModel.mistakes,
-				mistakeCells = viewModel.mistakes.keys,
-				darkTheme = darkTheme
+				mistakeCells = viewModel.mistakes.keys
 			)
 
 			// Game item 19: the same stepped hint the single-player board runs - the same row now, not only the
@@ -269,5 +268,3 @@ private fun CoopStatusBar(viewModel: CoopViewModel) {
 	}
 }
 
-private fun androidx.compose.ui.graphics.Color.luminance(): Float =
-	0.2126f * this.red + 0.7152f * this.green + 0.0722f * this.blue
