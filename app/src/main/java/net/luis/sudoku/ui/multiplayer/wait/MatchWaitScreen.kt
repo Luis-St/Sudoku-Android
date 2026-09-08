@@ -131,7 +131,7 @@ fun MatchWaitScreen(
 					) {
 						PlayerAvatar(name = name, seed = player.id)
 						Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
-							Text(name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+							Text(name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
 							Row(verticalAlignment = Alignment.CenterVertically) {
 								OnlineDot(true)
 								Text(

@@ -37,6 +37,7 @@ import net.luis.sudoku.ui.common.DropdownTrigger
 import net.luis.sudoku.ui.common.difficultyLabel
 import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.common.SectionCard
+import net.luis.sudoku.ui.theme.AppThemeCatalog
 
 /**
  * Everything configurable, in one place (UI item 7): appearance (language + light/dark), the gameplay
@@ -73,6 +74,11 @@ fun SettingsScreen(
 				ThemeModeDropdown(
 					selected = preferences.themeMode,
 					onSelect = appViewModel::setThemeMode,
+					modifier = Modifier.padding(top = 12.dp)
+				)
+				ThemeDropdown(
+					selected = preferences.themeId,
+					onSelect = appViewModel::setThemeId,
 					modifier = Modifier.padding(top = 12.dp)
 				)
 				Text(
@@ -284,6 +290,28 @@ private fun ThemeModeDropdown(selected: ThemeMode, onSelect: (ThemeMode) -> Unit
 		options = ThemeMode.entries.toList(),
 		optionLabel = { themeModeLabel(it) },
 		onSelect = onSelect,
+		modifier = modifier
+	)
+}
+
+/**
+ * Which look the app is wearing - the catalog itself, not the light/dark switch above it.
+ *
+ * Here rather than in the shop because there is nothing to buy yet: every theme is owned by default until a
+ * purchase can be recorded server side (see `ShopScreen`), and until then this is how a look is chosen and
+ * how a change to one is checked on a device. When the shop lands, this stays and gains an owned filter.
+ *
+ * The catalog supplies its own display names, which is why nothing here is a string resource: they are not
+ * translated yet, and a theme's name is closer to a product name than to app copy.
+ */
+@Composable
+private fun ThemeDropdown(selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier) {
+	LabelledDropdown(
+		label = stringResource(R.string.settings_theme_style_label),
+		selectedLabel = AppThemeCatalog.byId(selected).displayName,
+		options = AppThemeCatalog.ALL,
+		optionLabel = { it.displayName },
+		onSelect = { onSelect(it.id) },
 		modifier = modifier
 	)
 }

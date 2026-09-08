@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
+import net.luis.sudoku.ui.theme.BoardTextStyles
 
 /**
  * How a board writes: the digit and note sizes, and the slot grid the notes sit in.
@@ -114,8 +115,8 @@ fun BoardGlyph(
 	color: Color,
 	fontSize: TextUnit,
 	/**
-	 * Medium for a placed digit, Normal for a note, Bold for anything either board is marking - passed in
-	 * rather than derived, because the two boards mark different things for different reasons.
+	 * SemiBold for a placed digit and Normal for a note - passed in rather than derived, because the two
+	 * boards mark different things for different reasons.
 	 */
 	fontWeight: FontWeight,
 	strikeThrough: Boolean = false
@@ -123,6 +124,11 @@ fun BoardGlyph(
 	Text(
 		text = text,
 		color = color,
+		// Named rather than inherited. `Text` would take its family from whatever `LocalTextStyle` happens to
+		// be, which is the enclosing screen's - correct today only because `MaterialTheme` happens to seed
+		// that with `bodyLarge`. A board is the one surface where the typeface is not a detail, so it says
+		// which one it wants (see [net.luis.sudoku.ui.theme.BoardTextStyles]).
+		fontFamily = BoardTextStyles.entry.fontFamily,
 		fontSize = fontSize,
 		lineHeight = fontSize,
 		fontWeight = fontWeight,

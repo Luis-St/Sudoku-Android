@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -50,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import net.luis.sudoku.ui.theme.Accent
 import net.luis.sudoku.ui.theme.LocalAppShapes
 import net.luis.sudoku.ui.theme.accentBrush
+import net.luis.sudoku.ui.theme.appFocusRing
 
 /**
  * Shared building blocks for the UI. The house style is **outlined, not filled**: primary actions get a
@@ -90,7 +92,7 @@ fun OutlinedActionButton(
 ) {
 	OutlinedButton(
 		onClick = onClick,
-		modifier = modifier,
+		modifier = modifier.appFocusRing(LocalAppShapes.current.controlCorner),
 		enabled = enabled,
 		shape = raisedShape(),
 		colors = ButtonDefaults.outlinedButtonColors(
@@ -123,7 +125,9 @@ fun OutlinedIconActionButton(
 		onClick = onClick,
 		// IconButton takes no elevation parameter, so the lift is drawn by the modifier instead - same
 		// depth as raisedElevation(), so both button shapes cast one shadow.
-		modifier = modifier.shadow(elevation = if (enabled) LocalAppShapes.current.elevation else 0.dp, shape = raisedShape()),
+		modifier = modifier
+			.appFocusRing(LocalAppShapes.current.controlCorner)
+			.shadow(elevation = if (enabled) LocalAppShapes.current.elevation else 0.dp, shape = raisedShape()),
 		enabled = enabled,
 		shape = raisedShape(),
 		colors = IconButtonDefaults.outlinedIconButtonColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -212,6 +216,8 @@ fun GradientButton(
 	val brush = accent?.gradient()?.brush() ?: accentBrush()
 	Box(
 		modifier = modifier
+			// Before the clip, so the ring is drawn outside the shape rather than trimmed to it.
+			.appFocusRing(LocalAppShapes.current.controlCorner)
 			.shadow(elevation = if (enabled) LocalAppShapes.current.elevation else 0.dp, shape = shape)
 			.clip(shape)
 			.then(if (enabled) Modifier.background(brush) else Modifier)
@@ -253,6 +259,8 @@ fun GradientIconActionButton(
 	val brush = accent?.gradient()?.brush() ?: accentBrush()
 	Box(
 		modifier = modifier
+			// See [GradientButton]: before the clip, or the ring is trimmed to the button.
+			.appFocusRing(LocalAppShapes.current.controlCorner)
 			.shadow(elevation = LocalAppShapes.current.elevation, shape = shape)
 			.clip(shape)
 			.background(brush),
@@ -396,7 +404,11 @@ fun SectionCard(
 	Surface(
 		modifier = modifier.fillMaxWidth(),
 		shape = RoundedCornerShape(shapes.containerCorner),
-		color = MaterialTheme.colorScheme.surface.copy(alpha = shapes.containerAlpha),
+		// `surfaceContainer`, which is the role a card is *defined* as sitting on, rather than `surface`,
+		// which is the page. The two are the same colour under a theme that pins its ramp - Classic's light
+		// mode is white either way - and they are one deliberate tone apart under a theme that does not,
+		// which is the whole point of a card having a role of its own.
+		color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = shapes.containerAlpha),
 		// Explicit, because Material3 derives contentColor via contentColorFor(color) and an
 		// alpha-modified surface matches no scheme role - it resolves to Unspecified and the text lands
 		// black, which is invisible in dark mode.
@@ -474,8 +486,10 @@ fun ProgressRow(
 			modifier = Modifier
 				.fillMaxWidth()
 				.padding(top = 6.dp)
-				.height(8.dp)
-				.clip(RoundedCornerShape(LocalAppShapes.current.smallCorner))
+				.height(PROGRESS_BAR_HEIGHT)
+				// Fully rounded, not the theme's small corner: a track this thin with a 4dp radius is a
+				// rectangle with the corners nicked off, and the fill inside it ends in a straight edge.
+				.clip(CircleShape)
 				.background(MaterialTheme.colorScheme.surfaceVariant)
 		) {
 			Box(
@@ -506,7 +520,7 @@ fun ProgressRow(
  * do, instead of the lavender-grey of Material's unstyled baseline palette.
  */
 @Composable
-fun dialogContainerColor(): Color = MaterialTheme.colorScheme.surfaceContainerHigh
+fun dialogContainerColor(): Color = MaterialTheme.colorScheme.surfaceContainerLow
 
 @Composable
 fun InfoDialog(title: String, body: String, onDismiss: () -> Unit) {

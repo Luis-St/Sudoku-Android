@@ -155,14 +155,17 @@
 	<string name="settings_language_german">Deutsch</string>
 	<!-- Issue 2.2.1/1: the toggle's label is the language you are reading, so its description is the action. -->
 	<string name="learn_language_switch_to">Switch to %1$s</string>
-	<string name="settings_theme_label">Theme</string>
+	<!-- Two pickers sit under "Appearance" now: this one is the light/dark choice, the one below is which
+	     theme is worn. Naming both of them "Theme" is how a player ends up in the wrong menu. -->
+	<string name="settings_theme_label">Light and dark</string>
 	<!-- The header toggle (game item 3). It names the mode it switches *to*, which is what the icon shows. -->
 	<string name="action_theme_light">Switch to light mode</string>
 	<string name="action_theme_dark">Switch to dark mode</string>
 	<string name="settings_theme_system">Follow system</string>
 	<string name="settings_theme_light">Light</string>
 	<string name="settings_theme_dark">Dark</string>
-	<string name="settings_board_theme_note">Board themes bought in the shop apply on top of this, and each one has its own light and dark version.</string>
+	<string name="settings_theme_style_label">Theme</string>
+	<string name="settings_board_theme_note">A theme brings its own colours, board and shapes. Each one has a light and a dark version, so picking one never changes which of the two you are in.</string>
 	<string name="settings_header_server">Server</string>
 	<string name="settings_recovery_header">Account recovery</string>
 	<string name="settings_recovery_setup_explainer">Verify an email address now so you can recover this account if you ever lose access to all your devices.</string>

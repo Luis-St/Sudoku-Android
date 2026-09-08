@@ -156,7 +156,7 @@ private fun NumberButton(
 			Text(
 				text = label,
 				style = MaterialTheme.typography.headlineSmall,
-				fontWeight = FontWeight.Medium,
+				fontWeight = FontWeight.SemiBold,
 				textAlign = TextAlign.Center,
 				color = when {
 					exhausted -> labelColor.copy(alpha = 0.35f)

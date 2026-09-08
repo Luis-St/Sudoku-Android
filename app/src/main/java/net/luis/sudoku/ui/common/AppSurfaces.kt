@@ -79,7 +79,8 @@ enum class PanelShape {
  * A plain themed panel: the outlined box a screen puts content in when it is not a titled [SectionCard] -
  * a hub tile, a caption strip, a learn card, a warning.
  *
- * @param color defaults to the scheme's surface; pass one only where the panel means something a surface
+ * @param color defaults to `surfaceContainer`, which is the role a container is defined as sitting on - not
+ *   `surface`, which is the page it sits *in*. Pass one only where the panel means something a container
  *   does not, such as a warning or a solved exercise
  * @param outlined `false` for a panel that carries its meaning in its fill, or that sits on a card which
  *   already has an outline - two hairlines a pixel apart read as a rendering fault rather than as two
@@ -91,7 +92,7 @@ enum class PanelShape {
 fun AppPanel(
 	modifier: Modifier = Modifier,
 	shape: PanelShape = PanelShape.CARD,
-	color: Color = MaterialTheme.colorScheme.surface,
+	color: Color = MaterialTheme.colorScheme.surfaceContainer,
 	contentColor: Color = MaterialTheme.colorScheme.onSurface,
 	outlined: Boolean = true,
 	border: BorderStroke? = null,

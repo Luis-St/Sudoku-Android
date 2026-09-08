@@ -189,6 +189,109 @@ val ClassicRegionTintsDark = listOf(
 	Color(0xFF243528), Color(0xFF3A2A36), Color(0xFF31382A), Color(0xFF263440)
 )
 
+/**
+ * The board half of [AppThemeCatalog.EMBER], in light mode.
+ *
+ * Every value here is a role from Ember's own scheme rather than a colour picked for the board, which is
+ * the rule that keeps the grid part of the app instead of a picture sitting in it. The three that are not
+ * are named below, each with what it is answering.
+ */
+val EmberBoardLight = BoardPalette(
+	gridLine = EmberOutlineVariantLight,
+	regionLine = EmberOnSurfaceVariantLight,
+	given = EmberOnSurfaceLight,
+	// Identical to [given], as in every theme: whether a digit was given or entered is deliberately not
+	// something the board says (see [ClassicBoardLight]). This is the one place Ember departs from the
+	// spec it was drawn from, which paints an entry in `primary` - that is an owner ruling and it outranks
+	// a palette.
+	penEntry = EmberOnSurfaceLight,
+	pencilMark = EmberOnSurfaceVariantLight,
+	error = EmberErrorLight,
+	// `secondaryContainer`, where the spec says `primaryContainer`. On a red accent the primary and error
+	// families are the same hue two tone steps apart, so a selected cell and a conflicting one would differ
+	// by less than a phone in sunlight can show. The spec's own answer is a second, non-chromatic cue - a
+	// 2dp inset ring on the conflict - which is a change to the shared board renderer and so to every theme
+	// at once. Moving the selection 22 degrees off instead is a change to this line. If the ring is ever
+	// drawn, this should go back to `primaryContainer`.
+	selectedCell = EmberSecondaryContainerLight,
+	peerHighlight = EmberSurfacesLight.containerHigh,
+	// The same job Classic's orange does and the same two measurements: it has to separate in *value* from
+	// the near-black ink it replaces (5.1:1 here) and still hold its own on the pale cell under it (3.2:1,
+	// the floor for a glyph this large and this bold). Ember's own tertiary gold is the right hue and the
+	// wrong value - at tone 40 it sits 2.6:1 from the ink and reads as "dark" rather than as "marked" - so
+	// this is that gold lifted until the first number is met.
+	sameValuePen = Color(0xFFC97A16),
+	sameValuePencil = Color(0xFFC97A16),
+	conflict = EmberErrorContainerLight,
+	// Ember's tertiary at full chroma. A hint is the one thing on the board that has to be found before it
+	// can be judged, so it is allowed the loudest tone in the palette.
+	hintCandidate = Color(0xFFF0B429),
+	// Green for missing and red for wrong, shared with Classic and deliberately not themed: these two say
+	// what a proposal *is*, and a theme that recoloured them would be renaming the proposal.
+	hintMarkMissing = Color(0xFF2E7D52),
+	hintMarkWrong = Color(0xFFC4443E),
+	summaryMistake = EmberErrorContainerLight,
+	summaryMistakeInk = EmberErrorLight,
+	summaryHint = EmberTertiaryContainerLight,
+	tintHighlight = EmberPrimaryLight
+)
+
+/** The same board in dark mode. */
+val EmberBoardDark = BoardPalette(
+	gridLine = EmberOutlineVariantDark,
+	regionLine = EmberOnSurfaceVariantDark,
+	given = EmberOnSurfaceDark,
+	penEntry = EmberOnSurfaceDark,
+	// `outline`, not `onSurfaceVariant`: on a dark board the variant role is a near-white and a note drawn
+	// in it competes with the digit above it. A pencil mark is a thing the player wrote down to think with,
+	// and it has to sit below the value in the reading order.
+	pencilMark = EmberOutlineDark,
+	error = EmberErrorDark,
+	// See the light board.
+	selectedCell = EmberSecondaryContainerDark,
+	peerHighlight = EmberSurfacesDark.containerHigh,
+	// Here the inks are already light, so the mark separates by hue alone and the gold can stay a gold -
+	// the value problem the light board has does not exist on a near-black cell.
+	sameValuePen = Color(0xFFEFC44F),
+	sameValuePencil = Color(0xFFEFC44F),
+	conflict = EmberErrorContainerDark,
+	// Deep, not bright: a full-strength yellow cell on a near-black board is a lamp, and the notes left in
+	// the cell would have to be black to survive it.
+	hintCandidate = Color(0xFF7A5B00),
+	hintMarkMissing = Color(0xFF7FD3A3),
+	hintMarkWrong = Color(0xFFEFA19B),
+	// The same pale red in both modes, like Classic's, which is why the ink on it is the light mode's deep
+	// red in both as well (issue 2.2.0/6).
+	summaryMistake = EmberErrorContainerLight,
+	summaryMistakeInk = EmberErrorLight,
+	summaryHint = EmberTertiaryContainerDark,
+	tintHighlight = EmberPrimaryDark
+)
+
+/**
+ * Ember's chaos region tints (game item 1).
+ *
+ * The one place the theme's own discipline has to give way. Sixteen regions have to be told apart at a
+ * glance, and sixteen tones of one warm accent cannot do that - past about four steps the eye stops reading
+ * them as different regions and starts reading them as a gradient. So these rotate through the wheel like
+ * Classic's do, but at roughly half the chroma and biased warm, which keeps them a family rather than a
+ * second palette shouting over the first.
+ */
+val EmberRegionTintsLight = listOf(
+	Color(0xFFF7DED6), Color(0xFFF6E3CB), Color(0xFFF1E8C6), Color(0xFFE7E9CB),
+	Color(0xFFD9E8D2), Color(0xFFD5E7E0), Color(0xFFD8E3EC), Color(0xFFE1DDEB),
+	Color(0xFFEFDCE4), Color(0xFFF5E0CE), Color(0xFFECE7D0), Color(0xFFDEE9D6),
+	Color(0xFFD3E4E6), Color(0xFFE5E0E7), Color(0xFFF2E1DA), Color(0xFFE9E4D8)
+)
+
+/** [EmberRegionTintsLight] at the value a near-black board needs. */
+val EmberRegionTintsDark = listOf(
+	Color(0xFF3A2823), Color(0xFF3A3024), Color(0xFF37351F), Color(0xFF2E3623),
+	Color(0xFF26362A), Color(0xFF223631), Color(0xFF24303C), Color(0xFF2C2A3A),
+	Color(0xFF372634), Color(0xFF3B2E22), Color(0xFF34321F), Color(0xFF283529),
+	Color(0xFF213338), Color(0xFF302D38), Color(0xFF3A2C26), Color(0xFF333024)
+)
+
 val LocalBoardPalette = staticCompositionLocalOf { ClassicBoardLight }
 
 /**

@@ -181,7 +181,7 @@ private fun MasteryCard(mastered: Int, total: Int, modifier: Modifier = Modifier
 					Text(
 						text = mastered.toString(),
 						style = MaterialTheme.typography.titleLarge,
-						fontWeight = FontWeight.Bold
+						fontWeight = FontWeight.SemiBold
 					)
 					Text(
 						text = stringResource(R.string.learn_mastered_of, total),

@@ -2,6 +2,8 @@ package net.luis.sudoku.ui.theme
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -60,6 +62,7 @@ fun isDarkTheme(themeMode: ThemeMode): Boolean = when (themeMode) {
  * Dynamic color is deliberately gone - the app has a deliberate brand palette now, and Material You would
  * replace it with the wallpaper's colors on every device.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SudokuAndroidTheme(
 	themeMode: ThemeMode = ThemeMode.SYSTEM,
@@ -89,7 +92,10 @@ fun SudokuAndroidTheme(
 		LocalAccents provides theme.accents,
 		LocalRegionTints provides theme.regionTints(darkTheme),
 		LocalAppShapes provides theme.shapes,
-		LocalDarkTheme provides darkTheme
+		LocalDarkTheme provides darkTheme,
+		// The one Material local the app overrides: state-layer strengths, which Material otherwise picks
+		// per component from its own token set (see [AppRippleConfiguration]).
+		LocalRippleConfiguration provides AppRippleConfiguration
 	) {
 		MaterialTheme(
 			colorScheme = chrome.colorScheme,

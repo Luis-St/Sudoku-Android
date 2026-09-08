@@ -74,7 +74,10 @@ data class PreferenceSettings(
 			soundEnabled = true,
 			themeMode = ThemeMode.SYSTEM,
 			languageTag = null,
-			themeId = "classic",
+			// Ember, not Classic: this is the look the app ships in, and Classic is the one a player picks
+			// to go back to it. `AppThemeCatalog.byId` still falls back to Classic for an id it does not
+			// know, which is a different question - that is what an uninstalled theme resolves to.
+			themeId = "ember",
 			betaDualInk = false, // beta features are opt-in
 			betaEveryOccurrencePeers = false,
 			learnBriefSkipped = emptySet()

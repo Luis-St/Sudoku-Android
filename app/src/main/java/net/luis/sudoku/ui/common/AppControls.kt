@@ -2,6 +2,7 @@ package net.luis.sudoku.ui.common
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
@@ -16,6 +17,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -34,6 +36,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
 import net.luis.sudoku.ui.theme.LocalAppShapes
+import net.luis.sudoku.ui.theme.appFocusRing
 
 /**
  * The house set of ordinary controls: the switch, the chips, the text field, the quiet text button, the
@@ -49,6 +52,15 @@ import net.luis.sudoku.ui.theme.LocalAppShapes
  * on. They carry the current look unchanged, so adopting one is never a visual change on its own.
  */
 
+/** Material's own switch track is a 52x32 pill, so this is what "fully rounded" means for one. */
+private val SWITCH_TRACK_CORNER = 16.dp
+
+/** The same, for the 48dp circle an [AppIconButton]'s touch target is. */
+private val ICON_BUTTON_CORNER = 24.dp
+
+/** Every progress track in the app, labelled or bare - see [AppProgressBar] and `ProgressRow`. */
+val PROGRESS_BAR_HEIGHT = 6.dp
+
 /** A themed switch, so all four settings screens agree on what "on" looks like. */
 @Composable
 fun AppSwitch(
@@ -60,13 +72,18 @@ fun AppSwitch(
 	Switch(
 		checked = checked,
 		onCheckedChange = onCheckedChange,
-		modifier = modifier,
+		// A switch is already a pill, so the ring follows it round rather than boxing it.
+		modifier = modifier.appFocusRing(SWITCH_TRACK_CORNER),
 		enabled = enabled,
 		colors = SwitchDefaults.colors(
 			checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
 			checkedTrackColor = MaterialTheme.colorScheme.primary,
 			uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-			uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+			// `surfaceVariant`, not `surfaceContainerHighest`. They were the same colour while a theme pinned
+			// every container tone to one value, and stopped being the same the moment one shipped a real
+			// ramp: on a themed ramp `containerHighest` is the tone a *popup* sits on, which is the wrong
+			// thing for an off switch to borrow.
+			uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
 			uncheckedBorderColor = MaterialTheme.colorScheme.outline
 		)
 	)
@@ -92,12 +109,18 @@ fun AppFilterChip(
 		selected = selected,
 		onClick = onClick,
 		label = label,
-		modifier = modifier,
+		modifier = modifier.appFocusRing(shapes.chipCorner),
 		enabled = enabled,
 		shape = RoundedCornerShape(shapes.chipCorner),
-		// The colours are Material's own, which are already scheme roles and so already follow the theme.
-		// Only the shape and the stroke width are restated here, because those are the two a theme owns and
-		// a Material default does not expose to one.
+		// Selected is `primaryContainer`, where Material's own default is `secondaryContainer`. A selected
+		// chip is the same statement as a selected anything else in this app, and secondary is the role that
+		// means progress and currency here - a picked difficulty drawn in it read as a status, not a choice.
+		colors = FilterChipDefaults.filterChipColors(
+			labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+			selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+			selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+			selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
+		),
 		border = FilterChipDefaults.filterChipBorder(
 			enabled = enabled,
 			selected = selected,
@@ -120,12 +143,13 @@ fun AppAssistChip(
 	AssistChip(
 		onClick = onClick,
 		label = label,
-		modifier = modifier,
+		modifier = modifier.appFocusRing(shapes.chipCorner),
 		enabled = enabled,
 		leadingIcon = leadingIcon,
 		shape = RoundedCornerShape(shapes.chipCorner),
-		// See [AppFilterChip]: Material's colours are scheme roles already, so only the shape and the stroke
-		// width need restating.
+		// The same label role an unselected filter chip uses: these two sit in the same rows and an assist
+		// chip drawn a step darker reads as the selected one.
+		colors = AssistChipDefaults.assistChipColors(labelColor = MaterialTheme.colorScheme.onSurfaceVariant),
 		border = AssistChipDefaults.assistChipBorder(enabled = enabled, borderWidth = shapes.borderWidth)
 	)
 }
@@ -173,7 +197,21 @@ fun AppTextField(
 			autoCorrectEnabled = autoCorrect,
 			keyboardType = keyboardType
 		),
-		shape = RoundedCornerShape(shapes.fieldCorner)
+		shape = RoundedCornerShape(shapes.fieldCorner),
+		// The value is `bodyLarge`, which is what a field's own text is in the scale - and is *not* what an
+		// unstyled field uses. `OutlinedTextField` takes its text style from `LocalTextStyle`, which is
+		// whatever the enclosing screen happened to be writing in, so a field inside a `bodySmall` note used
+		// to render its value at 12sp.
+		textStyle = MaterialTheme.typography.bodyLarge,
+		// The container is a real tone rather than transparent. On a theme with a surface ramp that is what
+		// separates a field from the page it sits on; on one that pins the ramp it comes out exactly as it
+		// did before, which is why this is safe to set for every theme.
+		colors = OutlinedTextFieldDefaults.colors(
+			focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+			unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+			disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+			errorContainerColor = MaterialTheme.colorScheme.surfaceContainer
+		)
 	)
 }
 
@@ -198,7 +236,7 @@ fun AppTextButton(
 ) {
 	TextButton(
 		onClick = onClick,
-		modifier = modifier,
+		modifier = modifier.appFocusRing(LocalAppShapes.current.controlCorner),
 		enabled = enabled,
 		colors = ButtonDefaults.textButtonColors(
 			contentColor = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
@@ -235,7 +273,9 @@ fun AppIconButton(
 	iconSize: Dp = 24.dp,
 	tint: androidx.compose.ui.graphics.Color = LocalContentColor.current
 ) {
-	IconButton(onClick = onClick, modifier = modifier, enabled = enabled) {
+	// A bare icon button's touch target is a 48dp circle, so its ring is one too: half the target is the
+	// radius that makes a rounded rectangle into a circle.
+	IconButton(onClick = onClick, modifier = modifier.appFocusRing(ICON_BUTTON_CORNER), enabled = enabled) {
 		when {
 			icon != null -> Icon(icon, contentDescription, Modifier.size(iconSize), tint)
 			iconPainter != null -> Icon(iconPainter, contentDescription, Modifier.size(iconSize), tint)
@@ -293,7 +333,9 @@ fun AppLoadingScreen(modifier: Modifier = Modifier) {
 fun AppProgressBar(progress: () -> Float, modifier: Modifier = Modifier) {
 	LinearProgressIndicator(
 		progress = progress,
-		modifier = modifier,
+		// 6dp rather than Material's 4: a bar this app draws is usually the only thing saying how far along
+		// something is, and four device-independent pixels of it is a hairline on a modern phone.
+		modifier = modifier.height(PROGRESS_BAR_HEIGHT),
 		color = MaterialTheme.colorScheme.primary,
 		trackColor = MaterialTheme.colorScheme.surfaceVariant,
 		strokeCap = StrokeCap.Round

@@ -196,7 +196,7 @@ private fun InviteRow(request: MatchRequestResponse, onJoin: () -> Unit) {
 			Text(
 				text = stringResource(R.string.presence_match_request_title, request.fromDisplayName),
 				style = MaterialTheme.typography.bodyLarge,
-				fontWeight = FontWeight.Medium
+				fontWeight = FontWeight.SemiBold
 			)
 			Text(
 				text = stringResource(R.string.presence_match_request_body, request.mode),
@@ -245,7 +245,7 @@ private fun PlayerRow(
 				Text(
 					text = name,
 					style = MaterialTheme.typography.bodyLarge,
-					fontWeight = FontWeight.Medium,
+					fontWeight = FontWeight.SemiBold,
 					// A removed player appears only in an admin's copy of this list, and only so they can be
 					// let back in - so the row reads as inert rather than as somebody to play against.
 					color = if (player.revoked) {

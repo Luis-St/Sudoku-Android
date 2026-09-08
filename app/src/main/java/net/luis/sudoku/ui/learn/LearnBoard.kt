@@ -282,7 +282,8 @@ private fun LearnCell(
 				else -> palette.given
 			},
 			fontSize = boardValueFontSize(cellSize),
-			fontWeight = if (marked) FontWeight.Bold else FontWeight.Medium
+			// One weight for every placed digit, as on the play board - see `CellView.CellValueText`.
+			fontWeight = FontWeight.SemiBold
 		)
 		return
 	}
@@ -293,7 +294,7 @@ private fun LearnCell(
 			text = placed.toString(),
 			color = roleInk ?: palette.sameValuePen,
 			fontSize = boardValueFontSize(cellSize),
-			fontWeight = FontWeight.Bold
+			fontWeight = FontWeight.SemiBold
 		)
 		return
 	}
@@ -354,7 +355,7 @@ private fun PencilMarks(
 					else -> plain
 				},
 				fontSize = fontSize,
-				fontWeight = if (isEmphasised || isStruck || isMarked) FontWeight.Bold else FontWeight.Normal,
+				fontWeight = if (isEmphasised || isStruck || isMarked) FontWeight.SemiBold else FontWeight.Normal,
 				strikeThrough = isStruck
 			)
 		}

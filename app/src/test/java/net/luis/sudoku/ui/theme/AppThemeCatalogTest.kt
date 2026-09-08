@@ -1,5 +1,6 @@
 package net.luis.sudoku.ui.theme
 
+import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.graphics.Color
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -152,21 +153,111 @@ class AppThemeCatalogTest {
 	}
 
 	@Test
-	fun everyTheme_pinsAllFiveSurfaceContainerTones() {
-		// Account item 1: Material draws dialogs, menus and sheets on `surfaceContainerHigh`, and a role a
-		// theme never assigns keeps Material's baseline lavender-grey. `chromePalette` sets all five from one
-		// parameter so this cannot be forgotten - this is the test that says so.
+	fun everyTheme_surfaceRampIsEitherPinnedOrOrdered() {
+		// Account item 1 was a role the theme never assigned, which kept Material's baseline lavender. That
+		// cannot happen any more - `chromePalette` builds the scheme through `ColorScheme`'s own constructor
+		// with every role named, so a forgotten one is a compile error rather than a wrong colour on a phone.
+		//
+		// What is left to check is that the ramp a theme *does* supply means something. There are exactly two
+		// honest answers: every tone the same, for a theme that separates a popup from the page with its
+		// outline, or a ramp that moves in one direction, for a theme that separates them with tone. A ramp
+		// that goes up, down and up again is a list of five colours somebody typed.
 		for (theme in this.themes) {
 			for ((mode, chrome) in listOf("light" to theme.chromeLight, "dark" to theme.chromeDark)) {
 				val scheme = chrome.colorScheme
-				val tones = setOf(
+				val ramp = listOf(
 					scheme.surfaceContainerLowest,
 					scheme.surfaceContainerLow,
 					scheme.surfaceContainer,
 					scheme.surfaceContainerHigh,
 					scheme.surfaceContainerHighest
+				).map(::luminance)
+				val rising = ramp.zipWithNext().all { (a, b) -> b >= a }
+				val falling = ramp.zipWithNext().all { (a, b) -> b <= a }
+				assertTrue("$theme.id/$mode: the surface ramp is neither pinned nor ordered", rising || falling)
+			}
+		}
+	}
+
+	@Test
+	fun everyTheme_everyRoleIsOpaqueAndSpecified() {
+		// A role left `Unspecified` renders as transparent black, and a role that picked up an alpha renders
+		// as whatever is behind it - both of which look like a drawing bug on a phone and neither of which is
+		// one. Nothing in a scheme is meant to be see-through; the two things that are, a scrim and a state
+		// layer, get their alpha where they are drawn rather than here.
+		for (theme in this.themes) {
+			for ((mode, chrome) in listOf("light" to theme.chromeLight, "dark" to theme.chromeDark)) {
+				for ((role, color) in roles(chrome.colorScheme)) {
+					val where = theme.id + "/" + mode + "/" + role
+					assertNotEquals(where, Color.Unspecified, color)
+					assertEquals(where, 1f, color.alpha, 0f)
+				}
+			}
+		}
+	}
+
+	@Test
+	fun everyTheme_onPairsClearWcagAa() {
+		// The measurement the design's own palette tables are written against. A pair that misses it is not a
+		// matter of taste - it is text somebody cannot read, and it is invisible in review because the person
+		// reviewing is looking at a bright monitor indoors.
+		//
+		// 4.5:1 is the AA floor for body text, which is the size most of these carry. The pairs are named
+		// rather than derived, because "on" is a naming convention and not something the type system knows:
+		// `onSurfaceVariant` pairs with `surfaceVariant` and `inversePrimary` pairs with `inverseSurface`,
+		// and nothing in the class says so.
+		for (theme in this.themes) {
+			for ((mode, chrome) in listOf("light" to theme.chromeLight, "dark" to theme.chromeDark)) {
+				val s = chrome.colorScheme
+				val pairs = listOf(
+					"primary" to (s.primary to s.onPrimary),
+					"primaryContainer" to (s.primaryContainer to s.onPrimaryContainer),
+					"secondary" to (s.secondary to s.onSecondary),
+					"secondaryContainer" to (s.secondaryContainer to s.onSecondaryContainer),
+					"tertiary" to (s.tertiary to s.onTertiary),
+					"tertiaryContainer" to (s.tertiaryContainer to s.onTertiaryContainer),
+					"error" to (s.error to s.onError),
+					"errorContainer" to (s.errorContainer to s.onErrorContainer),
+					"background" to (s.background to s.onBackground),
+					"surface" to (s.surface to s.onSurface),
+					"surfaceVariant" to (s.surfaceVariant to s.onSurfaceVariant),
+					"inverseSurface" to (s.inverseSurface to s.inverseOnSurface),
+					"inverseSurface/inversePrimary" to (s.inverseSurface to s.inversePrimary),
+					"primaryFixed" to (s.primaryFixed to s.onPrimaryFixed),
+					"secondaryFixed" to (s.secondaryFixed to s.onSecondaryFixed),
+					"tertiaryFixed" to (s.tertiaryFixed to s.onTertiaryFixed)
 				)
-				assertEquals("${theme.id}/$mode", 1, tones.size)
+				for ((role, pair) in pairs) {
+					val ratio = contrast(pair.first, pair.second)
+					val where = theme.id + "/" + mode + "/" + role + " measures " + ratio + ":1, below AA"
+					assertTrue(where, ratio >= WCAG_AA)
+				}
+			}
+		}
+	}
+
+	@Test
+	fun everyTheme_everySurfaceToneKeepsItsTextReadable() {
+		// The ramp is drawn under body copy at every step of it - a card at `container`, a dialog at
+		// `containerLow`, a menu at `containerHigh` - and all of them are written on in `onSurface`. A theme
+		// that stretched its ramp one tone too far would leave exactly one of those unreadable.
+		for (theme in this.themes) {
+			for ((mode, chrome) in listOf("light" to theme.chromeLight, "dark" to theme.chromeDark)) {
+				val s = chrome.colorScheme
+				val tones = listOf(
+					"surfaceDim" to s.surfaceDim,
+					"surfaceBright" to s.surfaceBright,
+					"surfaceContainerLowest" to s.surfaceContainerLowest,
+					"surfaceContainerLow" to s.surfaceContainerLow,
+					"surfaceContainer" to s.surfaceContainer,
+					"surfaceContainerHigh" to s.surfaceContainerHigh,
+					"surfaceContainerHighest" to s.surfaceContainerHighest
+				)
+				for ((role, tone) in tones) {
+					val ratio = contrast(tone, s.onSurface)
+					val where = theme.id + "/" + mode + "/" + role + " measures " + ratio + ":1 against onSurface"
+					assertTrue(where, ratio >= WCAG_AA)
+				}
 			}
 		}
 	}
@@ -180,9 +271,11 @@ class AppThemeCatalogTest {
 			for ((mode, chrome) in listOf("light" to theme.chromeLight, "dark" to theme.chromeDark)) {
 				val scheme = chrome.colorScheme
 				val matchesPage = scheme.surfaceContainerHigh == scheme.surface
-				val hasOwnEdge = scheme.surfaceContainerHigh != scheme.surface
+				// A real edge, not merely a different number: a popup one thousandth of a tone off the page
+				// is the signature of a role filled in from the wrong constant, and it looks identical on a
+				// screen to one that was never filled in at all.
+				val hasOwnEdge = Math.abs(luminance(scheme.surfaceContainerHigh) - luminance(scheme.surface)) >= MIN_POPUP_STEP
 				assertTrue("${theme.id}/$mode", matchesPage || hasOwnEdge)
-				assertNotEquals("${theme.id}/$mode", Color.Unspecified, scheme.surfaceContainerHigh)
 			}
 		}
 	}
@@ -212,7 +305,64 @@ class AppThemeCatalogTest {
 	}
 
 	private companion object {
+
 		/** 16x16 is the largest supported grid, so a chaos board can ask for sixteen distinct tints. */
 		const val LARGEST_GRID_REGIONS = 16
+
+		/** WCAG AA for body text. Every "on" pair in the design's own tables is quoted at or above this. */
+		const val WCAG_AA = 4.5
+
+		/** How far a popup has to sit from the page before the step counts as deliberate rather than as slop. */
+		const val MIN_POPUP_STEP = 0.005
+
+		/** Every role in the scheme, named, so a failure says which one rather than which index. */
+		fun roles(s: ColorScheme): List<Pair<String, Color>> = listOf(
+			"primary" to s.primary, "onPrimary" to s.onPrimary,
+			"primaryContainer" to s.primaryContainer, "onPrimaryContainer" to s.onPrimaryContainer,
+			"inversePrimary" to s.inversePrimary,
+			"secondary" to s.secondary, "onSecondary" to s.onSecondary,
+			"secondaryContainer" to s.secondaryContainer, "onSecondaryContainer" to s.onSecondaryContainer,
+			"tertiary" to s.tertiary, "onTertiary" to s.onTertiary,
+			"tertiaryContainer" to s.tertiaryContainer, "onTertiaryContainer" to s.onTertiaryContainer,
+			"background" to s.background, "onBackground" to s.onBackground,
+			"surface" to s.surface, "onSurface" to s.onSurface,
+			"surfaceVariant" to s.surfaceVariant, "onSurfaceVariant" to s.onSurfaceVariant,
+			"surfaceTint" to s.surfaceTint,
+			"inverseSurface" to s.inverseSurface, "inverseOnSurface" to s.inverseOnSurface,
+			"error" to s.error, "onError" to s.onError,
+			"errorContainer" to s.errorContainer, "onErrorContainer" to s.onErrorContainer,
+			"outline" to s.outline, "outlineVariant" to s.outlineVariant,
+			"scrim" to s.scrim,
+			"surfaceBright" to s.surfaceBright, "surfaceDim" to s.surfaceDim,
+			"surfaceContainer" to s.surfaceContainer,
+			"surfaceContainerHigh" to s.surfaceContainerHigh,
+			"surfaceContainerHighest" to s.surfaceContainerHighest,
+			"surfaceContainerLow" to s.surfaceContainerLow,
+			"surfaceContainerLowest" to s.surfaceContainerLowest,
+			"primaryFixed" to s.primaryFixed, "primaryFixedDim" to s.primaryFixedDim,
+			"onPrimaryFixed" to s.onPrimaryFixed, "onPrimaryFixedVariant" to s.onPrimaryFixedVariant,
+			"secondaryFixed" to s.secondaryFixed, "secondaryFixedDim" to s.secondaryFixedDim,
+			"onSecondaryFixed" to s.onSecondaryFixed, "onSecondaryFixedVariant" to s.onSecondaryFixedVariant,
+			"tertiaryFixed" to s.tertiaryFixed, "tertiaryFixedDim" to s.tertiaryFixedDim,
+			"onTertiaryFixed" to s.onTertiaryFixed, "onTertiaryFixedVariant" to s.onTertiaryFixedVariant
+		)
+
+		/**
+		 * WCAG relative luminance, written out rather than taken from `Color.luminance()` - that one is an
+		 * Android framework call and this is a plain JVM test.
+		 */
+		fun luminance(color: Color): Double {
+			fun channel(v: Float): Double {
+				val c = v.toDouble()
+				return if (c <= 0.03928) c / 12.92 else Math.pow((c + 0.055) / 1.055, 2.4)
+			}
+			return 0.2126 * channel(color.red) + 0.7152 * channel(color.green) + 0.0722 * channel(color.blue)
+		}
+
+		fun contrast(a: Color, b: Color): Double {
+			val la = luminance(a)
+			val lb = luminance(b)
+			return (maxOf(la, lb) + 0.05) / (minOf(la, lb) + 0.05)
+		}
 	}
 }

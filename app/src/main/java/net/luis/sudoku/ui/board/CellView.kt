@@ -206,9 +206,15 @@ private fun CellValueText(value: Int, color: Color, fontSize: TextUnit, bold: Bo
 		text = value.toString(),
 		color = color,
 		fontSize = fontSize,
-		// Medium rather than Normal: a placed digit is the heaviest thing in the cell whether it is marked
-		// or not, and the notes underneath it are what Normal is for.
-		fontWeight = if (bold) FontWeight.Bold else FontWeight.Medium
+		// SemiBold whether the digit is marked or not, and the notes underneath it are what Normal is for.
+		//
+		// The weight used to be the mark - Bold for the selected value, Medium for everything else - and the
+		// type scale is what finally settles that it should not be. Archivo ships here at 400 and 600 only,
+		// so Bold and Medium are both synthesised by the platform from the nearest real weight, and a
+		// distinction drawn in a fake weight is a distinction that changes between two Android versions.
+		// Nothing is lost by dropping it: the ink already says which digit is marked (issue 2.2.1/5), and
+		// giving every placed digit one weight is the same ruling as giving every placed digit one colour.
+		fontWeight = FontWeight.SemiBold
 	)
 }
 
@@ -285,7 +291,7 @@ private fun PencilMarkGrid(
 					else -> palette.pencilMark
 				},
 				fontSize = fontSize,
-				fontWeight = if (marked || proposalColor != null) FontWeight.Bold else FontWeight.Normal
+				fontWeight = if (marked || proposalColor != null) FontWeight.SemiBold else FontWeight.Normal
 			)
 		}
 	}

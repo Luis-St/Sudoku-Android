@@ -343,7 +343,7 @@ private fun MethodOption(title: String, description: String, onClick: () -> Unit
 		color = Color.Transparent
 	) {
 		Column(modifier = Modifier.clickable(onClick = onClick).padding(14.dp)) {
-			Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+			Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
 			Text(
 				text = description,
 				style = MaterialTheme.typography.bodySmall,

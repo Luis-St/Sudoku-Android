@@ -1,8 +1,21 @@
 package net.luis.sudoku.ui.theme
 
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material.ripple.RippleAlpha
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RippleConfiguration
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
@@ -75,15 +88,68 @@ data class ChromePalette(
 )
 
 /**
+ * The surface family: the seven tones Material draws a page, a card and a popup on.
+ *
+ * Its own type because these are not seven independent choices - they are one ramp, and the only two
+ * sensible answers to it are "every tone the same" and "a real ramp with the steps in the right order". A
+ * theme that sets three of them and forgets four has picked neither.
+ *
+ * @param dim the page at its darkest, [bright] at its lightest. Nothing in this app reads them yet, which is
+ *   exactly why they are here: a role nothing reads is a role nobody notices is still Material's lavender.
+ */
+@Immutable
+data class SurfaceTones(
+	val dim: Color,
+	val bright: Color,
+	val containerLowest: Color,
+	val containerLow: Color,
+	val container: Color,
+	val containerHigh: Color,
+	val containerHighest: Color
+) {
+
+	companion object {
+
+		/**
+		 * Every tone the same, which is the answer for a theme that separates a popup from the page with an
+		 * outline rather than with tone - see [AppThemeCatalog.CLASSIC].
+		 */
+		fun pinned(tone: Color) = SurfaceTones(tone, tone, tone, tone, tone, tone, tone)
+	}
+}
+
+/**
+ * One accent's **fixed** roles: the four tones Material keeps identical in light and dark.
+ *
+ * They exist for surfaces that must not flip when the mode does - a shared card in a light sheet over a dark
+ * app, and the expressive components built on that idea. Nothing in this app draws one today. They are still
+ * set, for the same reason [SurfaceTones.dim] is: an unassigned role does not stay blank, it stays Material's
+ * own baseline, and the day something does reach for one it will arrive in the wrong palette entirely.
+ *
+ * A theme does not invent these. They are tones it already owns: [fixed] is its light container, [fixedDim]
+ * the dark mode's accent, [onFixed] the light on-container, and [onFixedVariant] the dark mode's container.
+ */
+@Immutable
+data class FixedTones(
+	val fixed: Color,
+	val fixedDim: Color,
+	val onFixed: Color,
+	val onFixedVariant: Color
+)
+
+/**
  * Builds a [ChromePalette] from the roles a theme actually has an opinion about.
  *
- * Material's own scheme has forty-odd roles and this takes eighteen; the rest are derived or pinned here.
- * That is the point - a theme author picks pigments, not a Material specification.
+ * Material's scheme has forty-seven roles. This takes twenty-nine and derives the rest, which is the point -
+ * a theme author picks pigments, not a Material specification. What it will not do is leave one unset: every
+ * role reaching [ColorScheme] here comes from the theme or from another of the theme's own values, because an
+ * unassigned role keeps Material's baseline lavender and shows up as one component in the wrong palette long
+ * after the theme was signed off. That is account item 1, and `AppThemeCatalogTest` is where it is now caught.
  *
- * @param surfaceContainer what every popup is drawn on - dialogs, menus and sheets. All five of Material's
- *   container tones are set to this single value: light themes want them equal to the page so no popup is a
- *   different shade from any other, dark themes want them one step up so a dialog has a visible edge, and
- *   *either* answer is wrong if only some of the five carry it.
+ * @param surfaces the page-and-popup ramp - see [SurfaceTones]. Light themes tend to pin it, so no popup is a
+ *   different shade from any other; dark themes tend to step it, so a dialog has a visible edge.
+ * @param surfaceTint what Material tints an elevated surface with. Defaults to [primary], which is Material's
+ *   own rule and the right one: the tint is the accent bleeding through, not a colour of its own.
  */
 fun chromePalette(
 	dark: Boolean,
@@ -99,59 +165,90 @@ fun chromePalette(
 	onTertiary: Color,
 	tertiaryContainer: Color,
 	onTertiaryContainer: Color,
+	error: Color,
+	onError: Color,
+	errorContainer: Color,
+	onErrorContainer: Color,
 	background: Color,
 	onBackground: Color,
 	surface: Color,
 	onSurface: Color,
 	surfaceVariant: Color,
 	onSurfaceVariant: Color,
-	surfaceContainer: Color,
+	surfaces: SurfaceTones,
 	outline: Color,
-	error: Color,
-	onError: Color,
+	outlineVariant: Color,
+	inverseSurface: Color,
+	inverseOnSurface: Color,
+	/** The *other* mode's accent, which is what makes a snackbar's action readable on an inverted surface. */
+	inversePrimary: Color,
+	primaryFixed: FixedTones,
+	secondaryFixed: FixedTones,
+	tertiaryFixed: FixedTones,
 	gradientTop: Color,
 	gradientBottom: Color,
 	accentStart: Color,
-	accentEnd: Color
-): ChromePalette {
-	val base = if (dark) darkColorScheme() else lightColorScheme()
-	return ChromePalette(
-		colorScheme = base.copy(
-			primary = primary,
-			onPrimary = onPrimary,
-			primaryContainer = primaryContainer,
-			onPrimaryContainer = onPrimaryContainer,
-			secondary = secondary,
-			onSecondary = onSecondary,
-			secondaryContainer = secondaryContainer,
-			onSecondaryContainer = onSecondaryContainer,
-			tertiary = tertiary,
-			onTertiary = onTertiary,
-			tertiaryContainer = tertiaryContainer,
-			onTertiaryContainer = onTertiaryContainer,
-			background = background,
-			onBackground = onBackground,
-			surface = surface,
-			onSurface = onSurface,
-			surfaceVariant = surfaceVariant,
-			onSurfaceVariant = onSurfaceVariant,
-			surfaceContainerLowest = surfaceContainer,
-			surfaceContainerLow = surfaceContainer,
-			surfaceContainer = surfaceContainer,
-			surfaceContainerHigh = surfaceContainer,
-			surfaceContainerHighest = surfaceContainer,
-			outline = outline,
-			error = error,
-			onError = onError
-		),
-		gradients = AppGradients(
-			backgroundTop = gradientTop,
-			backgroundBottom = gradientBottom,
-			accentStart = accentStart,
-			accentEnd = accentEnd
-		)
+	accentEnd: Color,
+	surfaceTint: Color = primary,
+	scrim: Color = Color.Black
+): ChromePalette = ChromePalette(
+	colorScheme = ColorScheme(
+		primary = primary,
+		onPrimary = onPrimary,
+		primaryContainer = primaryContainer,
+		onPrimaryContainer = onPrimaryContainer,
+		inversePrimary = inversePrimary,
+		secondary = secondary,
+		onSecondary = onSecondary,
+		secondaryContainer = secondaryContainer,
+		onSecondaryContainer = onSecondaryContainer,
+		tertiary = tertiary,
+		onTertiary = onTertiary,
+		tertiaryContainer = tertiaryContainer,
+		onTertiaryContainer = onTertiaryContainer,
+		background = background,
+		onBackground = onBackground,
+		surface = surface,
+		onSurface = onSurface,
+		surfaceVariant = surfaceVariant,
+		onSurfaceVariant = onSurfaceVariant,
+		surfaceTint = surfaceTint,
+		inverseSurface = inverseSurface,
+		inverseOnSurface = inverseOnSurface,
+		error = error,
+		onError = onError,
+		errorContainer = errorContainer,
+		onErrorContainer = onErrorContainer,
+		outline = outline,
+		outlineVariant = outlineVariant,
+		scrim = scrim,
+		surfaceBright = surfaces.bright,
+		surfaceDim = surfaces.dim,
+		surfaceContainer = surfaces.container,
+		surfaceContainerHigh = surfaces.containerHigh,
+		surfaceContainerHighest = surfaces.containerHighest,
+		surfaceContainerLow = surfaces.containerLow,
+		surfaceContainerLowest = surfaces.containerLowest,
+		primaryFixed = primaryFixed.fixed,
+		primaryFixedDim = primaryFixed.fixedDim,
+		onPrimaryFixed = primaryFixed.onFixed,
+		onPrimaryFixedVariant = primaryFixed.onFixedVariant,
+		secondaryFixed = secondaryFixed.fixed,
+		secondaryFixedDim = secondaryFixed.fixedDim,
+		onSecondaryFixed = secondaryFixed.onFixed,
+		onSecondaryFixedVariant = secondaryFixed.onFixedVariant,
+		tertiaryFixed = tertiaryFixed.fixed,
+		tertiaryFixedDim = tertiaryFixed.fixedDim,
+		onTertiaryFixed = tertiaryFixed.onFixed,
+		onTertiaryFixedVariant = tertiaryFixed.onFixedVariant
+	),
+	gradients = AppGradients(
+		backgroundTop = gradientTop,
+		backgroundBottom = gradientBottom,
+		accentStart = accentStart,
+		accentEnd = accentEnd
 	)
-}
+)
 
 /**
  * Gradient stops for the app shell. Kept as plain colors rather than ready-made [Brush]es so a caller can
@@ -291,7 +388,17 @@ data class AppShapes(
 	val elevation: Dp = 3.dp,
 	val pressedElevation: Dp = 1.dp,
 	/** How opaque a [net.luis.sudoku.ui.common.SectionCard] is over the background wash. */
-	val containerAlpha: Float = 0.6f
+	val containerAlpha: Float = 0.6f,
+	/**
+	 * The ring drawn around whatever holds keyboard or D-pad focus - see [Modifier.appFocusRing].
+	 *
+	 * Its own tokens rather than the platform default, because the platform default is *nothing* on a phone:
+	 * Compose draws no focus indication of its own, so a player on a hardware keyboard, a TV remote or a
+	 * switch-access device has no way to tell which control they are on. Three density-independent pixels of
+	 * ring at two of offset is the smallest that reads as deliberate at arm's length.
+	 */
+	val focusRingWidth: Dp = 3.dp,
+	val focusRingOffset: Dp = 2.dp
 )
 
 object AppThemeCatalog {
@@ -322,18 +429,27 @@ object AppThemeCatalog {
 			onTertiary = AmberOnTertiaryLight,
 			tertiaryContainer = AmberContainerLight,
 			onTertiaryContainer = AmberOnContainerLight,
+			error = ErrorLight,
+			onError = OnErrorLight,
+			errorContainer = ErrorContainerLight,
+			onErrorContainer = OnErrorContainerLight,
 			background = BackgroundLight,
 			onBackground = OnBackgroundLight,
 			surface = SurfaceLight,
 			onSurface = OnSurfaceLight,
 			surfaceVariant = SurfaceVariantLight,
 			onSurfaceVariant = OnSurfaceVariantLight,
-			// Plain white, equal to the page: in light mode the point is that no popup is a different shade
-			// from any other.
-			surfaceContainer = SurfaceLight,
+			// Plain white, every tone of it: in light mode the point is that no popup is a different shade
+			// from any other, and this theme separates one from the page with its outline instead.
+			surfaces = SurfaceTones.pinned(SurfaceLight),
 			outline = OutlineLight,
-			error = ErrorLight,
-			onError = OnErrorLight,
+			outlineVariant = OutlineVariantLight,
+			inverseSurface = InverseSurfaceLight,
+			inverseOnSurface = InverseOnSurfaceLight,
+			inversePrimary = IndigoPrimaryDark,
+			primaryFixed = ClassicPrimaryFixed,
+			secondaryFixed = ClassicSecondaryFixed,
+			tertiaryFixed = ClassicTertiaryFixed,
 			gradientTop = BackgroundGradientTopLight,
 			gradientBottom = BackgroundGradientBottomLight,
 			accentStart = IndigoPrimaryLight,
@@ -353,6 +469,10 @@ object AppThemeCatalog {
 			onTertiary = AmberOnTertiaryDark,
 			tertiaryContainer = AmberContainerDark,
 			onTertiaryContainer = AmberOnContainerDark,
+			error = ErrorDark,
+			onError = OnErrorDark,
+			errorContainer = ErrorContainerDark,
+			onErrorContainer = OnErrorContainerDark,
 			background = BackgroundDark,
 			onBackground = OnBackgroundDark,
 			surface = SurfaceDark,
@@ -360,11 +480,16 @@ object AppThemeCatalog {
 			surfaceVariant = SurfaceVariantDark,
 			onSurfaceVariant = OnSurfaceVariantDark,
 			// One tone up from the page, unlike light mode: a dialog painted [SurfaceDark] on a [SurfaceDark]
-			// page has no visible edge.
-			surfaceContainer = SurfaceContainerDark,
+			// page has no visible edge. Still one tone for all of them, which is Classic's rule.
+			surfaces = SurfaceTones.pinned(SurfaceContainerDark),
 			outline = OutlineDark,
-			error = ErrorDark,
-			onError = OnErrorDark,
+			outlineVariant = OutlineVariantDark,
+			inverseSurface = InverseSurfaceDark,
+			inverseOnSurface = InverseOnSurfaceDark,
+			inversePrimary = IndigoPrimaryLight,
+			primaryFixed = ClassicPrimaryFixed,
+			secondaryFixed = ClassicSecondaryFixed,
+			tertiaryFixed = ClassicTertiaryFixed,
 			gradientTop = BackgroundGradientTopDark,
 			gradientBottom = BackgroundGradientBottomDark,
 			accentStart = IndigoPrimaryDark,
@@ -389,8 +514,154 @@ object AppThemeCatalog {
 		regionTintsDark = ClassicRegionTintsDark
 	)
 
+	/**
+	 * A calm, utilitarian Material You look built on a single warm accent (`#AD1F00`).
+	 *
+	 * Where Classic is three families - indigo for identity, teal for progress, amber for emphasis - this is
+	 * one, read at four points around the wheel. That is the whole difference, and it changes what carries
+	 * hierarchy: Classic tells two things apart by giving them different hues, Ember has no second hue to
+	 * spend and tells them apart by weight, tone and space instead. Nothing on a screen changes position for
+	 * it; a theme is not allowed to move anything.
+	 *
+	 * Three deliberate departures from the palette it was drawn from, each with its reason at the line that
+	 * makes it: the board's entry ink (an owner ruling), the selected cell (see [EmberBoardLight]) and the
+	 * action gradients (see [EmberGradientPrimaryStart]).
+	 *
+	 * Free and owned by default while it is the app's own look. It becomes a priced catalog entry on the day
+	 * the shop can record a purchase - which is a server change, not this line (see
+	 * [net.luis.sudoku.ui.shop.ShopScreen]).
+	 */
+	val EMBER = AppTheme(
+		id = "ember",
+		displayName = "Ember",
+		priceInRhubarb = 0,
+		ownedByDefault = true,
+		chromeLight = chromePalette(
+			dark = false,
+			primary = EmberPrimaryLight,
+			onPrimary = EmberOnPrimaryLight,
+			primaryContainer = EmberPrimaryContainerLight,
+			onPrimaryContainer = EmberOnPrimaryContainerLight,
+			secondary = EmberSecondaryLight,
+			onSecondary = EmberOnSecondaryLight,
+			secondaryContainer = EmberSecondaryContainerLight,
+			onSecondaryContainer = EmberOnSecondaryContainerLight,
+			tertiary = EmberTertiaryLight,
+			onTertiary = EmberOnTertiaryLight,
+			tertiaryContainer = EmberTertiaryContainerLight,
+			onTertiaryContainer = EmberOnTertiaryContainerLight,
+			error = EmberErrorLight,
+			onError = EmberOnErrorLight,
+			errorContainer = EmberErrorContainerLight,
+			onErrorContainer = EmberOnErrorContainerLight,
+			background = EmberBackgroundLight,
+			onBackground = EmberOnBackgroundLight,
+			surface = EmberSurfaceLight,
+			onSurface = EmberOnSurfaceLight,
+			surfaceVariant = EmberSurfaceVariantLight,
+			onSurfaceVariant = EmberOnSurfaceVariantLight,
+			// A real ramp, unlike Classic's one pinned tone. This theme spends no shadow at all (see its
+			// [AppShapes]), so tone is the only thing a card or a popup has to stand on, and the ramp is the
+			// thing that does the standing.
+			surfaces = EmberSurfacesLight,
+			outline = EmberOutlineLight,
+			outlineVariant = EmberOutlineVariantLight,
+			inverseSurface = EmberInverseSurfaceLight,
+			inverseOnSurface = EmberInverseOnSurfaceLight,
+			inversePrimary = EmberPrimaryDark,
+			primaryFixed = EmberPrimaryFixed,
+			secondaryFixed = EmberSecondaryFixed,
+			tertiaryFixed = EmberTertiaryFixed,
+			gradientTop = EmberBackgroundGradientTopLight,
+			gradientBottom = EmberBackgroundGradientBottomLight,
+			accentStart = EmberGradientPrimaryStart,
+			accentEnd = EmberGradientPrimaryEnd
+		),
+		chromeDark = chromePalette(
+			dark = true,
+			primary = EmberPrimaryDark,
+			onPrimary = EmberOnPrimaryDark,
+			primaryContainer = EmberPrimaryContainerDark,
+			onPrimaryContainer = EmberOnPrimaryContainerDark,
+			secondary = EmberSecondaryDark,
+			onSecondary = EmberOnSecondaryDark,
+			secondaryContainer = EmberSecondaryContainerDark,
+			onSecondaryContainer = EmberOnSecondaryContainerDark,
+			tertiary = EmberTertiaryDark,
+			onTertiary = EmberOnTertiaryDark,
+			tertiaryContainer = EmberTertiaryContainerDark,
+			onTertiaryContainer = EmberOnTertiaryContainerDark,
+			error = EmberErrorDark,
+			onError = EmberOnErrorDark,
+			errorContainer = EmberErrorContainerDark,
+			onErrorContainer = EmberOnErrorContainerDark,
+			background = EmberBackgroundDark,
+			onBackground = EmberOnBackgroundDark,
+			surface = EmberSurfaceDark,
+			onSurface = EmberOnSurfaceDark,
+			surfaceVariant = EmberSurfaceVariantDark,
+			onSurfaceVariant = EmberOnSurfaceVariantDark,
+			// The dark ramp steps *up* in lightness with elevation, where the light one steps down. That is
+			// not symmetry for its own sake: elevation means "closer to the light" in both, and on a
+			// near-black page closer to the light is lighter.
+			surfaces = EmberSurfacesDark,
+			outline = EmberOutlineDark,
+			outlineVariant = EmberOutlineVariantDark,
+			inverseSurface = EmberInverseSurfaceDark,
+			inverseOnSurface = EmberInverseOnSurfaceDark,
+			inversePrimary = EmberPrimaryLight,
+			primaryFixed = EmberPrimaryFixed,
+			secondaryFixed = EmberSecondaryFixed,
+			tertiaryFixed = EmberTertiaryFixed,
+			gradientTop = EmberBackgroundGradientTopDark,
+			gradientBottom = EmberBackgroundGradientBottomDark,
+			// The dark sweep starts one tone lower than the light one. The dark scheme's primary is already
+			// a tone-80 salmon, and a sweep starting there would be a pale bar with dark text on a near-black
+			// page, which is the loudest thing on the screen for no reason.
+			accentStart = EmberGradientPrimaryDeepStart,
+			accentEnd = EmberGradientPrimaryDeepEnd
+		),
+		boardLight = EmberBoardLight,
+		boardDark = EmberBoardDark,
+		accents = AccentPalette(
+			listOf(
+				AccentGradient(EmberGradientPrimaryStart, EmberGradientPrimaryEnd),
+				AccentGradient(EmberGradientTertiaryStart, EmberGradientTertiaryEnd),
+				AccentGradient(EmberGradientSecondaryStart, EmberGradientSecondaryEnd),
+				AccentGradient(EmberGradientNeutralStart, EmberGradientNeutralEnd),
+				AccentGradient(EmberGradientPrimaryDeepStart, EmberGradientPrimaryDeepEnd),
+				AccentGradient(EmberGradientTertiaryDeepStart, EmberGradientTertiaryDeepEnd),
+				AccentGradient(EmberGradientSecondaryDeepStart, EmberGradientSecondaryDeepEnd)
+			)
+		),
+		regionTintsLight = EmberRegionTintsLight,
+		regionTintsDark = EmberRegionTintsDark,
+		// Rounder and flatter than the house default, which is the half of this look that is not a colour.
+		// Elevation is tonal here: a container is told from the page by its tone and its corner, never by a
+		// shadow, so the lift that says "button" in Classic is spent on nothing and set to zero. The three
+		// Material radii the app has always used - the 28dp dialog, the 4dp field, the 8dp chip - move to
+		// this theme's own scale, which is what [AppShapesFidelityTest] pins the *defaults* against so that
+		// a theme moving them stays a decision rather than an accident.
+		shapes = AppShapes(
+			controlCorner = 16.dp,
+			containerCorner = 16.dp,
+			smallCorner = 4.dp,
+			dialogCorner = 28.dp,
+			fieldCorner = 12.dp,
+			chipCorner = 12.dp,
+			borderWidth = 1.dp,
+			borderAlpha = 0.55f,
+			disabledBorderAlpha = 0.2f,
+			containerBorderAlpha = 0.18f,
+			popupBorderAlpha = 0.3f,
+			elevation = 0.dp,
+			pressedElevation = 0.dp,
+			containerAlpha = 0.6f
+		)
+	)
+
 	/** Catalog order is shop display order. */
-	val ALL = listOf(CLASSIC)
+	val ALL = listOf(EMBER, CLASSIC)
 
 	fun byId(id: String): AppTheme = ALL.firstOrNull { it.id == id } ?: CLASSIC
 }
@@ -417,3 +688,59 @@ fun regionTint(region: Int): Color {
 	val tints = LocalRegionTints.current
 	return tints[region.mod(tints.size)]
 }
+
+/**
+ * The focus ring, drawn *outside* the control it belongs to.
+ *
+ * Outside rather than inset, and this is the whole reason it is a hand-drawn ring instead of a border: an
+ * inset ring eats into the control it marks, so a focused button is drawn a few pixels smaller than an
+ * unfocused one and the row it sits in shivers as focus moves along it. Drawing past the bounds keeps every
+ * control exactly the size it was and costs nothing, because nothing in this app clips a button's parent.
+ *
+ * It reads [androidx.compose.ui.focus.FocusState.hasFocus] rather than `isFocused`, so a composite control -
+ * a chip with its own label, a dropdown trigger wrapping a button - lights up as one thing when the piece
+ * inside it takes focus, instead of drawing nothing because the focus landed one level down.
+ *
+ * @param corner the radius of the control underneath. The ring's own radius is this plus how far out it sits,
+ *   which is what keeps the two curves concentric instead of merely close.
+ */
+@Composable
+fun Modifier.appFocusRing(corner: Dp): Modifier {
+	val shapes = LocalAppShapes.current
+	val color = MaterialTheme.colorScheme.primary
+	var focused by remember { mutableStateOf(false) }
+	return this
+		.onFocusChanged { focused = it.hasFocus }
+		.drawWithContent {
+			drawContent()
+			if (!focused) return@drawWithContent
+			val stroke = shapes.focusRingWidth.toPx()
+			// The ring is stroked *on* its path, so half of it falls either side: the path has to sit at the
+			// offset plus half the width for the inner edge to land exactly `offset` away from the control.
+			val out = shapes.focusRingOffset.toPx() + stroke / 2f
+			drawRoundRect(
+				color = color,
+				topLeft = Offset(-out, -out),
+				size = Size(this.size.width + out * 2f, this.size.height + out * 2f),
+				cornerRadius = CornerRadius(corner.toPx() + out),
+				style = Stroke(width = stroke)
+			)
+		}
+}
+
+/**
+ * The state layers: how strongly a control tints itself while it is hovered, focused, pressed or dragged.
+ *
+ * Material's own values are close to these but not equal, and "close" is the problem - a pressed state at
+ * 12% next to one at 10% is not two designs, it is one design with a mistake in it. Setting them here sets
+ * them for every Material control in the app at once, which is the only way this stays true.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+val AppRippleConfiguration = RippleConfiguration(
+	rippleAlpha = RippleAlpha(
+		draggedAlpha = 0.16f,
+		focusedAlpha = 0.10f,
+		hoveredAlpha = 0.08f,
+		pressedAlpha = 0.10f
+	)
+)

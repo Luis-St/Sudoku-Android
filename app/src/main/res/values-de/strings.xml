@@ -272,13 +272,14 @@
 	<string name="settings_language_english">English</string>
 	<string name="settings_language_german">Deutsch</string>
 	<string name="learn_language_switch_to">Zu %1$s wechseln</string>
-	<string name="settings_theme_label">Design</string>
+	<string name="settings_theme_label">Hell und dunkel</string>
 	<string name="action_theme_light">Zum hellen Design wechseln</string>
 	<string name="action_theme_dark">Zum dunklen Design wechseln</string>
 	<string name="settings_theme_system">Wie das System</string>
 	<string name="settings_theme_light">Hell</string>
 	<string name="settings_theme_dark">Dunkel</string>
-	<string name="settings_board_theme_note">Im Shop gekaufte Brett-Designs kommen zusätzlich dazu und haben jeweils eine helle und eine dunkle Fassung.</string>
+	<string name="settings_theme_style_label">Design</string>
+	<string name="settings_board_theme_note">Ein Design bringt eigene Farben, ein eigenes Brett und eigene Formen mit. Jedes hat eine helle und eine dunkle Fassung, die Wahl eines Designs ändert also nie, in welcher von beiden du gerade bist.</string>
 	<string name="settings_recovery_header">Kontowiederherstellung</string>
 	<string name="settings_recovery_setup_explainer">Bestätige jetzt eine E-Mail-Adresse, damit du dieses Konto wiederherstellen kannst, falls du den Zugriff auf alle deine Geräte verlierst.</string>
 	<string name="settings_recovery_explainer">Gib die zuvor bestätigte E-Mail-Adresse ein. Wir senden einen einmaligen Wiederherstellungscode dorthin.</string>
