@@ -184,4 +184,48 @@ class AccountSyncRulesTest {
 		assertEquals(0, merged.restorableMissedDays)
 		assertNull(merged.restorableUntil)
 	}
+
+	// --- issue 2.2.2/1: two runs are merged as runs, not as a number and a date ---
+
+	@Test
+	fun mergeStreak_aRunThatRestartedTodayAndAnOlderBrokenOne_keepsTheLiveRun() {
+		// The reported inflation. The account's run ended two days ago, this device solved today after
+		// missing a day - taking the larger count with today's date on it invents a 22 day run that then
+		// gets published back to the server as one.
+		val merged = AccountSyncRules.mergeStreak(
+			record(streak = 1, solved = true, lastCompletedDate = today),
+			remoteCurrent = 22,
+			remoteLastCompleted = today.minusDays(2),
+			today = today
+		)
+
+		assertEquals(1, merged.streak)
+		assertEquals(today, merged.lastCompletedDate)
+	}
+
+	@Test
+	fun mergeStreak_twoRunsThatMeet_countTheDaysTheyCoverBetweenThem() {
+		// The everyday case: the account verified through yesterday, this device solved today offline.
+		val merged = AccountSyncRules.mergeStreak(
+			record(streak = 1, solved = true, lastCompletedDate = today),
+			remoteCurrent = 22,
+			remoteLastCompleted = today.minusDays(1),
+			today = today
+		)
+
+		assertEquals(23, merged.streak)
+		assertEquals(today, merged.lastCompletedDate)
+	}
+
+	@Test
+	fun mergeRuns_aRunWithNoAnchor_keepsTheLongerCount() {
+		// A record written before `lastCompletedDate` existed cannot be placed on the calendar, so there is
+		// nothing to contradict it with.
+		assertEquals(9 to today, AccountSyncRules.mergeRuns(9, null, 4, today))
+	}
+
+	@Test
+	fun mergeRuns_aRunInsideAnother_isNotAddedToIt() {
+		assertEquals(10 to today, AccountSyncRules.mergeRuns(3, today, 10, today))
+	}
 }

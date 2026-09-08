@@ -33,6 +33,7 @@ import net.luis.sudoku.ui.theme.BoardPalette
 import net.luis.sudoku.ui.theme.LocalBoardPalette
 import net.luis.sudoku.ui.theme.LocalDarkTheme
 import androidx.compose.foundation.clickable
+import net.luis.sudoku.domain.ExplanationFrame
 
 /**
  * One technique explained (learn item 2): what it proves, how to spot it, five worked examples, and the way

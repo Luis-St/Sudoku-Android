@@ -181,9 +181,15 @@ class HomeViewModel @Inject constructor(
 				// The collector repaints `streak` from this write - it is no longer set by hand, or the
 				// store and the screen could disagree about a number that now comes from two places. The
 				// repaired break goes with it, so the card stops offering what has just been paid for.
+				//
+				// The anchor comes with the count and has to: a repair of a still-open gap moves the run's
+				// last completed day up to yesterday, and `DailyController.recordSuccess` now reads that day
+				// to decide whether today's solve continues the run. Left behind, the very solve the restore
+				// was bought for would restart the count at 1.
 				this@HomeViewModel.dailyStore.save(
 					record.copy(
 						streak = streak.current,
+						lastCompletedDate = streak.lastCompletedDate?.let(LocalDate::parse) ?: record.lastCompletedDate,
 						restorableMissedDays = streak.restorableMissedDays,
 						restorableUntil = streak.restorableUntil?.let(LocalDate::parse)
 					)

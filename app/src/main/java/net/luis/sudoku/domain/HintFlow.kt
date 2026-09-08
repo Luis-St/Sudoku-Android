@@ -14,7 +14,11 @@ import net.luis.sudoku.core.GameSession
  * 2. [MARK_DIFF]: the same disagreement drawn on the board, in green and red, so it is visible which note
  *    is missing and which one cannot be right.
  * 3. [FULL_MARKS]: the complete candidate set, and the name of the technique that solves a cell from it.
- * 4. [TARGET_CELL]: the cell that technique solves, marked, with the technique still named.
+ * 4. [PATTERN]: the technique's own cells, outlined on the board one beat at a time, in the learn area's
+ *    colours (issue 2.2.2/2). This is the step that answers "and how do I use that?", which naming the
+ *    technique never did: a player who is told a W-Wing applies and cannot find the W-Wing has been handed
+ *    the one part of a hint that helps nobody. It repeats for as many beats as the explanation has.
+ * 5. [TARGET_CELL]: the cell that technique solves, marked, with the technique still named.
  *
  * Pressing on from [TARGET_CELL] is what spends the hint and enters the digit; there is no step for it,
  * because at that point the hint is over.
@@ -32,27 +36,50 @@ enum class HintStep {
 	REVIEW_MARKS,
 	MARK_DIFF,
 	FULL_MARKS,
+	PATTERN,
 	TARGET_CELL;
 
 	/**
-	 * Whether this step has anything to show for [review].
+	 * Whether this step has anything to show for [plan].
 	 *
-	 * Only the two note steps can come out empty: naming the notes to look over and drawing how they differ
-	 * both need a difference to exist. Filling the notes in and marking the cell always have something to do.
+	 * Three of the five can come out empty. Naming the notes to look over and drawing how they differ both
+	 * need a difference to exist, and drawing the technique's pattern needs there to be one worth drawing -
+	 * see [hintPatternFrames], which withholds it for every technique whose own beats would name the digit.
+	 * Filling the notes in and marking the cell always have something to do.
 	 */
-	fun shows(review: MarkReview): Boolean = when (this) {
-		REVIEW_MARKS, MARK_DIFF -> !review.clean
+	fun shows(plan: HintPlan): Boolean = when (this) {
+		REVIEW_MARKS, MARK_DIFF -> !plan.review.clean
+		PATTERN -> plan.pattern.isNotEmpty()
 		FULL_MARKS, TARGET_CELL -> true
 	}
 
 	/** The step the next press moves to, or `null` when the next press reveals the digit instead. */
-	fun next(review: MarkReview): HintStep? =
-		entries.drop(this.ordinal + 1).firstOrNull { step -> step.shows(review) }
+	fun next(plan: HintPlan): HintStep? =
+		entries.drop(this.ordinal + 1).firstOrNull { step -> step.shows(plan) }
 
 	companion object {
 
 		/** Where the first press lands: the first step that has anything to say about this board. */
-		fun first(review: MarkReview): HintStep = entries.first { step -> step.shows(review) }
+		fun first(plan: HintPlan): HintStep = entries.first { step -> step.shows(plan) }
+	}
+}
+
+/**
+ * Everything one run of a hint was planned from: the notes as they were when it started, and the beats of the
+ * technique's pattern.
+ *
+ * Both are read **once**, when the hint begins, and neither is recomputed as it is stepped. The steps are
+ * things to say about *one* reading of the board, and a set that moved under them would have step two drawing
+ * something step one did not name.
+ *
+ * @param review how the player's notes compared to the board when the hint started
+ * @param pattern the technique's beats, empty when there is no pattern this hint may show
+ */
+data class HintPlan(val review: MarkReview, val pattern: List<ExplanationFrame> = emptyList()) {
+
+	companion object {
+
+		val EMPTY: HintPlan = HintPlan(MarkReview.EMPTY)
 	}
 }
 

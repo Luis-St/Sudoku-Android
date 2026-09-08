@@ -1,6 +1,7 @@
 package net.luis.sudoku.ui.board
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
@@ -12,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.TextUnit
 import net.luis.sudoku.core.CellSnapshot
 import net.luis.sudoku.domain.InputMode
@@ -59,7 +61,26 @@ data class CellHighlight(
 	val hintMissingMarks: Int = 0,
 	val hintWrongMarks: Int = 0,
 	/** The chaos region tint under everything else (game item 1); `null` for classic puzzles. */
-	val regionTint: Color? = null
+	val regionTint: Color? = null,
+	/**
+	 * Issue 2.2.2/2: the colour this cell's part in a hint's technique is outlined in, or `null` for a cell
+	 * the pattern does not name.
+	 *
+	 * An **outline** rather than a fill, unlike the lesson board, which colours the cell itself. Every one of
+	 * this board's cell colours already means something a player is relying on mid-puzzle - which cell they
+	 * are on, which cells are its peers, what they got wrong - and a hint that painted over them would take
+	 * the board away in order to explain it. The hue is the lesson's, so the vocabulary is one
+	 * ([net.luis.sudoku.ui.learn.LearnRoleColors.outlineOf]).
+	 */
+	val patternOutline: Color? = null,
+	/**
+	 * Whether the cell is one *this* beat of the pattern names, as opposed to one an earlier beat did.
+	 *
+	 * The lesson board's rule (learn item 10), for the same reason: by the fourth beat of a chain half the
+	 * pattern is outlined, and a caption saying "these cells" over a picture that has not changed since the
+	 * last press points at nothing. The earlier ones stay on the board and step back.
+	 */
+	val patternCurrent: Boolean = false
 )
 
 @Composable
@@ -117,6 +138,23 @@ fun CellView(
 		modifier = modifier
 			.aspectRatio(1f)
 			.background(background)
+			// Inside the background and outside the glyph, so the outline reads as a mark *on* the cell and
+			// never disturbs the digit's own metrics - the board's pixel rules are the same with a hint
+			// running as without one.
+			.then(
+				if (highlight.patternOutline != null) {
+					Modifier.border(
+						width = if (highlight.patternCurrent) PATTERN_OUTLINE_WIDTH else PATTERN_OUTLINE_WIDTH_EARLIER,
+						color = if (highlight.patternCurrent) {
+							highlight.patternOutline
+						} else {
+							highlight.patternOutline.copy(alpha = PATTERN_OUTLINE_EARLIER_ALPHA)
+						}
+					)
+				} else {
+					Modifier
+				}
+			)
 			.clickable(onClick = onTap),
 		contentAlignment = Alignment.Center
 	) {
@@ -199,6 +237,20 @@ private const val SELECTED_ON_TINT_ALPHA = 0.55f
 
 /** The same accent for the selected row and column, weak enough that it never competes with the selection. */
 private const val PEER_ON_TINT_ALPHA = 0.24f
+
+/**
+ * How thick a hint's pattern outline is drawn on the cell it names right now.
+ *
+ * Two device pixels' worth at every grid size: the outline has to be findable at a glance on a 16x16 board,
+ * where a cell is a fraction of a 9x9 one, and it sits inside the cell so it never grows the board.
+ */
+private val PATTERN_OUTLINE_WIDTH = 2.dp
+
+/** The same outline on a cell an *earlier* beat named, thinner and softer so the two read in order. */
+private val PATTERN_OUTLINE_WIDTH_EARLIER = 1.5.dp
+
+/** How far back a cell an earlier beat named is pushed - the lesson board's own value (learn item 10). */
+private const val PATTERN_OUTLINE_EARLIER_ALPHA = 0.4f
 
 @Composable
 private fun CellValueText(value: Int, color: Color, fontSize: TextUnit, bold: Boolean = false) {

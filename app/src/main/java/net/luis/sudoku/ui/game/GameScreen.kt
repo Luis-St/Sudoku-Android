@@ -52,6 +52,9 @@ import net.luis.sudoku.ui.navigation.PlayMode
 import net.luis.sudoku.ui.navigation.PlayRequest
 import net.luis.sudoku.ui.theme.LocalBoardPalette
 import net.luis.sudoku.ui.theme.LocalInkColors
+import net.luis.sudoku.domain.ExplanationFrame
+import net.luis.sudoku.ui.learn.narrationOf
+import net.luis.sudoku.ui.learn.stepDetailOf
 
 /**
  * The playable screen. Since the home screen exists (UI item 5) the Normal/Daily tab row is gone: which
@@ -205,7 +208,11 @@ fun GameScreen(
 					// Game item 19: the notes the running hint is proposing, drawn on the board and written to
 					// it only once the player steps past them.
 					hintMissingMarks = viewModel.hintMissingMarks,
-					hintWrongMarks = viewModel.hintWrongMarks
+					hintWrongMarks = viewModel.hintWrongMarks,
+					// Issue 2.2.2/2: the technique's own cells, outlined in the learn area's colours while the
+					// hint stands on its pattern step.
+					hintPatternRoles = viewModel.hintPatternRoles,
+					hintPatternCurrentCells = viewModel.hintPatternCurrentCells
 				)
 
 				// Game item 3 (2.1.0): what the peeked hint has to say beyond the cell it marks, directly under
@@ -220,7 +227,9 @@ fun GameScreen(
 							step = step,
 							review = viewModel.hintReview,
 							technique = viewModel.hintTechnique,
-							hexDisplay = viewModel.preferences.hexDisplay
+							hexDisplay = viewModel.preferences.hexDisplay,
+							patternFrame = viewModel.hintPatternFrame,
+							edgeLength = viewModel.edgeLength
 						)
 					}
 				}
@@ -412,10 +421,18 @@ internal fun formatElapsed(millis: Long): String {
  * a change to how it behaves (item 4 of 2.2.0's scrolling, below) cannot land on one board and miss the other.
  */
 @Composable
-internal fun HintStepRow(step: HintStep, review: MarkReview, technique: Technique?, hexDisplay: Boolean) {
+internal fun HintStepRow(
+	step: HintStep,
+	review: MarkReview,
+	technique: Technique?,
+	hexDisplay: Boolean,
+	/** The beat of the technique's pattern on the board, when the hint is on its pattern step (issue 2.2.2/2). */
+	patternFrame: ExplanationFrame? = null,
+	edgeLength: Int = 9
+) {
 	Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
 		Text(
-			text = hintStepText(step, review, technique, hexDisplay),
+			text = hintStepText(step, review, technique, hexDisplay, patternFrame, edgeLength),
 			style = MaterialTheme.typography.bodySmall,
 			color = MaterialTheme.colorScheme.onSurfaceVariant,
 			// Item 4 of 2.2.0: past a few lines the tip scrolls **inside itself** instead of growing.
@@ -448,7 +465,14 @@ private val HINT_TEXT_MAX_HEIGHT = 96.dp
  * skipped there rather than shown saying nothing.
  */
 @Composable
-internal fun hintStepText(step: HintStep, review: MarkReview, technique: Technique?, hexDisplay: Boolean): String {
+internal fun hintStepText(
+	step: HintStep,
+	review: MarkReview,
+	technique: Technique?,
+	hexDisplay: Boolean,
+	patternFrame: ExplanationFrame? = null,
+	edgeLength: Int = 9
+): String {
 	val techniqueName = technique?.let { stringResource(stringsOf(it).name) }.orEmpty()
 	return when (step) {
 		HintStep.REVIEW_MARKS -> stringResource(
@@ -458,6 +482,15 @@ internal fun hintStepText(step: HintStep, review: MarkReview, technique: Techniq
 
 		HintStep.MARK_DIFF -> stringResource(R.string.hint_step_diff)
 		HintStep.FULL_MARKS -> stringResource(R.string.hint_step_marks, techniqueName)
+		// Issue 2.2.2/2: the learn area's own words for this beat, not a second set written for the board.
+		// The lesson and the hint are the same explanation, so they say the same thing about it - and the
+		// detail line is what makes "these cells" mean something the player can check against the grid.
+		HintStep.PATTERN -> patternFrame?.let { frame ->
+			val detail = stepDetailOf(frame, edgeLength, hexDisplay)
+			val narration = narrationOf(frame)
+			if (detail == null) narration else stringResource(R.string.hint_step_pattern, narration, detail)
+		} ?: stringResource(R.string.hint_step_marks, techniqueName)
+
 		HintStep.TARGET_CELL -> stringResource(R.string.hint_step_target, techniqueName)
 	}
 }

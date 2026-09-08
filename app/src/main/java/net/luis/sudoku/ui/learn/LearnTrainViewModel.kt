@@ -26,6 +26,8 @@ import net.luis.sudoku.solver.Technique
 import net.luis.sudoku.ui.navigation.Routes
 import javax.inject.Inject
 import kotlin.random.Random
+import net.luis.sudoku.domain.ExplanationFrame
+import net.luis.sudoku.domain.framesOf
 
 /**
  * How an exercise ended, which is the whole outcome the training records.

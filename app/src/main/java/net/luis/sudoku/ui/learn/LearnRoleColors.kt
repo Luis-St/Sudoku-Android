@@ -82,6 +82,21 @@ object LearnRoleColors {
 	fun inkOn(dark: Boolean): Color =
 		if (dark) Color(0xFFF4F1FA) else Color(0xFF171221)
 
+	/**
+	 * The same vocabulary as a **stroke**, for a board that cannot give the cell's fill away (issue 2.2.2/2).
+	 *
+	 * The play board's cell colours are already spoken for - selected, peer, conflict, mistake, hint - so a
+	 * hint that shows a technique's pattern there outlines the cells instead of filling them. The hues have to
+	 * stay the same ones the lesson used, or a player who learned that the warm colour is the base set would
+	 * be looking at a different language on the board where they need it.
+	 *
+	 * Which is why this is the *other* mode's fill: the light palette is a set of pale colours tuned to be
+	 * legible with dark ink on a light ground, and the dark palette a set of deep ones tuned against a
+	 * near-black board. Swap them and each becomes what a stroke needs - the deep colour draws on a light
+	 * board, the pale one on a dark board - at the same hue, with nothing new to keep in step.
+	 */
+	fun outlineOf(role: CellRole, dark: Boolean): Color = of(role, !dark)
+
 	/** The outline a focused row, column or region is drawn with. */
 	fun unitOutline(dark: Boolean): Color =
 		if (dark) Color(0xFFC1C1FF) else Color(0xFF4C4ED9)

@@ -120,6 +120,12 @@ class DailyController(
 			// Carried across the day boundary untouched: it names a day that was solved, which rolling over
 			// to a new date does not change. Cleared only with the streak it anchors.
 			lastCompletedDate = if (streakAfterPreviousDay == 0) null else record.lastCompletedDate,
+			// Carried too. They describe a break the *server* still offers to repair and the notice already
+			// shown for it, neither of which a new day changes - rebuilt without them, the home card forgot
+			// a still-open restore offer until the next heartbeat and announced the same break again.
+			restorableMissedDays = record.restorableMissedDays,
+			restorableUntil = record.restorableUntil,
+			restoreNoticeSeenFor = record.restoreNoticeSeenFor,
 			activeDifficulty = if (difficultyDue) record.pendingDifficulty ?: record.activeDifficulty else record.activeDifficulty,
 			pendingDifficulty = if (difficultyDue) null else record.pendingDifficulty,
 			pendingEffectiveDate = if (difficultyDue) null else record.pendingEffectiveDate
@@ -132,14 +138,32 @@ class DailyController(
 	/** A fresh attempt (not a resume of a paused one) - increments the attempt counter (§8.3's recorded count). */
 	fun recordAttemptStart(record: DailyRecord): DailyRecord = record.copy(attempts = record.attempts + 1)
 
-	/** The streak increments immediately on success - [rollover] only ever breaks it, never increments it. */
-	fun recordSuccess(record: DailyRecord, elapsedMillis: Long): DailyRecord =
-		record.copy(
+	/**
+	 * The streak increments immediately on success - [rollover] only ever breaks it, never increments it.
+	 *
+	 * The increment is **continuity checked against [DailyRecord.lastCompletedDate]**, and restarts the run
+	 * at 1 for a solve that is not the day after it (issue 2.2.2/1). [rollover] alone is not enough to
+	 * decide that: it breaks the run from the *previous stored day*, which is the last day this device had
+	 * a record for and not necessarily the last day solved - and `AccountSync.mergeStreak` then adopts the
+	 * account's longer count, whose anchor may be days older. Adding one to that count regardless is how a
+	 * missed day was bridged for free here, and how a number the server had already restarted at 1 was
+	 * pushed back up to the old run by `StreakPublisher`.
+	 */
+	fun recordSuccess(record: DailyRecord, elapsedMillis: Long): DailyRecord {
+		// `record` is today's by the time this is called (`rollover` runs when the daily is opened), so its
+		// own date is the day just solved.
+		val solvedOn = record.date ?: this.today()
+		val previous = record.lastCompletedDate
+		// A record that predates `lastCompletedDate` holds a run with no day to check it against, and those
+		// are the installs `StreakPublisher` exists for. Nothing can disprove their continuity, so the old
+		// unconditional increment stands for them, once - this solve writes the anchor every later one is
+		// judged by.
+		val continues = if (previous == null) record.streak > 0 else previous.plusDays(1) == solvedOn
+		return record.copy(
 			solved = true,
 			solvedElapsedMillis = elapsedMillis,
-			streak = record.streak + 1,
-			// The day the new count ends on. `record` is today's by the time this is called (`rollover` runs
-			// when the daily is opened), so its own date is the day just solved.
-			lastCompletedDate = record.date ?: this.today()
+			streak = if (continues) record.streak + 1 else 1,
+			lastCompletedDate = solvedOn
 		)
+	}
 }

@@ -153,7 +153,12 @@ fun CoopScreen(
 				// together - the number stays readable for exactly as long as the cell is red.
 				mistakeDigits = viewModel.mistakes,
 				mistakeCells = viewModel.mistakes.keys,
-				darkTheme = darkTheme
+				darkTheme = darkTheme,
+				// Issue 2.2.2/2: the technique's cells, outlined while this player's run is on the pattern step.
+				// Local to the asker, unlike the offered cell: the pattern is what *they* are being walked
+				// through, and the match hears about the hint only when the run reaches the cell.
+				hintPatternRoles = viewModel.hintPatternRoles,
+				hintPatternCurrentCells = viewModel.hintPatternCurrentCells
 			)
 
 			// Game item 19: the same stepped hint the single-player board runs - the same row now, not only the
@@ -163,7 +168,9 @@ fun CoopScreen(
 					step = step,
 					review = viewModel.hintReview,
 					technique = viewModel.hintTechnique,
-					hexDisplay = false
+					hexDisplay = false,
+					patternFrame = viewModel.hintPatternFrame,
+					edgeLength = viewModel.edgeLength
 				)
 			}
 		},

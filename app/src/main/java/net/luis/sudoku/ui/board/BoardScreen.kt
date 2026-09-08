@@ -23,6 +23,8 @@ import net.luis.sudoku.domain.PeerHighlightRules
 import net.luis.sudoku.ui.theme.BoardPalette
 import net.luis.sudoku.ui.theme.LocalEveryOccurrencePeers
 import net.luis.sudoku.ui.theme.ChaosRegionColors
+import net.luis.sudoku.solver.CellRole
+import net.luis.sudoku.ui.learn.LearnRoleColors
 
 /**
  * Renders one `N x N` grid for any of the five sizes (feature-spec 5), on the shared [BoardSurface] the
@@ -75,7 +77,16 @@ fun BoardScreen(
 	 * a hint is standing on a step that shows its working.
 	 */
 	hintMissingMarks: Map<Int, Int> = emptyMap(),
-	hintWrongMarks: Map<Int, Int> = emptyMap()
+	hintWrongMarks: Map<Int, Int> = emptyMap(),
+	/**
+	 * Issue 2.2.2/2: the technique a running hint is showing, cell index -> the part that cell plays.
+	 *
+	 * Drawn as an outline in the learn area's own colour for the role, so the pattern reads as the same thing
+	 * it does on the technique's wiki page. Empty unless the hint is standing on its pattern step.
+	 */
+	hintPatternRoles: Map<Int, CellRole> = emptyMap(),
+	/** The cells the pattern's *current* beat names; the rest of [hintPatternRoles] is drawn stepped back. */
+	hintPatternCurrentCells: Set<Int> = emptySet()
 ) {
 	// A board narrower than its own edge length is always a half-applied update, never a state to draw: the
 	// multiplayer models write `cells` and `edgeLength` from the socket thread, so a composition can land
@@ -140,6 +151,8 @@ fun BoardScreen(
 					hintUsed = index in hintCells,
 					hintMissingMarks = hintMissingMarks[index] ?: 0,
 					hintWrongMarks = hintWrongMarks[index] ?: 0,
+					patternOutline = hintPatternRoles[index]?.let { role -> LearnRoleColors.outlineOf(role, darkTheme) },
+					patternCurrent = index in hintPatternCurrentCells,
 					regionTint = if (tintRegions) ChaosRegionColors.of(regionOf(index), darkTheme) else null
 				),
 				palette = palette,

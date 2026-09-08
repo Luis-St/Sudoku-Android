@@ -5,6 +5,7 @@ import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.grid.Variant
 import net.luis.sudoku.key.PuzzleKey
+import net.luis.sudoku.solver.StepKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -227,28 +228,28 @@ class HintFlowTest {
 		val session = session()
 		val (cell, digit) = impossibleMark(session)
 		session.togglePencilMark(cell, digit)
-		val review = HintMarkReview.of(session)
+		val plan = HintPlan(HintMarkReview.of(session))
 
-		assertFalse(review.clean)
-		assertEquals(HintStep.REVIEW_MARKS, HintStep.first(review))
-		assertEquals(HintStep.MARK_DIFF, HintStep.REVIEW_MARKS.next(review))
-		assertEquals(HintStep.FULL_MARKS, HintStep.MARK_DIFF.next(review))
-		assertEquals(HintStep.TARGET_CELL, HintStep.FULL_MARKS.next(review))
+		assertFalse(plan.review.clean)
+		assertEquals(HintStep.REVIEW_MARKS, HintStep.first(plan))
+		assertEquals(HintStep.MARK_DIFF, HintStep.REVIEW_MARKS.next(plan))
+		assertEquals(HintStep.FULL_MARKS, HintStep.MARK_DIFF.next(plan))
+		assertEquals(HintStep.TARGET_CELL, HintStep.FULL_MARKS.next(plan))
 		// The press past the last step is the one that writes the digit, which has no step of its own.
-		assertNull(HintStep.TARGET_CELL.next(review))
+		assertNull(HintStep.TARGET_CELL.next(plan))
 	}
 
 	@Test
 	fun `the note steps are skipped when there is nothing to correct`() {
 		// Nothing to review and nothing to draw, so the hint opens on the step that fills the notes in rather
 		// than spending two presses saying it has nothing to say.
-		val review = HintMarkReview.of(session())
+		val plan = HintPlan(HintMarkReview.of(session()))
 
-		assertTrue(review.clean)
-		assertFalse(HintStep.REVIEW_MARKS.shows(review))
-		assertFalse(HintStep.MARK_DIFF.shows(review))
-		assertEquals(HintStep.FULL_MARKS, HintStep.first(review))
-		assertEquals(HintStep.TARGET_CELL, HintStep.FULL_MARKS.next(review))
+		assertTrue(plan.review.clean)
+		assertFalse(HintStep.REVIEW_MARKS.shows(plan))
+		assertFalse(HintStep.MARK_DIFF.shows(plan))
+		assertEquals(HintStep.FULL_MARKS, HintStep.first(plan))
+		assertEquals(HintStep.TARGET_CELL, HintStep.FULL_MARKS.next(plan))
 	}
 
 	@Test
@@ -256,10 +257,74 @@ class HintFlowTest {
 		val session = session()
 		val (cell, digit) = impossibleMark(session)
 		session.togglePencilMark(cell, digit)
-		val review = HintMarkReview.of(session)
+		val plan = HintPlan(HintMarkReview.of(session))
 
-		assertTrue(HintStep.REVIEW_MARKS.shows(review))
-		assertTrue(HintStep.MARK_DIFF.shows(review))
+		assertTrue(HintStep.REVIEW_MARKS.shows(plan))
+		assertTrue(HintStep.MARK_DIFF.shows(plan))
+	}
+
+	// --- issue 2.2.2/2: the technique's pattern, shown but never the answer ---
+
+	/**
+	 * Plays the board forwards until a hint turns up that has a pattern to show, or gives up.
+	 *
+	 * The opening of any board is singles, and a single's explanation names the cell and the digit - which is
+	 * exactly what [hintPatternFrames] withholds. The pattern steps appear once the easy moves are gone, so a
+	 * test about them has to get the board to that point rather than ask on move one.
+	 */
+	private fun firstPatternFrames(session: GameSession): List<ExplanationFrame>? {
+		repeat(session.cellCount) {
+			val explained = session.explainHint() ?: return null
+			val frames = hintPatternFrames(explained.explanation())
+			if (frames.isNotEmpty()) return frames
+			val cell = explained.cellIndex()
+			session.setValue(cell, session.solutionAt(cell))
+		}
+		return null
+	}
+
+	@Test
+	fun `a technique with a pattern gets a step of its own`() {
+		// The board the eliminating techniques have something to say about, once its singles are played out.
+		val session = eliminatingSession()
+		val frames = firstPatternFrames(session) ?: error("no hint on this board ever showed a pattern")
+		val plan = HintPlan(HintMarkReview.of(session), frames)
+
+		assertTrue("an eliminating technique explains itself", frames.isNotEmpty())
+		assertTrue(HintStep.PATTERN.shows(plan))
+		assertEquals(HintStep.PATTERN, HintStep.FULL_MARKS.next(plan))
+		assertEquals(HintStep.TARGET_CELL, HintStep.PATTERN.next(plan))
+	}
+
+	@Test
+	fun `a hint whose technique places the digit shows no pattern`() {
+		// Every step of such an explanation names the cell and the digit that goes in it, which is the one
+		// thing the last press of a hint is for. The step is skipped rather than shown with the answer on it.
+		val session = session()
+		val explained = session.explainHint()!!
+
+		assertTrue(explained.explanation().steps().any { it.kind() == StepKind.PLACEMENT })
+		assertTrue(hintPatternFrames(explained.explanation()).isEmpty())
+	}
+
+	@Test
+	fun `no pattern step means the hint runs exactly as it did`() {
+		val plan = HintPlan(HintMarkReview.of(session()), emptyList())
+
+		assertFalse(HintStep.PATTERN.shows(plan))
+		assertEquals(HintStep.TARGET_CELL, HintStep.FULL_MARKS.next(plan))
+	}
+
+	@Test
+	fun `the pattern never names the cell the hint is about to fill`() {
+		// The whole point of withholding the placement beats: a pattern that outlined the answer's cell would
+		// have spent the hint before the player pressed for it.
+		val session = eliminatingSession()
+		val frames = firstPatternFrames(session) ?: error("no hint on this board ever showed a pattern")
+
+		for (frame in frames) {
+			assertNull("a pattern beat never carries a placement", frame.placement)
+		}
 	}
 
 }

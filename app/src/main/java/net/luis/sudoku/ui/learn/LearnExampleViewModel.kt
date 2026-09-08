@@ -14,6 +14,8 @@ import net.luis.sudoku.learn.LearnPuzzle
 import net.luis.sudoku.solver.Technique
 import net.luis.sudoku.ui.navigation.Routes
 import javax.inject.Inject
+import net.luis.sudoku.domain.ExplanationFrame
+import net.luis.sudoku.domain.framesOf
 
 /**
  * One worked example, stepped through beat by beat.

@@ -1,6 +1,7 @@
 package net.luis.sudoku.domain
 
 import net.luis.sudoku.core.GameSession
+import net.luis.sudoku.hint.ExplainedHint
 import net.luis.sudoku.hint.HintCandidate
 
 /**
@@ -28,6 +29,26 @@ class HintController(private val session: GameSession, maxHints: Int = 5) {
 		val candidate = this.session.peekHint() ?: return null
 		this.pending = candidate
 		return candidate
+	}
+
+	/**
+	 * The same first tap, with the technique's pattern attached (issue 2.2.2/2).
+	 *
+	 * Separate from [requestHint] rather than replacing it, because the two are not the same cost: this one
+	 * asks every strategy to record its argument as it searches, and a caller that only needs the cell and the
+	 * name should not pay for that. A hint that is already pending is *not* re-explained - the promise is
+	 * about one cell on one board state, and asking again would re-run the solver over a board that may have
+	 * moved since.
+	 *
+	 * @return the explained hint, or null when there is nothing to hint at, no hints are left, or one is
+	 *   already pending from a plain [requestHint]
+	 */
+	fun explainHint(): ExplainedHint? {
+		if (this.pending != null) return null
+		if (!this.canHint) return null
+		val explained = this.session.explainHint() ?: return null
+		this.pending = explained.candidate()
+		return explained
 	}
 
 	/**

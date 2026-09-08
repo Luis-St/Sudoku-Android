@@ -434,6 +434,7 @@
 	<string name="hint_step_review">Look over your notes for %1$s first. Every technique argues from the notes.</string>
 	<string name="hint_step_diff">Your notes are marked up on the board: a candidate in green is one you have not noted, a note in red cannot be right because its row, column or box already holds that digit.</string>
 	<string name="hint_step_marks">From these notes, one cell can be solved with %1$s.</string>
+	<string name="hint_step_pattern">%1$s\n%2$s</string>
 	<string name="hint_step_target">%1$s solves the marked cell. The next press writes the digit in and spends the hint.</string>
 
 	<!-- Multiplayer game screen. -->

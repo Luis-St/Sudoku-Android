@@ -6,6 +6,7 @@ import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.grid.Puzzle
 import net.luis.sudoku.grid.Variant
 import net.luis.sudoku.hint.HintCandidate
+import net.luis.sudoku.hint.ExplainedHint
 import net.luis.sudoku.hint.HintEngine
 import net.luis.sudoku.hint.HintResult
 import net.luis.sudoku.key.PuzzleKey
@@ -124,6 +125,16 @@ class GameSession private constructor(
 	 * contract.
 	 */
 	fun peekHint(): HintCandidate? = HintEngine.peek(this.puzzle).orElse(null)
+
+	/**
+	 * The same peek, with the technique's pattern attached (issue 2.2.2/2).
+	 *
+	 * What the hint walks the player through is shared-core's own [net.luis.sudoku.solver.Explanation], the
+	 * one the learn area's lessons are drawn from, so a technique looks the same on a board as it does on its
+	 * wiki page. Costlier than [peekHint] - a strategy that records its pattern while it searches does that
+	 * work here - and paid once, when a hint starts.
+	 */
+	fun explainHint(): ExplainedHint? = HintEngine.explain(this.puzzle).orElse(null)
 
 	/**
 	 * Second tap: consumes [candidate] and fills in the correct digit. shared-core's [HintEngine] is

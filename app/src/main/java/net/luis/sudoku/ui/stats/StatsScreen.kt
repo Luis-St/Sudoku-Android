@@ -95,7 +95,10 @@ fun StatsScreen(modifier: Modifier = Modifier, viewModel: StatsViewModel = hiltV
 					}
 				}
 			}
-		} else {
+		} else if (!viewModel.serverConnected) {
+			// Only when there is no server to have asked. A connected player whose server did not answer is
+			// told nothing here (issue 2.2.2/5), and telling them to go and connect one would be wrong twice
+			// over: they have, and it is not what went wrong.
 			Text(
 				text = stringResource(R.string.stats_no_server_note),
 				style = MaterialTheme.typography.bodySmall,

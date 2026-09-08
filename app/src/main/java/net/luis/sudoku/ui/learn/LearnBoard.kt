@@ -33,6 +33,7 @@ import net.luis.sudoku.ui.board.pencilFontSize
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.roundToInt
+import net.luis.sudoku.domain.ExplanationFrame
 
 /**
  * The board the learn area draws on, which is the play board's twin rather than the play board itself.

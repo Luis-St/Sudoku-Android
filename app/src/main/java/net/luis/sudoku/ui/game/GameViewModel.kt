@@ -38,8 +38,12 @@ import net.luis.sudoku.domain.DailyController
 import net.luis.sudoku.domain.DailyRecord
 import net.luis.sudoku.domain.GameResultUploader
 import net.luis.sudoku.domain.HintController
+import net.luis.sudoku.domain.ExplanationFrame
 import net.luis.sudoku.domain.HintMarkReview
+import net.luis.sudoku.domain.HintPlan
 import net.luis.sudoku.domain.HintStep
+import net.luis.sudoku.domain.hintPatternFrames
+import net.luis.sudoku.solver.CellRole
 import net.luis.sudoku.domain.MarkReview
 import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.domain.LivesController
@@ -262,14 +266,46 @@ class GameViewModel @Inject constructor(
 		private set
 
 	/**
-	 * What the running hint found when it compared the player's notes to the board.
+	 * What the running hint was planned from: the notes as they were when it started, and the beats of the
+	 * technique's pattern.
 	 *
-	 * Taken once, when the hint starts, and not recomputed as it is stepped: the four steps are four things
-	 * to say about *one* reading of the board, and a set that moved under them would have step two drawing
-	 * something step one did not name.
+	 * Taken once, when the hint starts, and not recomputed as it is stepped: the steps are things to say
+	 * about *one* reading of the board, and a set that moved under them would have step two drawing something
+	 * step one did not name.
 	 */
-	var hintReview by mutableStateOf(MarkReview.EMPTY)
+	var hintPlan by mutableStateOf(HintPlan.EMPTY)
 		private set
+
+	/** What the notes step of the running hint is arguing from - the plan's own reading, unwrapped for the UI. */
+	val hintReview: MarkReview get() = this.hintPlan.review
+
+	/**
+	 * Which beat of the technique's pattern is on the board, while the hint stands on [HintStep.PATTERN].
+	 *
+	 * The pattern is the one step that repeats: an argument assembles itself over several beats, and pressing
+	 * on walks them before the hint moves to the cell. Meaningless on every other step, and reset with the
+	 * hint itself.
+	 */
+	var hintPatternBeat by mutableStateOf(0)
+		private set
+
+	/** The beat the board is drawing right now, or null when the hint is not on the pattern step. */
+	val hintPatternFrame: ExplanationFrame?
+		get() = if (this.hintStep == HintStep.PATTERN) this.hintPlan.pattern.getOrNull(this.hintPatternBeat) else null
+
+	/**
+	 * The technique's cells and the part each plays, outlined on the board (issue 2.2.2/2).
+	 *
+	 * The learn area's own [CellRole] vocabulary, so a base line is the same colour on a board as it is on the
+	 * technique's wiki page - what the player learned there is what they are looking at here. Empty on every
+	 * step but the pattern one.
+	 */
+	val hintPatternRoles: Map<Int, CellRole>
+		get() = this.hintPatternFrame?.roles.orEmpty()
+
+	/** The cells *this* beat names, which the board draws at full strength and the earlier ones faded. */
+	val hintPatternCurrentCells: Set<Int>
+		get() = this.hintPatternFrame?.currentCells?.toSet().orEmpty()
 
 	/** Set after the first hint press, cleared on reveal/withdraw - the cell the hint has promised (§4.4). */
 	var hintCandidate by mutableStateOf<HintCandidate?>(null)
@@ -299,7 +335,9 @@ class GameViewModel @Inject constructor(
 	 */
 	val hintTechnique: Technique?
 		get() = this.hintCandidate?.technique()
-			?.takeIf { this.hintStep == HintStep.FULL_MARKS || this.hintStep == HintStep.TARGET_CELL }
+			?.takeIf {
+				this.hintStep == HintStep.FULL_MARKS || this.hintStep == HintStep.PATTERN || this.hintStep == HintStep.TARGET_CELL
+			}
 
 	var elapsedMillis by mutableStateOf(0L)
 		private set
@@ -433,7 +471,8 @@ class GameViewModel @Inject constructor(
 		this.activeIndex = null
 		this.hintCandidate = null
 		this.hintStep = null
-		this.hintReview = MarkReview.EMPTY
+		this.hintPlan = HintPlan.EMPTY
+		this.hintPatternBeat = 0
 		this.mistake = null
 		this.outcome = null
 		this.summary = null
@@ -751,17 +790,18 @@ class GameViewModel @Inject constructor(
 	private fun clearPendingHint() {
 		this.hintCandidate = null
 		this.hintStep = null
-		this.hintReview = MarkReview.EMPTY
+		this.hintPlan = HintPlan.EMPTY
+		this.hintPatternBeat = 0
 		this.hintController.cancelPending()
 	}
 
 	/**
 	 * Steps the hint on by one press (game item 19); the press past the last step spends it (§4.4).
 	 *
-	 * The first press promises a cell and reads the notes, the next three talk about those notes and finally
-	 * name the technique, and only the fifth writes a digit. Nothing is charged until that last one, so a
-	 * player who works it out at step two or three walks away having paid nothing, which is the point of
-	 * stepping it at all.
+	 * The first press promises a cell and reads the position; the ones after it talk about the notes, name
+	 * the technique and then walk its pattern one beat at a time (issue 2.2.2/2); and only the press past the
+	 * last step writes a digit. Nothing is charged until that one, so a player who works it out halfway
+	 * through walks away having paid nothing, which is the point of stepping it at all.
 	 *
 	 * Game item 3: the whole run survives everything except its own exits - pressing on, withdrawing it, or
 	 * the promised cell being filled by the player. It used to be cleared by *any* tap, so the yellow cell
@@ -771,17 +811,26 @@ class GameViewModel @Inject constructor(
 		if (this.outcome != null) return
 		val step = this.hintStep
 		if (step == null) {
-			val candidate = this.hintController.requestHint() ?: return
-			this.hintCandidate = candidate
-			// Read once, here, and kept for the whole run - see [hintReview].
-			val review = HintMarkReview.of(this.session)
-			this.hintReview = review
+			// Issue 2.2.2/2: the explained peek, so the pattern is read from the *same* board state the notes
+			// are. Asking for it later would re-run the solver over a board the fill step has since changed.
+			val explained = this.hintController.explainHint() ?: return
+			this.hintCandidate = explained.candidate()
+			// Read once, here, and kept for the whole run - see [hintPlan].
+			val plan = HintPlan(HintMarkReview.of(this.session), hintPatternFrames(explained.explanation()))
+			this.hintPlan = plan
+			this.hintPatternBeat = 0
 			// Straight past the note steps on a board whose notes are already right - see [HintStep.shows].
-			this.hintStep = HintStep.first(review)
+			this.hintStep = HintStep.first(plan)
 			return
 		}
 
-		val next = step.next(this.hintReview)
+		// The pattern is the one step that repeats: press on through its beats before leaving it.
+		if (step == HintStep.PATTERN && this.hintPatternBeat < this.hintPlan.pattern.lastIndex) {
+			this.hintPatternBeat++
+			return
+		}
+
+		val next = step.next(this.hintPlan)
 		if (next != null) {
 			// The one step that changes the board rather than only drawing on it. It is a real, undoable move:
 			// from here on the notes the next two steps argue from are the ones actually in the cells, so a
@@ -805,7 +854,8 @@ class GameViewModel @Inject constructor(
 		val after = this.session.cellForUndo(index).copy()
 		this.hintCandidate = null
 		this.hintStep = null
-		this.hintReview = MarkReview.EMPTY
+		this.hintPlan = HintPlan.EMPTY
+		this.hintPatternBeat = 0
 		this.hintsRemaining = this.hintController.remaining
 		this.hintCells.add(index)
 		// The cell is filled from here on, so the replay has to know about it - see [dailySolveOrder].

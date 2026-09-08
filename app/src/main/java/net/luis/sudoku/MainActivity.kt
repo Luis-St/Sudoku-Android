@@ -264,14 +264,38 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 				},
 				actions = {
 					// A running match's connection status, left of everything else and drawn on a board where
-					// the navigation icons are not - it is the same class of thing as the server warning below.
+					// the navigation icons are not - it is the same class of thing as the server warning that
+					// follows it, and the two lead the row together for that reason.
 					MatchStatusAction(matchStatus)
+					// Settings item 1: the whole app's report that the server is not answering, in one place.
+					//
+					// It used to be an error dialog raised by whichever screen happened to fire a request -
+					// settings and the players list both do so on open - which put a modal over a screen the
+					// player had usually come to for something else entirely. This is a *status*, so it is
+					// drawn as one and stays out of the way; the message is still there for anyone who wants
+					// it, one tap away, which is the only popup left for this.
+					//
+					// Issue 2.2.2/4: first in the row, so it holds the same place on every screen. It used to
+					// sit next to the friends button, which is the leftmost action on the home screen and no
+					// action at all on a board or in the wiki - so the warning moved to the far right there,
+					// and the one status the whole app shares changed position depending on where it appeared.
+					// A status belongs with the match status, not among the buttons a screen happens to offer.
+					if (appViewModel.serverConfig.isConfigured && appViewModel.serverConfig.isAuthenticated && !presenceViewModel.serverReachable) {
+						IconButton(onClick = { showUnreachableMessage = true }) {
+							// Image, not Icon: full-colour artwork, which Icon would flatten to a silhouette.
+							Image(
+								painter = painterResource(R.drawable.ic_warning),
+								contentDescription = stringResource(R.string.settings_server_unreachable),
+								modifier = Modifier.size(24.dp)
+							)
+						}
+					}
 					// Singleplayer item 1: sharing has a call site again.
 					//
 					// It was published by the play screen and rendered nowhere, because the branch that drew it was
 					// removed when boards stopped drawing top-bar buttons - so `GameTopBarActions` was being filled
 					// in every frame by a screen the action could not be reached from. Gated on the action existing
-					// rather than on `showTopLevelNavigation`, for the same reason the server warning below is: this
+					// rather than on `showTopLevelNavigation`, for the same reason the server warning above is: this
 					// is not a way *out* of the board, it is something to do *with* the board. The play screen still
 					// withdraws it wherever sharing is meaningless - the daily, whose puzzle everybody already has,
 					// and a finished game.
@@ -333,24 +357,6 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 					// UI item 9: the friends button sits immediately left of settings, and only exists once a
 					// server is configured and signed in (feature-spec §9.1's "no multiplayer UI anywhere").
 					if (appViewModel.serverConfig.isConfigured && appViewModel.serverConfig.isAuthenticated) {
-						// Settings item 1: the whole app's report that the server is not answering, in one
-						// place, next to the button whose contents it affects.
-						//
-						// It used to be an error dialog raised by whichever screen happened to fire a request -
-						// settings and the players list both do so on open - which put a modal over a screen the
-						// player had usually come to for something else entirely. This is a *status*, so it is
-						// drawn as one and stays out of the way; the message is still there for anyone who wants
-						// it, one tap away, which is the only popup left for this.
-						if (!presenceViewModel.serverReachable) {
-							IconButton(onClick = { showUnreachableMessage = true }) {
-								// Image, not Icon: full-colour artwork, which Icon would flatten to a silhouette.
-								Image(
-									painter = painterResource(R.drawable.ic_warning),
-									contentDescription = stringResource(R.string.settings_server_unreachable),
-									modifier = Modifier.size(24.dp)
-								)
-							}
-						}
 						if (showTopLevelNavigation) IconButton(onClick = { navController.navigate(Routes.FRIENDS) }) {
 							// Invite item 2: the popup is transient, so the badge is what is left behind. It rides
 							// the players button because the players screen is the way to whoever sent the invite,

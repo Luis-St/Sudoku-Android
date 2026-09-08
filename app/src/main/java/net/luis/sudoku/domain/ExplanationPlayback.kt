@@ -1,4 +1,4 @@
-package net.luis.sudoku.ui.learn
+package net.luis.sudoku.domain
 
 import net.luis.sudoku.solver.CellRole
 import net.luis.sudoku.solver.Explanation
@@ -7,6 +7,11 @@ import net.luis.sudoku.solver.UnitRef
 
 /**
  * Everything one beat of an explanation asks the board to draw.
+ *
+ * In `domain` rather than beside the lesson board it was written for: it is pure translation from the core's
+ * [Explanation] into what a renderer needs, with no Compose in it, and since issue 2.2.2/2 the *play* board
+ * reads it too - a hint that shows the technique's pattern is the same explanation drawn on a different
+ * board (see [hintPatternFrames]).
  *
  * A frame is cumulative: it holds what this step adds *and* everything the steps before it showed, because
  * that is how a pattern assembles itself in front of a player. A step that replaced what came before would
@@ -108,4 +113,33 @@ fun framesOf(explanation: Explanation): List<ExplanationFrame> {
 		)
 	}
 	return frames
+}
+
+/**
+ * The frames a *hint* may walk a player through, which is the pattern and never the answer (issue 2.2.2/2).
+ *
+ * A hint that names a technique has told a player who already knows it something they could have worked out,
+ * and told everyone else nothing they can act on. What is missing is the pattern: which cells the argument is
+ * made of, in this position, on the board in front of them. That is exactly what an explanation carries, and
+ * the learn area has been drawing it for a release - so the hint borrows it rather than growing a second one.
+ *
+ * Two whole classes of explanation are refused, both because they would hand over the answer:
+ *
+ * - one that only restates its conclusion, which is what a technique that has not been taught to explain
+ *   itself produces. There is no pattern in it to show;
+ * - one that ends in a **placement**, which is every technique up to the hidden singles. Its beats name the
+ *   digit and the cell it goes in, and a hint's last press is what those are for.
+ *
+ * What is left is the techniques from locked candidates upwards, whose conclusion is an elimination: the
+ * player is shown the pattern and which candidates it removes, and still has to make the placement
+ * themselves. That is the half of a hint worth paying for, and it is the half that was missing.
+ */
+fun hintPatternFrames(explanation: Explanation): List<ExplanationFrame> {
+	if (explanation.isConclusionOnly) {
+		return emptyList()
+	}
+	if (explanation.steps().any { step -> step.kind() == StepKind.PLACEMENT }) {
+		return emptyList()
+	}
+	return framesOf(explanation)
 }

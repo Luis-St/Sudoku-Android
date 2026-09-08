@@ -3,6 +3,7 @@ package net.luis.sudoku.domain
 import net.luis.sudoku.data.local.CurrencyState
 import net.luis.sudoku.difficulty.Difficulty
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 
 /**
  * The decisions [AccountSync] makes, as pure functions over the two sides' state.
@@ -50,9 +51,11 @@ object AccountSyncRules {
 	/**
 	 * The record this device should hold once the server has reported its own streak.
 	 *
-	 * Upward only. A device that solved dailies while the server was unreachable holds days the server has
-	 * not verified yet - `StreakPublisher` offers those - and adopting a shorter count here would take them
-	 * away in between the offer and its acceptance.
+	 * The two sides are *runs*, not numbers: a count means nothing without the day it ends on, and merging
+	 * them is [mergeRuns]. Taking the larger count and the later anchor - which is what this did - invents
+	 * a run neither side ever had, and that invention is issue 2.2.2/1: a device that had just restarted at
+	 * 1 after a missed day was handed the account's pre-break count with today's date on it, and
+	 * `StreakPublisher` then offered that back to the server as a run it had itself already broken.
 	 *
 	 * [remoteRestorableMissedDays] and [remoteRestorableUntil] are the break the server still offers to
 	 * repair, carried into the record so the home screen can say the window is closing without a request of
@@ -71,15 +74,59 @@ object AccountSyncRules {
 		remoteRestorableMissedDays: Int = 0,
 		remoteRestorableUntil: LocalDate? = null
 	): DailyRecord {
+		val merged = mergeRuns(record.streak, record.lastCompletedDate, remoteCurrent, remoteLastCompleted)
 		val solvedToday = record.solved || remoteLastCompleted == today
 		return record.copy(
-			streak = maxOf(record.streak, remoteCurrent),
-			lastCompletedDate = listOfNotNull(record.lastCompletedDate, remoteLastCompleted).maxOrNull(),
+			streak = merged.first,
+			lastCompletedDate = merged.second,
 			solved = if (record.date == today) solvedToday else record.solved,
 			// Adopted outright rather than merged upward: only the server knows whether a break is still
 			// repairable, so a restore spent on another device has to be able to clear this back to none.
 			restorableMissedDays = remoteRestorableMissedDays,
 			restorableUntil = remoteRestorableUntil
 		)
+	}
+
+	/**
+	 * The one run that covers both of the ones given, as `(count, lastCompletedDate)`.
+	 *
+	 * A run of `n` days ending on `anchor` covers the days `anchor - n + 1 .. anchor`. Two such runs that
+	 * touch or overlap are one longer run, and its count is the days that run spans - never the sum, and
+	 * never the larger count pinned to the later day, which would silently bridge whatever lies between
+	 * them. Two runs with a real gap between them are *different* runs, and the one ending later is the one
+	 * still going: adopting the older, longer one would move the streak backwards in time and read as
+	 * unbroken.
+	 *
+	 * That last case is the only way this returns a count lower than the device already showed, and it is
+	 * the correct answer to it - the days are not lost, they were never one run. Days this device solved
+	 * while the server was unreachable are still safe, because they are what makes the local run the later
+	 * one.
+	 *
+	 * A run with no anchor cannot be placed on the calendar at all - only records written before
+	 * [DailyRecord.lastCompletedDate] existed are in that position - so nothing can be said against it and
+	 * the longer count is kept, as it always was.
+	 */
+	fun mergeRuns(localCount: Int, localAnchor: LocalDate?, remoteCount: Int, remoteAnchor: LocalDate?): Pair<Int, LocalDate?> {
+		if (localAnchor == null || remoteAnchor == null) {
+			return maxOf(localCount, remoteCount) to (localAnchor ?: remoteAnchor)
+		}
+		if (localAnchor == remoteAnchor) {
+			return maxOf(localCount, remoteCount) to localAnchor
+		}
+
+		val localIsLater = localAnchor.isAfter(remoteAnchor)
+		val lateAnchor = if (localIsLater) localAnchor else remoteAnchor
+		val lateCount = if (localIsLater) localCount else remoteCount
+		val earlyAnchor = if (localIsLater) remoteAnchor else localAnchor
+		val earlyCount = if (localIsLater) remoteCount else localCount
+
+		val lateStart = lateAnchor.minusDays((lateCount - 1).coerceAtLeast(0).toLong())
+		if (lateCount <= 0 || lateStart.isAfter(earlyAnchor.plusDays(1))) {
+			// Disjoint - two separate runs with at least one unsolved day between them.
+			return (if (lateCount <= 0) earlyCount else lateCount) to (if (lateCount <= 0) earlyAnchor else lateAnchor)
+		}
+		val earlyStart = earlyAnchor.minusDays((earlyCount - 1).coerceAtLeast(0).toLong())
+		val start = minOf(lateStart, earlyStart)
+		return (ChronoUnit.DAYS.between(start, lateAnchor).toInt() + 1) to lateAnchor
 	}
 }

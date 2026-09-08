@@ -166,4 +166,46 @@ class DailyControllerTest {
 		assertEquals(2, day2Record.streak)
 		assertEquals(day2, day2Record.lastCompletedDate)
 	}
+
+	// --- issue 2.2.2/1: the increment may not bridge a day nobody solved ---
+
+	@Test
+	fun recordSuccess_afterAMissedDay_restartsTheRunAtOne() {
+		// The run the account holds ends two days ago, which is the shape `AccountSync` leaves behind after
+		// adopting the server's count on the day a daily was missed.
+		val day3 = day1.plusDays(2)
+		val adopted = DailyRecord.INITIAL.copy(date = day3, streak = 22, lastCompletedDate = day1)
+
+		val solved = controllerOn(day3).recordSuccess(adopted, 60_000L)
+
+		assertEquals(1, solved.streak)
+		assertEquals(day3, solved.lastCompletedDate)
+	}
+
+	@Test
+	fun recordSuccess_onARecordWithNoAnchor_stillIncrements() {
+		// Records written before `lastCompletedDate` existed have nothing to check continuity against, and
+		// this solve is what gives them one.
+		val legacy = DailyRecord.INITIAL.copy(date = day1, streak = 4, lastCompletedDate = null)
+
+		val solved = controllerOn(day1).recordSuccess(legacy, 60_000L)
+
+		assertEquals(5, solved.streak)
+		assertEquals(day1, solved.lastCompletedDate)
+	}
+
+	@Test
+	fun rollover_carriesTheServersRestoreOfferAcrossTheDayBoundary() {
+		val until = day1.plusDays(5)
+		val record = DailyRecord.INITIAL.copy(
+			date = day1, solved = true, streak = 1, lastCompletedDate = day1,
+			restorableMissedDays = 2, restorableUntil = until, restoreNoticeSeenFor = until
+		)
+
+		val tomorrow = controllerOn(day1.plusDays(1)).rollover(record)
+
+		assertEquals(2, tomorrow.restorableMissedDays)
+		assertEquals(until, tomorrow.restorableUntil)
+		assertEquals(until, tomorrow.restoreNoticeSeenFor)
+	}
 }

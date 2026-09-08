@@ -6,6 +6,8 @@ import net.luis.sudoku.R
 import net.luis.sudoku.solver.StepKind
 import net.luis.sudoku.solver.UnitKind
 import net.luis.sudoku.solver.UnitRef
+import net.luis.sudoku.domain.ExplanationFrame
+import net.luis.sudoku.ui.input.digitLabel
 
 /**
  * The caption under the board for one beat of an explanation: what this step is doing, and then exactly
@@ -37,17 +39,17 @@ fun narrationOf(frame: ExplanationFrame): String = when (frame.kind) {
  * sentence followed by the three cells and the digit is one they can check against the grid.
  */
 @Composable
-fun stepDetailOf(frame: ExplanationFrame): String? {
+fun stepDetailOf(frame: ExplanationFrame, edgeLength: Int = BOARD_SIZE, hexDisplay: Boolean = false): String? {
 	if (frame.currentCells.isEmpty()) {
 		return null
 	}
 
-	val cells = cellNames(frame.currentCells)
+	val cells = cellNames(frame.currentCells, edgeLength)
 	val digits = frame.currentCells.fold(0) { mask, cell -> mask or (frame.currentDigits[cell] ?: 0) }
 	if (digits == 0) {
 		return stringResource(R.string.learn_step_detail_cells, cells)
 	}
-	return stringResource(R.string.learn_step_detail_cells_and_digits, cells, digitNames(digits))
+	return stringResource(R.string.learn_step_detail_cells_and_digits, cells, digitNames(digits, edgeLength, hexDisplay))
 }
 
 /**
@@ -78,12 +80,12 @@ private fun unitNames(units: List<UnitRef>): String {
  * is replaced by is a count, so it is still clear that more of the pattern is lit up than is written out.
  */
 @Composable
-private fun cellNames(cells: List<Int>): String {
+private fun cellNames(cells: List<Int>, edgeLength: Int): String {
 	val separator = stringResource(R.string.learn_unit_separator)
 	val shown = cells.take(MAX_NAMED_CELLS)
 	val names = mutableListOf<String>()
 	for (cell in shown) {
-		names.add(stringResource(R.string.learn_cell_name, cell / BOARD_SIZE + 1, cell % BOARD_SIZE + 1))
+		names.add(stringResource(R.string.learn_cell_name, cell / edgeLength + 1, cell % edgeLength + 1))
 	}
 	val listed = names.joinToString(separator)
 	if (cells.size <= MAX_NAMED_CELLS) {
@@ -92,20 +94,31 @@ private fun cellNames(cells: List<Int>): String {
 	return stringResource(R.string.learn_step_detail_more, listed, cells.size - MAX_NAMED_CELLS)
 }
 
-/** The digits of a candidate mask, ascending, as the player reads them. */
+/**
+ * The digits of a candidate mask, ascending, as the player reads them.
+ *
+ * [hexDisplay] because a hint runs on every board the app plays, not only the lesson's 9x9: past nine digits
+ * the player's own setting decides whether a candidate is written 10 or A, and a caption that named it the
+ * other way would be naming something not on the grid.
+ */
 @Composable
-private fun digitNames(mask: Int): String {
+private fun digitNames(mask: Int, edgeLength: Int, hexDisplay: Boolean): String {
 	val separator = stringResource(R.string.learn_unit_separator)
 	val digits = mutableListOf<String>()
-	for (digit in 1..BOARD_SIZE) {
+	for (digit in 1..edgeLength) {
 		if (mask and (1 shl digit) != 0) {
-			digits.add(digit.toString())
+			digits.add(digitLabel(digit, hexDisplay))
 		}
 	}
 	return digits.joinToString(separator)
 }
 
-/** The learn area is 9x9 classic only, which is what lets a cell be named by plain row and column. */
+/**
+ * The default grid the captions are written for: the learn area is 9x9 classic only.
+ *
+ * A caller on a play board passes its own edge length, since since issue 2.2.2/2 a hint draws these same
+ * captions over boards from 4x4 to 16x16.
+ */
 private const val BOARD_SIZE = 9
 
 /** How many cells a caption writes out before it starts counting them instead. */
