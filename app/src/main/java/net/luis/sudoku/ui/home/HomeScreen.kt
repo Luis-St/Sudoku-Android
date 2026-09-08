@@ -35,6 +35,7 @@ import net.luis.sudoku.data.local.ServerConfig
 import net.luis.sudoku.ui.common.GradientButton
 import net.luis.sudoku.ui.common.SectionCard
 import net.luis.sudoku.ui.common.StreakRestoreDialog
+import net.luis.sudoku.ui.common.friendlyErrorMessage
 import net.luis.sudoku.ui.theme.ActionAccent
 
 /**
@@ -156,11 +157,20 @@ fun HomeScreen(
 		)
 	}
 
+	if (viewModel.restoreOffline) {
+		AlertDialog(
+			onDismissRequest = viewModel::dismissRestoreOffline,
+			title = { Text(stringResource(R.string.dialog_streak_restore_offline_title)) },
+			text = { Text(stringResource(R.string.dialog_streak_restore_offline_body)) },
+			confirmButton = { TextButton(onClick = viewModel::dismissRestoreOffline) { Text(stringResource(R.string.action_ok)) } }
+		)
+	}
+
 	viewModel.errorMessage?.let { message ->
 		AlertDialog(
 			onDismissRequest = viewModel::dismissError,
 			title = { Text(stringResource(R.string.dialog_error_title)) },
-			text = { Text(message) },
+			text = { Text(friendlyErrorMessage(viewModel.errorCode ?: "", message)) },
 			confirmButton = { TextButton(onClick = viewModel::dismissError) { Text(stringResource(R.string.action_ok)) } }
 		)
 	}

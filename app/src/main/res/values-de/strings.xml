@@ -293,6 +293,8 @@
 	<string name="daily_streak_break_last_day">Heute ist der letzte Tag, um sie wiederherzustellen.</string>
 	<string name="dialog_streak_restore_window">Verbleibende Tage für diese Lücke, heute eingeschlossen: %1$d</string>
 	<string name="dialog_streak_restore_window_last_day">Heute ist der letzte Tag, an dem diese Lücke wiederhergestellt werden kann.</string>
+	<string name="dialog_streak_restore_offline_title">Keine Serververbindung</string>
+	<string name="dialog_streak_restore_offline_body">Zum Wiederherstellen deiner Serie wird eine Verbindung zum Server benötigt. Bitte versuche es später erneut.</string>
 
 	<!-- Statistik (UI-Punkt 8) -->
 	<string name="stats_tile_played">Gespielt</string>

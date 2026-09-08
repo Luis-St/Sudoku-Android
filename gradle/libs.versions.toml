@@ -1,5 +1,5 @@
 [versions]
-agp = "9.3.2"
+agp = "9.4.0"
 coreKtx = "1.19.0"
 junit = "4.13.2"
 junitVersion = "1.3.0"
@@ -76,7 +76,7 @@ androidx-hilt-work = { group = "androidx.hilt", name = "hilt-work", version = "1
 androidx-hilt-compiler = { group = "androidx.hilt", name = "hilt-compiler", version = "1.3.0" }
 
 # Data-layer (Room/DataStore) JVM unit tests need a real Android Context - Robolectric provides one
-# without a device/emulator, which this environment cannot boot (see IMPLEMENTATION_PLAN.md).
+# without a device/emulator, which this environment cannot boot.
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 
 [plugins]

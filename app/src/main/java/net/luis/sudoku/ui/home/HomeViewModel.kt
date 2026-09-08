@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import net.luis.sudoku.data.local.CurrencyStore
 import net.luis.sudoku.data.local.DailyStore
@@ -71,6 +72,20 @@ class HomeViewModel @Inject constructor(
 	var errorMessage by mutableStateOf<String?>(null)
 		private set
 
+	/** The [ApiException.code] behind [errorMessage], so the dialog can show copy rather than the raw failure. */
+	var errorCode by mutableStateOf<String?>(null)
+		private set
+
+	/**
+	 * An unreachable server, which is not an error to report but a thing that cannot be done right now.
+	 *
+	 * Kept apart from [errorMessage] because the two read differently: the server answering "no" is worth
+	 * showing, while a connection that never happened only means the player has to come back later, and a
+	 * socket message means nothing to them.
+	 */
+	var restoreOffline by mutableStateOf(false)
+		private set
+
 	init {
 		// Collected rather than read once. The streak and the balance are account state now, which means
 		// something other than this screen changes them: AccountSync adopts what another device earned, and
@@ -134,6 +149,15 @@ class HomeViewModel @Inject constructor(
 				)
 			} catch (e: ApiException) {
 				this@HomeViewModel.errorMessage = e.message ?: e.code
+				this@HomeViewModel.errorCode = e.code
+			} catch (e: CancellationException) {
+				throw e
+			} catch (e: Exception) {
+				// An unreachable server fails with an IOException long before there is an ErrorResponse to turn
+				// into an ApiException, and that used to escape this coroutine and take the whole app down.
+				// Said as "not now, try later" rather than as a failure, since nothing went wrong on the
+				// player's side and there is nothing for them to fix.
+				this@HomeViewModel.restoreOffline = true
 			} finally {
 				this@HomeViewModel.busy = false
 			}
@@ -173,6 +197,15 @@ class HomeViewModel @Inject constructor(
 				this@HomeViewModel.restorePreview = null
 			} catch (e: ApiException) {
 				this@HomeViewModel.errorMessage = e.message ?: e.code
+				this@HomeViewModel.errorCode = e.code
+			} catch (e: CancellationException) {
+				throw e
+			} catch (e: Exception) {
+				// Same stance as above. The preview closes with it: nothing was spent, and its numbers came
+				// from a server that is no longer answering, so pressing the button again would only repeat
+				// this. Reopening it is what "try again later" means.
+				this@HomeViewModel.restorePreview = null
+				this@HomeViewModel.restoreOffline = true
 			} finally {
 				this@HomeViewModel.busy = false
 			}
@@ -181,5 +214,10 @@ class HomeViewModel @Inject constructor(
 
 	fun dismissError() {
 		this.errorMessage = null
+		this.errorCode = null
+	}
+
+	fun dismissRestoreOffline() {
+		this.restoreOffline = false
 	}
 }

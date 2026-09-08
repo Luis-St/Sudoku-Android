@@ -230,6 +230,8 @@
 	<string name="daily_streak_break_last_day">Today is the last day to restore them.</string>
 	<string name="dialog_streak_restore_window">Days left to restore this gap, today included: %1$d</string>
 	<string name="dialog_streak_restore_window_last_day">Today is the last day this gap can be restored.</string>
+	<string name="dialog_streak_restore_offline_title">No server connection</string>
+	<string name="dialog_streak_restore_offline_body">Restoring your streak needs a connection to the server. Please try again later.</string>
 	<string name="action_restore">Restore</string>
 
 	<!-- Error copy, keyed by ApiException.code (net.luis.sudoku.ui.common.friendlyErrorMessage) -->
