@@ -62,7 +62,7 @@ class LearnTechniqueViewModel @Inject constructor(
 					.assetOf(this@LearnTechniqueViewModel.technique).examples()
 				this@LearnTechniqueViewModel.examples = examples
 				this@LearnTechniqueViewModel.previews = examples.map {
-					framesOf(it.explanation()).lastOrNull() ?: ExplanationFrame()
+					framesOf(it.explanation(), target = it.targetCell() to it.targetDigit()).lastOrNull() ?: ExplanationFrame()
 				}
 			} catch (e: CancellationException) {
 				throw e

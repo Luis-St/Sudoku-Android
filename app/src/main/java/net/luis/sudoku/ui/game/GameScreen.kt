@@ -37,13 +37,15 @@ import net.luis.sudoku.R
 import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.ui.board.BoardScreen
+import net.luis.sudoku.ui.learn.PatternLegend
 import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.common.PlayLayout
 import net.luis.sudoku.ui.common.ToggleActionButton
 import net.luis.sudoku.ui.common.friendlyErrorMessage
 import net.luis.sudoku.ui.common.shareText
-import net.luis.sudoku.ui.learn.stringsOf
+import net.luis.sudoku.ui.learn.stringsOrNull
 import net.luis.sudoku.domain.HintStep
+import net.luis.sudoku.domain.HintPlan
 import net.luis.sudoku.domain.MarkReview
 import net.luis.sudoku.ui.input.NumberPad
 import net.luis.sudoku.ui.input.digitLabel
@@ -53,8 +55,6 @@ import net.luis.sudoku.ui.navigation.PlayRequest
 import net.luis.sudoku.ui.theme.LocalBoardPalette
 import net.luis.sudoku.ui.theme.LocalInkColors
 import net.luis.sudoku.domain.ExplanationFrame
-import net.luis.sudoku.ui.learn.narrationOf
-import net.luis.sudoku.ui.learn.stepDetailOf
 
 /**
  * The playable screen. Since the home screen exists (UI item 5) the Normal/Daily tab row is gone: which
@@ -200,7 +200,6 @@ fun GameScreen(
 					regionOf = viewModel::regionOf,
 					palette = palette,
 					onCellTap = viewModel::onCellTap,
-					hintCandidateIndex = viewModel.hintMarkedCell,
 					// Single-player keeps the timed flash (feature-spec §6): at most one wrong digit, briefly.
 					mistakeDigits = viewModel.mistake?.let { mapOf(it) }.orEmpty(),
 					tintRegions = viewModel.isChaos,
@@ -209,10 +208,8 @@ fun GameScreen(
 					// it only once the player steps past them.
 					hintMissingMarks = viewModel.hintMissingMarks,
 					hintWrongMarks = viewModel.hintWrongMarks,
-					// Issue 2.2.2/2: the technique's own cells, outlined in the learn area's colours while the
-					// hint stands on its pattern step.
-					hintPatternRoles = viewModel.hintPatternRoles,
-					hintPatternCurrentCells = viewModel.hintPatternCurrentCells
+					// The technique itself, in the learn area's diagram style, one layer per hint step.
+					hintPattern = viewModel.hintPatternFrame
 				)
 
 				// Game item 3 (2.1.0): what the peeked hint has to say beyond the cell it marks, directly under
@@ -260,13 +257,7 @@ fun GameScreen(
 						verticalAlignment = Alignment.CenterVertically
 					) {
 						OutlinedActionButton(
-							text = when (hintStep) {
-								null -> stringResource(R.string.action_hint_with_count, viewModel.hintsRemaining)
-								// The last step is the one before the digit, so the button says what the press
-								// after it actually does rather than carrying on counting.
-								HintStep.TARGET_CELL -> stringResource(R.string.action_hint_reveal)
-								else -> stringResource(R.string.action_hint_next_step)
-							},
+							text = hintButtonText(hintStep, viewModel.hintPlan, viewModel.hintsRemaining),
 							onClick = viewModel::onHintTap,
 							enabled = viewModel.hintsRemaining > 0 || hintPending,
 							iconPainter = painterResource(R.drawable.ic_hint),
@@ -431,8 +422,18 @@ internal fun HintStepRow(
 	edgeLength: Int = 9
 ) {
 	Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+		// The key to the diagram, above the sentence: the sentence talks about "the green cell" and "the
+		// lines", and the colours are what it is talking about.
+		if (patternFrame != null) {
+			PatternLegend(
+				frame = patternFrame,
+				hexDisplay = hexDisplay,
+				edgeLength = edgeLength,
+				modifier = Modifier.padding(bottom = 6.dp)
+			)
+		}
 		Text(
-			text = hintStepText(step, review, technique, hexDisplay, patternFrame, edgeLength),
+			text = hintStepText(step, review, technique, hexDisplay, patternFrame),
 			style = MaterialTheme.typography.bodySmall,
 			color = MaterialTheme.colorScheme.onSurfaceVariant,
 			// Item 4 of 2.2.0: past a few lines the tip scrolls **inside itself** instead of growing.
@@ -454,6 +455,7 @@ internal fun HintStepRow(
  */
 private val HINT_TEXT_MAX_HEIGHT = 96.dp
 
+
 /**
  * The wording of one hint step, shared by the single-player board and the co-op one.
  *
@@ -470,10 +472,14 @@ internal fun hintStepText(
 	review: MarkReview,
 	technique: Technique?,
 	hexDisplay: Boolean,
-	patternFrame: ExplanationFrame? = null,
-	edgeLength: Int = 9
+	patternFrame: ExplanationFrame? = null
 ): String {
-	val techniqueName = technique?.let { stringResource(stringsOf(it).name) }.orEmpty()
+	// The learn area's copy for this technique, or null for one it does not teach. A hint runs on whatever the
+	// solver needed, which includes the level-15 techniques the learn area has not been given lessons for, and
+	// the steps that name a technique say it differently rather than printing the enum's own spelling at a
+	// player who is owed better than DYNAMIC_CONTRADICTION_CHAIN.
+	val strings = technique?.let { stringsOrNull(it) }
+	val techniqueName = strings?.let { stringResource(it.name) }.orEmpty()
 	return when (step) {
 		HintStep.REVIEW_MARKS -> stringResource(
 			R.string.hint_step_review,
@@ -481,16 +487,45 @@ internal fun hintStepText(
 		)
 
 		HintStep.MARK_DIFF -> stringResource(R.string.hint_step_diff)
-		HintStep.FULL_MARKS -> stringResource(R.string.hint_step_marks, techniqueName)
-		// Issue 2.2.2/2: the learn area's own words for this beat, not a second set written for the board.
-		// The lesson and the hint are the same explanation, so they say the same thing about it - and the
-		// detail line is what makes "these cells" mean something the player can check against the grid.
-		HintStep.PATTERN -> patternFrame?.let { frame ->
-			val detail = stepDetailOf(frame, edgeLength, hexDisplay)
-			val narration = narrationOf(frame)
-			if (detail == null) narration else stringResource(R.string.hint_step_pattern, narration, detail)
-		} ?: stringResource(R.string.hint_step_marks, techniqueName)
-
-		HintStep.TARGET_CELL -> stringResource(R.string.hint_step_target, techniqueName)
+		HintStep.FULL_MARKS -> if (strings != null) {
+			stringResource(R.string.hint_step_marks, techniqueName)
+		} else {
+			stringResource(R.string.hint_step_marks_unnamed)
+		}
+		// The board and its key are the hint on these three steps; the sentence says which layer just went
+		// in and how to read it.
+		HintStep.PATTERN_CELLS -> if (strings != null) {
+			stringResource(R.string.hint_step_cells, techniqueName)
+		} else {
+			stringResource(R.string.hint_step_cells_unnamed)
+		}
+		HintStep.PATTERN_LINKS -> stringResource(R.string.hint_step_links)
+		// A hidden single removes nothing, and telling its player to look at crossed out candidates would send
+		// them looking for something that is not there.
+		HintStep.ELIMINATIONS -> if (patternFrame?.struck.isNullOrEmpty()) {
+			stringResource(R.string.hint_step_target_only)
+		} else {
+			stringResource(R.string.hint_step_eliminations)
+		}
 	}
+}
+
+/**
+ * What the hint button says, which is always what the **next** press does (issue 2.2.2/2).
+ *
+ * It used to say "Next step" for every press between the first and the reveal, which is true and tells the
+ * player nothing about whether pressing on is worth it. The press that changes what kind of help is on screen
+ * now says so: this one puts the technique on the board. It is still free - only the press past the last step
+ * costs a hint, and that one has said so all along.
+ *
+ * Shared with the co-op board, so a hint reads the same on both.
+ */
+@Composable
+internal fun hintButtonText(step: HintStep?, plan: HintPlan, hintsRemaining: Int): String = when {
+	step == null -> stringResource(R.string.action_hint_with_count, hintsRemaining)
+	// The last step is the one before the digit, so the button says what the press after it actually does
+	// rather than carrying on counting.
+	step.next(plan) == null -> stringResource(R.string.action_hint_reveal)
+	step == HintStep.FULL_MARKS -> stringResource(R.string.action_hint_show_pattern)
+	else -> stringResource(R.string.action_hint_next_step)
 }

@@ -94,6 +94,23 @@
 	<string name="learn_unit_column">Spalte %1$d</string>
 	<string name="learn_unit_region">Block %1$d</string>
 	<string name="learn_unit_separator">, </string>
+	<!-- The key under a technique's diagram. See the English file. -->
+	<string name="learn_legend_chain">Kette</string>
+	<string name="learn_legend_pattern">Muster</string>
+	<string name="learn_legend_base">Basiszellen</string>
+	<string name="learn_legend_cover">Deckzellen</string>
+	<string name="learn_legend_pivot">Angelpunkt</string>
+	<string name="learn_legend_wings">Flügel</string>
+	<string name="learn_legend_fin">Flosse</string>
+	<string name="learn_legend_floor">Boden</string>
+	<string name="learn_legend_roof">Dach</string>
+	<string name="learn_legend_context">Hilfszellen</string>
+	<string name="learn_legend_with_digit">%1$s (%2$s)</string>
+	<string name="learn_legend_eliminated">%1$s gestrichen</string>
+	<string name="learn_legend_target">Lösbare Zelle</string>
+	<string name="learn_legend_target_digit">Ziel wird %1$s</string>
+	<string name="learn_legend_strong_link">Starke Verbindung</string>
+	<string name="learn_legend_weak_link">Schwache Verbindung</string>
 
 	<!-- One name, one plain description and one spotting hint per technique, in the shared
 	     core's difficulty order. The enum constant is never shown to the player, only these. -->

@@ -5,7 +5,13 @@ import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.grid.Variant
 import net.luis.sudoku.key.PuzzleKey
+import net.luis.sudoku.hint.ExplainedHint
+import net.luis.sudoku.solver.CellRole
+import net.luis.sudoku.solver.Explanation
+import net.luis.sudoku.solver.ExplanationStep
+import net.luis.sudoku.solver.PatternCell
 import net.luis.sudoku.solver.StepKind
+import net.luis.sudoku.solver.Technique
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -234,9 +240,10 @@ class HintFlowTest {
 		assertEquals(HintStep.REVIEW_MARKS, HintStep.first(plan))
 		assertEquals(HintStep.MARK_DIFF, HintStep.REVIEW_MARKS.next(plan))
 		assertEquals(HintStep.FULL_MARKS, HintStep.MARK_DIFF.next(plan))
-		assertEquals(HintStep.TARGET_CELL, HintStep.FULL_MARKS.next(plan))
+		// No diagram to draw cells or lines from, so straight to the step that marks the cell.
+		assertEquals(HintStep.ELIMINATIONS, HintStep.FULL_MARKS.next(plan))
 		// The press past the last step is the one that writes the digit, which has no step of its own.
-		assertNull(HintStep.TARGET_CELL.next(plan))
+		assertNull(HintStep.ELIMINATIONS.next(plan))
 	}
 
 	@Test
@@ -249,7 +256,7 @@ class HintFlowTest {
 		assertFalse(HintStep.REVIEW_MARKS.shows(plan))
 		assertFalse(HintStep.MARK_DIFF.shows(plan))
 		assertEquals(HintStep.FULL_MARKS, HintStep.first(plan))
-		assertEquals(HintStep.TARGET_CELL, HintStep.FULL_MARKS.next(plan))
+		assertEquals(HintStep.ELIMINATIONS, HintStep.FULL_MARKS.next(plan))
 	}
 
 	@Test
@@ -263,68 +270,186 @@ class HintFlowTest {
 		assertTrue(HintStep.MARK_DIFF.shows(plan))
 	}
 
-	// --- issue 2.2.2/2: the technique's pattern, shown but never the answer ---
+	// --- the technique drawn in the learn area's diagram style ---
+
+	@Test
+	fun `the diagram is drawn in layers, cells then lines then eliminations`() {
+		var layered = 0
+		for (session in boards()) {
+			playThrough(session) { explained, plan ->
+				val cells = HintStep.PATTERN_CELLS.frameOf(plan)!!
+				assertTrue("the cells go in without lines", cells.links.isEmpty())
+				assertTrue("and without anything crossed out", cells.struck.isEmpty())
+				assertNull("and without the solvable cell", cells.target)
+
+				val lines = HintStep.PATTERN_LINKS.frameOf(plan)!!
+				assertEquals(plan.diagram.links, lines.links)
+				assertTrue("the lines go in before the eliminations", lines.struck.isEmpty())
+
+				val eliminations = HintStep.ELIMINATIONS.frameOf(plan)!!
+				assertEquals(plan.diagram.struck, eliminations.struck)
+				assertEquals(DiagramTone.TARGET, eliminations.toneOf(explained.cellIndex()))
+				if (plan.diagram.links.isNotEmpty() && plan.diagram.struck.isNotEmpty()) layered++
+			}
+		}
+		assertTrue("no board produced a hint with lines and eliminations", layered > 0)
+	}
+
+	@Test
+	fun `the notes steps draw no diagram`() {
+		val plan = HintPlan(MarkReview.EMPTY, ExplanationFrame(target = 0 to 0))
+
+		assertNull(HintStep.REVIEW_MARKS.frameOf(plan))
+		assertNull(HintStep.MARK_DIFF.frameOf(plan))
+		assertNull(HintStep.FULL_MARKS.frameOf(plan))
+	}
+
+	@Test
+	fun `no step names the digit before the hint is spent`() {
+		// The digit is what the last press costs, so neither the board nor the key may carry it before then.
+		for (session in boards()) {
+			playThrough(session) { explained, plan ->
+				val cell = explained.cellIndex()
+				val digit = session.solutionAt(cell)
+				for (step in listOf(HintStep.PATTERN_CELLS, HintStep.PATTERN_LINKS, HintStep.ELIMINATIONS)) {
+					val frame = step.frameOf(plan)!!
+					assertNull(frame.placement)
+					assertEquals(0, frame.target?.second ?: 0)
+					assertFalse("the target cell's digits stay out of the key", frame.digits.containsKey(cell))
+					for (entry in legendOf(frame).filter { it.tone == DiagramTone.TARGET }) {
+						assertEquals(0, entry.digits)
+					}
+					assertFalse("the answer is never crossed out", (frame.struck[cell] ?: 0) shr digit and 1 == 1)
+				}
+			}
+		}
+	}
+
+	@Test
+	fun `a chain is a strong link, a weak bridge and a strong link`() {
+		val explanation = Explanation(
+			Technique.X_CHAIN,
+			listOf(
+				ExplanationStep(StepKind.FOCUS_DIGIT, 3, listOf(), listOf()),
+				ExplanationStep(StepKind.LINK, 3, listOf(PatternCell.of(7, CellRole.LINK_OFF, 3), PatternCell.of(2, CellRole.LINK_ON, 3)), listOf()),
+				ExplanationStep(StepKind.LINK, 3, listOf(PatternCell.of(65, CellRole.LINK_OFF, 3), PatternCell.of(69, CellRole.LINK_ON, 3)), listOf()),
+				ExplanationStep(StepKind.ELIMINATION, 0, listOf(PatternCell.of(25, CellRole.TARGET, 3)), listOf())
+			)
+		)
+		val links = framesOf(explanation).last().links
+
+		assertEquals(
+			listOf(
+				DiagramLink(listOf(7), 3, listOf(2), 3, strong = true),
+				DiagramLink(listOf(2), 3, listOf(65), 3, strong = false),
+				DiagramLink(listOf(65), 3, listOf(69), 3, strong = true)
+			),
+			links
+		)
+	}
+
+	@Test
+	fun `a wing joins its pivot to each wing on the digit they share`() {
+		val pivot = 0
+		val explanation = Explanation(
+			Technique.XY_WING,
+			listOf(
+				ExplanationStep(StepKind.PATTERN, 0, listOf(PatternCell(pivot, CellRole.PIVOT, mask(1, 2))), listOf()),
+				ExplanationStep(
+					StepKind.LINK,
+					0,
+					listOf(PatternCell(4, CellRole.WING, mask(1, 3)), PatternCell(36, CellRole.WING, mask(2, 3))),
+					listOf()
+				)
+			)
+		)
+		val links = framesOf(explanation).last().links
+
+		assertEquals(
+			listOf(
+				DiagramLink(listOf(pivot), 1, listOf(4), 1, strong = false),
+				DiagramLink(listOf(pivot), 2, listOf(36), 2, strong = false)
+			),
+			links
+		)
+	}
+
+	@Test
+	fun `a w wing joins both of its cells to the ends of its link`() {
+		// Cell 0 sees the link's false end in row 0, the true end sees cell 80 in column 8.
+		val explanation = Explanation(
+			Technique.W_WING,
+			listOf(
+				ExplanationStep(StepKind.PATTERN, 0, listOf(PatternCell(0, CellRole.PATTERN, mask(4, 5)), PatternCell(80, CellRole.PATTERN, mask(4, 5))), listOf()),
+				ExplanationStep(StepKind.LINK, 5, listOf(PatternCell.of(6, CellRole.LINK_OFF, 5), PatternCell.of(62, CellRole.LINK_ON, 5)), listOf())
+			)
+		)
+		val links = framesOf(explanation).last().links
+
+		assertEquals(
+			listOf(
+				DiagramLink(listOf(0), 5, listOf(6), 5, strong = false),
+				DiagramLink(listOf(6), 5, listOf(62), 5, strong = true),
+				DiagramLink(listOf(62), 5, listOf(80), 5, strong = false)
+			),
+			links
+		)
+	}
+
+	@Test
+	fun `a pattern cell keeps its colour when the conclusion removes a candidate from it`() {
+		val explanation = Explanation(
+			Technique.HIDDEN_PAIR,
+			listOf(
+				ExplanationStep(StepKind.PATTERN, 0, listOf(PatternCell(0, CellRole.PATTERN, mask(1, 2))), listOf()),
+				ExplanationStep(StepKind.ELIMINATION, 0, listOf(PatternCell.of(0, CellRole.TARGET, 7), PatternCell.of(1, CellRole.TARGET, 7)), listOf())
+			)
+		)
+		val frame = framesOf(explanation).last()
+
+		assertEquals(DiagramTone.PATTERN, frame.toneOf(0))
+		assertEquals(DiagramTone.ELIMINATED, frame.toneOf(1))
+		assertTrue(legendOf(frame).any { it.label == LegendLabel.ELIMINATED && it.digits == 1 shl 7 })
+	}
+
+	@Test
+	fun `a lesson that stops at an elimination ends on the digit it was for`() {
+		val explanation = Explanation(
+			Technique.X_CHAIN,
+			listOf(
+				ExplanationStep(StepKind.LINK, 3, listOf(PatternCell.of(7, CellRole.LINK_OFF, 3), PatternCell.of(2, CellRole.LINK_ON, 3)), listOf()),
+				ExplanationStep(StepKind.ELIMINATION, 0, listOf(PatternCell.of(25, CellRole.TARGET, 3)), listOf())
+			)
+		)
+		val frames = framesOf(explanation, target = 25 to 8)
+		val last = frames.last()
+
+		assertEquals(3, frames.size)
+		assertEquals(StepKind.PLACEMENT, last.kind)
+		assertEquals(25 to 8, last.placement)
+		assertEquals(DiagramTone.TARGET, last.toneOf(25))
+		assertTrue(legendOf(last).any { it.label == LegendLabel.TARGET && it.digits == 1 shl 8 })
+	}
+
+	private fun mask(vararg digits: Int): Int = digits.fold(0) { mask, digit -> mask or (1 shl digit) }
+
+	/** A spread of boards, so the sweeps above meet the easy techniques as well as the eliminating ones. */
+	private fun boards(): List<GameSession> = listOf(Difficulty.ONE, Difficulty.THREE, Difficulty.FIVE, Difficulty.EIGHT)
+		.map { difficulty -> GameSession.generate(PuzzleKey.of(GridSize.NINE, Variant.CLASSIC, difficulty, 1L)) }
 
 	/**
-	 * Plays the board forwards until a hint turns up that has a pattern to show, or gives up.
+	 * Solves the board with the hint engine, handing every hint and the plan it would run to [check].
 	 *
-	 * The opening of any board is singles, and a single's explanation names the cell and the digit - which is
-	 * exactly what [hintPatternFrames] withholds. The pattern steps appear once the easy moves are gone, so a
-	 * test about them has to get the board to that point rather than ask on move one.
+	 * A whole solve rather than one position: the rules a hint's picture has to keep are about every hint the
+	 * engine can produce, and a board's first one is always the same trivial single.
 	 */
-	private fun firstPatternFrames(session: GameSession): List<ExplanationFrame>? {
+	private fun playThrough(session: GameSession, check: (ExplainedHint, HintPlan) -> Unit) {
 		repeat(session.cellCount) {
-			val explained = session.explainHint() ?: return null
-			val frames = hintPatternFrames(explained.explanation())
-			if (frames.isNotEmpty()) return frames
+			val explained = session.explainHint() ?: return
 			val cell = explained.cellIndex()
+			val diagram = hintDiagramOf(explained.explanation(), cell) { first, second -> second in session.peersOf(first) }
+			check(explained, HintPlan(MarkReview.EMPTY, diagram))
 			session.setValue(cell, session.solutionAt(cell))
 		}
-		return null
 	}
-
-	@Test
-	fun `a technique with a pattern gets a step of its own`() {
-		// The board the eliminating techniques have something to say about, once its singles are played out.
-		val session = eliminatingSession()
-		val frames = firstPatternFrames(session) ?: error("no hint on this board ever showed a pattern")
-		val plan = HintPlan(HintMarkReview.of(session), frames)
-
-		assertTrue("an eliminating technique explains itself", frames.isNotEmpty())
-		assertTrue(HintStep.PATTERN.shows(plan))
-		assertEquals(HintStep.PATTERN, HintStep.FULL_MARKS.next(plan))
-		assertEquals(HintStep.TARGET_CELL, HintStep.PATTERN.next(plan))
-	}
-
-	@Test
-	fun `a hint whose technique places the digit shows no pattern`() {
-		// Every step of such an explanation names the cell and the digit that goes in it, which is the one
-		// thing the last press of a hint is for. The step is skipped rather than shown with the answer on it.
-		val session = session()
-		val explained = session.explainHint()!!
-
-		assertTrue(explained.explanation().steps().any { it.kind() == StepKind.PLACEMENT })
-		assertTrue(hintPatternFrames(explained.explanation()).isEmpty())
-	}
-
-	@Test
-	fun `no pattern step means the hint runs exactly as it did`() {
-		val plan = HintPlan(HintMarkReview.of(session()), emptyList())
-
-		assertFalse(HintStep.PATTERN.shows(plan))
-		assertEquals(HintStep.TARGET_CELL, HintStep.FULL_MARKS.next(plan))
-	}
-
-	@Test
-	fun `the pattern never names the cell the hint is about to fill`() {
-		// The whole point of withholding the placement beats: a pattern that outlined the answer's cell would
-		// have spent the hint before the player pressed for it.
-		val session = eliminatingSession()
-		val frames = firstPatternFrames(session) ?: error("no hint on this board ever showed a pattern")
-
-		for (frame in frames) {
-			assertNull("a pattern beat never carries a placement", frame.placement)
-		}
-	}
-
 }

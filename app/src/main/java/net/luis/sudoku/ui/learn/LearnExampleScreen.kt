@@ -105,6 +105,10 @@ fun LearnExampleScreen(
 						modifier = Modifier.padding(vertical = 8.dp)
 					)
 
+					// The key to the colours and lines, right under the board it explains, like the reference
+					// diagram the learn area's style comes from.
+					PatternLegend(frame = frame, modifier = Modifier.padding(bottom = 12.dp))
+
 					StepProgress(step = viewModel.stepIndex + 1, count = viewModel.stepCount)
 
 					// The caption keeps its height across the whole example: the sentences differ in length, and a

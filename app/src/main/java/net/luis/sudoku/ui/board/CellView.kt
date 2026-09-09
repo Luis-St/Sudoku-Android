@@ -1,7 +1,6 @@
 package net.luis.sudoku.ui.board
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
@@ -63,24 +62,16 @@ data class CellHighlight(
 	/** The chaos region tint under everything else (game item 1); `null` for classic puzzles. */
 	val regionTint: Color? = null,
 	/**
-	 * Issue 2.2.2/2: the colour this cell's part in a hint's technique is outlined in, or `null` for a cell
-	 * the pattern does not name.
+	 * The fill this cell's part in a hint's technique is drawn in, or `null` for a cell the diagram does not
+	 * colour ([net.luis.sudoku.ui.learn.LearnRoleColors]).
 	 *
-	 * An **outline** rather than a fill, unlike the lesson board, which colours the cell itself. Every one of
-	 * this board's cell colours already means something a player is relying on mid-puzzle - which cell they
-	 * are on, which cells are its peers, what they got wrong - and a hint that painted over them would take
-	 * the board away in order to explain it. The hue is the lesson's, so the vocabulary is one
-	 * ([net.luis.sudoku.ui.learn.LearnRoleColors.outlineOf]).
+	 * A fill like the lesson board's, so the picture on the player's own grid is the one they learned from.
+	 * It sits under the hint and mistake marks and above the selection: while the player is reading the
+	 * diagram, the diagram is what the board is for.
 	 */
-	val patternOutline: Color? = null,
-	/**
-	 * Whether the cell is one *this* beat of the pattern names, as opposed to one an earlier beat did.
-	 *
-	 * The lesson board's rule (learn item 10), for the same reason: by the fourth beat of a chain half the
-	 * pattern is outlined, and a caption saying "these cells" over a picture that has not changed since the
-	 * last press points at nothing. The earlier ones stay on the board and step back.
-	 */
-	val patternCurrent: Boolean = false
+	val patternFill: Color? = null,
+	/** The candidates the hint's technique removes from this cell, drawn crossed out, as a bitmask. */
+	val patternStruck: Int = 0
 )
 
 @Composable
@@ -127,6 +118,7 @@ fun CellView(
 		// selectable there anyway (game item 7).
 		highlight.mistakeMade -> palette.summaryMistake
 		highlight.hintUsed -> palette.summaryHint
+		highlight.patternFill != null -> highlight.patternFill
 		highlight.selected -> accentOrPlain(SELECTED_ON_TINT_ALPHA, palette.selectedCell)
 		highlight.conflict -> palette.conflict
 		// Game item 2: no same-value case here any more - marking the locked digit is the glyph's job below.
@@ -138,23 +130,6 @@ fun CellView(
 		modifier = modifier
 			.aspectRatio(1f)
 			.background(background)
-			// Inside the background and outside the glyph, so the outline reads as a mark *on* the cell and
-			// never disturbs the digit's own metrics - the board's pixel rules are the same with a hint
-			// running as without one.
-			.then(
-				if (highlight.patternOutline != null) {
-					Modifier.border(
-						width = if (highlight.patternCurrent) PATTERN_OUTLINE_WIDTH else PATTERN_OUTLINE_WIDTH_EARLIER,
-						color = if (highlight.patternCurrent) {
-							highlight.patternOutline
-						} else {
-							highlight.patternOutline.copy(alpha = PATTERN_OUTLINE_EARLIER_ALPHA)
-						}
-					)
-				} else {
-					Modifier
-				}
-			)
 			.clickable(onClick = onTap),
 		contentAlignment = Alignment.Center
 	) {
@@ -212,7 +187,7 @@ fun CellView(
 				bold = highlight.markedValue
 			)
 
-			snapshot.pencilMarks != 0 || highlight.hintMissingMarks != 0 -> PencilMarkGrid(
+			snapshot.pencilMarks != 0 || highlight.hintMissingMarks != 0 || highlight.patternStruck != 0 -> PencilMarkGrid(
 				snapshot = snapshot,
 				edgeLength = edgeLength,
 				palette = palette,
@@ -220,7 +195,8 @@ fun CellView(
 				pencilInk = ink.inkOf(InputMode.PENCIL),
 				markedDigit = highlight.markedPencilDigit,
 				missingMarks = highlight.hintMissingMarks,
-				wrongMarks = highlight.hintWrongMarks
+				wrongMarks = highlight.hintWrongMarks,
+				struckMarks = highlight.patternStruck
 			)
 		}
 	}
@@ -237,20 +213,6 @@ private const val SELECTED_ON_TINT_ALPHA = 0.55f
 
 /** The same accent for the selected row and column, weak enough that it never competes with the selection. */
 private const val PEER_ON_TINT_ALPHA = 0.24f
-
-/**
- * How thick a hint's pattern outline is drawn on the cell it names right now.
- *
- * Two device pixels' worth at every grid size: the outline has to be findable at a glance on a 16x16 board,
- * where a cell is a fraction of a 9x9 one, and it sits inside the cell so it never grows the board.
- */
-private val PATTERN_OUTLINE_WIDTH = 2.dp
-
-/** The same outline on a cell an *earlier* beat named, thinner and softer so the two read in order. */
-private val PATTERN_OUTLINE_WIDTH_EARLIER = 1.5.dp
-
-/** How far back a cell an earlier beat named is pushed - the lesson board's own value (learn item 10). */
-private const val PATTERN_OUTLINE_EARLIER_ALPHA = 0.4f
 
 @Composable
 private fun CellValueText(value: Int, color: Color, fontSize: TextUnit, bold: Boolean = false) {
@@ -288,7 +250,9 @@ private fun PencilMarkGrid(
 	/** Game item 19: legal here, not noted - drawn in its slot although the cell does not hold it. */
 	missingMarks: Int = 0,
 	/** Game item 19: noted here, impossible - the note the player already wrote, marked rather than added. */
-	wrongMarks: Int = 0
+	wrongMarks: Int = 0,
+	/** The candidates a hint's technique removes here, crossed out in the error red. */
+	struckMarks: Int = 0
 ) {
 	val columns = pencilColumnsFor(edgeLength)
 	val rows = pencilRowsFor(edgeLength, columns)
@@ -306,9 +270,10 @@ private fun PencilMarkGrid(
 	PencilSlotGrid(columns = columns, rows = rows) { digit ->
 		val missing = digit <= edgeLength && missingMarks shr digit and 1 == 1
 		val wrong = digit <= edgeLength && wrongMarks shr digit and 1 == 1
+		val struck = digit <= edgeLength && struckMarks shr digit and 1 == 1
 		// Past edgeLength the slot is padding, not a digit - it keeps the grid square, so the candidates
 		// that do exist stay in their own fixed positions.
-		if (digit <= edgeLength && (snapshot.hasPencilMark(digit) || missing)) {
+		if (digit <= edgeLength && (snapshot.hasPencilMark(digit) || missing || struck)) {
 			// Game item 2: a chip would swallow a note at a ninth of a cell, so the mark *is* the ink - the
 			// locked digit's note is written in the accent and a weight heavier.
 			val marked = digit == markedDigit
@@ -318,6 +283,7 @@ private fun PencilMarkGrid(
 			// on the one board element that has no room to spare. The two colours are nowhere else in the
 			// note grid, which is what separates them from anything the player wrote themselves.
 			val proposalColor = when {
+				struck -> palette.error
 				missing -> palette.hintMarkMissing
 				wrong -> palette.hintMarkWrong
 				else -> null
@@ -337,7 +303,8 @@ private fun PencilMarkGrid(
 					else -> palette.pencilMark
 				},
 				fontSize = fontSize,
-				fontWeight = if (marked || proposalColor != null) FontWeight.Bold else FontWeight.Normal
+				fontWeight = if (marked || proposalColor != null) FontWeight.Bold else FontWeight.Normal,
+				strikeThrough = struck
 			)
 		}
 	}

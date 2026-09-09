@@ -23,7 +23,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import net.luis.sudoku.R
-import net.luis.sudoku.domain.HintStep
 import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.ui.board.BoardScreen
@@ -33,6 +32,7 @@ import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.common.PlayLayout
 import net.luis.sudoku.ui.common.ToggleActionButton
 import net.luis.sudoku.ui.game.HintStepRow
+import net.luis.sudoku.ui.game.hintButtonText
 import net.luis.sudoku.ui.input.NumberPad
 import net.luis.sudoku.ui.multiplayer.MatchStatusHolder
 import net.luis.sudoku.ui.multiplayer.PublishMatchStatus
@@ -145,7 +145,8 @@ fun CoopScreen(
 				palette = palette,
 				onCellTap = viewModel::onCellTap,
 				// The match's hint, not this player's: whoever asked, every board marks the same cell yellow.
-				hintCandidateIndex = viewModel.hintCell,
+				// Not on the asker's own board while their run is drawing it: there the cell is already green.
+				hintCandidateIndex = viewModel.hintCell?.takeIf { viewModel.hintPatternFrame?.target?.first != it },
 				// Game item 19: the run's own working, which is this player's alone and never sent.
 				hintMissingMarks = viewModel.hintMissingMarks,
 				hintWrongMarks = viewModel.hintWrongMarks,
@@ -154,11 +155,9 @@ fun CoopScreen(
 				mistakeDigits = viewModel.mistakes,
 				mistakeCells = viewModel.mistakes.keys,
 				darkTheme = darkTheme,
-				// Issue 2.2.2/2: the technique's cells, outlined while this player's run is on the pattern step.
-				// Local to the asker, unlike the offered cell: the pattern is what *they* are being walked
+				// The technique, drawn on this player's board only: the pattern is what *they* are being walked
 				// through, and the match hears about the hint only when the run reaches the cell.
-				hintPatternRoles = viewModel.hintPatternRoles,
-				hintPatternCurrentCells = viewModel.hintPatternCurrentCells
+				hintPattern = viewModel.hintPatternFrame
 			)
 
 			// Game item 19: the same stepped hint the single-player board runs - the same row now, not only the
@@ -203,14 +202,14 @@ fun CoopScreen(
 					verticalAlignment = Alignment.CenterVertically
 				) {
 					OutlinedActionButton(
-						text = when {
+						text = if (viewModel.hintCell != null) {
 							// The match's offer is always a reveal, whoever put it up and whatever step this
 							// player happens to be standing on.
-							viewModel.hintCell != null || hintStep == HintStep.TARGET_CELL ->
-								stringResource(R.string.action_hint_reveal)
-
-							hintStep != null -> stringResource(R.string.action_hint_next_step)
-							else -> stringResource(R.string.action_hint_with_count, viewModel.hintsRemaining)
+							stringResource(R.string.action_hint_reveal)
+						} else {
+							// Otherwise the single-player board's own labels, off this player's own run - the
+							// hint is the same hint, so the button says the same things about it.
+							hintButtonText(hintStep, viewModel.hintPlan, viewModel.hintsRemaining)
 						},
 						onClick = viewModel::onHintTap,
 						// The cap is per player and the reveal charges whoever presses it, so an empty cap stops

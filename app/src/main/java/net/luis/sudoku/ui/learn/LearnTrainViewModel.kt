@@ -255,7 +255,7 @@ class LearnTrainViewModel @Inject constructor(
 				//
 				// Shown as a summary rather than as a beat: with no current step, nothing is faded and the whole
 				// argument is on the board at once (learn item 10).
-				return this.frames.lastOrNull()?.copy(currentCells = emptyList(), currentUnits = emptyList())
+				return this.frames.lastOrNull()?.copy(currentCells = emptyList(), currentUnits = emptyList(), currentLinks = emptyList())
 					?: ExplanationFrame()
 			}
 			if (this.revealedSteps == 0) {
@@ -266,7 +266,7 @@ class LearnTrainViewModel @Inject constructor(
 			return when (this.assistance) {
 				LearnContent.Assistance.GUIDED -> frame
 				// Cells only: the roles say where the pattern is, the digits would say what it proves.
-				LearnContent.Assistance.ON_REQUEST -> frame.copy(digits = emptyMap(), focusDigit = 0, struck = emptyMap())
+				LearnContent.Assistance.ON_REQUEST -> frame.copy(digits = emptyMap(), focusDigit = 0, struck = emptyMap(), links = emptyList(), currentLinks = emptyList())
 				LearnContent.Assistance.NONE -> ExplanationFrame()
 			}
 		}

@@ -22,9 +22,22 @@ data class LearnStrings(
  * The copy for one technique.
  *
  * Every technique the learn area teaches has an entry. The ones it does not teach have none, and asking for
- * one is a programming error rather than something to render around.
+ * one is a programming error rather than something to render around - inside the learn area, where the list
+ * of techniques *is* [net.luis.sudoku.learn.LearnTechniques.taught]. A caller that names a technique the
+ * player's board chose rather than one the learn area listed asks [stringsOrNull] instead.
  */
-fun stringsOf(technique: Technique): LearnStrings = when (technique) {
+fun stringsOf(technique: Technique): LearnStrings = stringsOrNull(technique)
+	?: throw IllegalArgumentException("The learn area does not teach $technique")
+
+/**
+ * The same copy, or `null` for a technique the learn area does not teach (issue 2.2.2/2).
+ *
+ * A hint runs on whatever the solver needed, which is not the taught set: the five level-15 dynamic
+ * techniques are deferred, and `LAW_OF_LEFTOVERS` and `MULTI_COLOURING` were dropped. Every one of them can
+ * still be the technique a hint names on a hard enough board, and asking [stringsOf] for its name there took
+ * the game screen down with an `IllegalArgumentException` - a hint is not a place to insist the copy exists.
+ */
+fun stringsOrNull(technique: Technique): LearnStrings? = when (technique) {
 	Technique.FULL_HOUSE -> LearnStrings(R.string.learn_technique_full_house_name, R.string.learn_technique_full_house_description, R.string.learn_technique_full_house_pattern)
 	Technique.LAST_DIGIT -> LearnStrings(R.string.learn_technique_last_digit_name, R.string.learn_technique_last_digit_description, R.string.learn_technique_last_digit_pattern)
 	Technique.NAKED_SINGLE -> LearnStrings(R.string.learn_technique_naked_single_name, R.string.learn_technique_naked_single_description, R.string.learn_technique_naked_single_pattern)
@@ -66,5 +79,5 @@ fun stringsOf(technique: Technique): LearnStrings = when (technique) {
 	Technique.MEDUSA_3D -> LearnStrings(R.string.learn_technique_medusa_3d_name, R.string.learn_technique_medusa_3d_description, R.string.learn_technique_medusa_3d_pattern)
 	Technique.GROUPED_AIC -> LearnStrings(R.string.learn_technique_grouped_aic_name, R.string.learn_technique_grouped_aic_description, R.string.learn_technique_grouped_aic_pattern)
 	Technique.ALS_CHAIN -> LearnStrings(R.string.learn_technique_als_chain_name, R.string.learn_technique_als_chain_description, R.string.learn_technique_als_chain_pattern)
-	else -> throw IllegalArgumentException("The learn area does not teach $technique")
+	else -> null
 }

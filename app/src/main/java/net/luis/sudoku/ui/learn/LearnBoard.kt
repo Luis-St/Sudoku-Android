@@ -26,6 +26,7 @@ import net.luis.sudoku.ui.theme.LocalInkColors
 import net.luis.sudoku.ui.board.BoardGlyph
 import net.luis.sudoku.ui.board.BoardGridLines
 import net.luis.sudoku.ui.board.BoardSurface
+import net.luis.sudoku.ui.board.PatternLinks
 import net.luis.sudoku.ui.board.PencilSlotGrid
 import net.luis.sudoku.ui.board.boardValueFontSize
 import net.luis.sudoku.ui.board.classicRegionOf
@@ -102,9 +103,16 @@ fun LearnBoard(
 				modifier = Modifier.matchParentSize()
 			)
 			UnitOutlines(frame, darkTheme, modifier = Modifier.matchParentSize())
+			PatternLinks(
+				links = frame.links,
+				currentLinks = frame.currentLinks,
+				edgeLength = SIZE,
+				color = palette.tintHighlight,
+				modifier = Modifier.matchParentSize()
+			)
 		}
 	) { index, cellSize ->
-		val role = frame.roles[index]
+		val tone = frame.toneOf(index)
 		val peer = index in peers
 		// The cell the player is actually on, which now gets the play board's own fill: with the beta on,
 		// every *other* cell holding the locked digit lights up, and leaving the tapped one blank in the
@@ -124,7 +132,7 @@ fun LearnBoard(
 			value = values[index]
 		)
 		// The board's inks are chosen against the board's background, and a role fill is not it.
-		val roleInk = role?.let { LearnRoleColors.inkOn(darkTheme) }
+		val roleInk = tone?.let { LearnRoleColors.inkOn(darkTheme) }
 		// Learn item 10: everything the argument has named stays on the board, but the cells this step is
 		// actually talking about are the ones at full strength. By the fourth beat of a chain the board is
 		// half coloured in, and a caption saying "these cells" over a picture that has not changed since the
@@ -134,7 +142,7 @@ fun LearnBoard(
 			focused -> palette.selectedCell
 			// The lesson's own colours outrank the peer highlight: they are the content of the screen, and
 			// the highlight is only there to say where the player is standing.
-			role != null -> LearnRoleColors.of(role, darkTheme)
+			tone != null -> LearnRoleColors.of(tone, darkTheme, palette)
 				.copy(alpha = if (faded) EARLIER_STEP_ALPHA else 1f)
 			occurrence -> palette.selectedCell
 			peer -> palette.peerHighlight
@@ -203,12 +211,12 @@ fun LearnBoardThumbnail(
 			)
 		}
 	) { index, cellSize ->
-		val role = frame.roles[index]
+		val tone = frame.toneOf(index)
 		Box(
 			modifier = Modifier
 				.size(cellSize)
 				.background(
-					if (role != null) LearnRoleColors.of(role, darkTheme)
+					if (tone != null) LearnRoleColors.of(tone, darkTheme, palette)
 					else MaterialTheme.colorScheme.background
 				),
 			contentAlignment = Alignment.Center
@@ -217,7 +225,7 @@ fun LearnBoardThumbnail(
 			if (value != 0) {
 				BoardGlyph(
 					text = value.toString(),
-					color = if (role != null) LearnRoleColors.inkOn(darkTheme) else palette.given,
+					color = if (tone != null) LearnRoleColors.inkOn(darkTheme) else palette.given,
 					fontSize = boardValueFontSize(cellSize),
 					fontWeight = FontWeight.Normal
 				)

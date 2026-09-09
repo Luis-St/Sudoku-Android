@@ -1,6 +1,8 @@
 package net.luis.sudoku.domain
 
 import net.luis.sudoku.core.GameSession
+import net.luis.sudoku.solver.CellRole
+import net.luis.sudoku.solver.Explanation
 
 /**
  * The steps a hint walks through before it writes anything (game item 19 of 2.1.0).
@@ -14,13 +16,17 @@ import net.luis.sudoku.core.GameSession
  * 2. [MARK_DIFF]: the same disagreement drawn on the board, in green and red, so it is visible which note
  *    is missing and which one cannot be right.
  * 3. [FULL_MARKS]: the complete candidate set, and the name of the technique that solves a cell from it.
- * 4. [PATTERN]: the technique's own cells, outlined on the board one beat at a time, in the learn area's
- *    colours (issue 2.2.2/2). This is the step that answers "and how do I use that?", which naming the
- *    technique never did: a player who is told a W-Wing applies and cannot find the W-Wing has been handed
- *    the one part of a hint that helps nobody. It repeats for as many beats as the explanation has.
- * 5. [TARGET_CELL]: the cell that technique solves, marked, with the technique still named.
  *
- * Pressing on from [TARGET_CELL] is what spends the hint and enters the digit; there is no step for it,
+ * Then the technique itself, drawn the way the learn area draws it (the owner's reference diagram), one layer
+ * per press so the picture assembles in the order it is read:
+ *
+ * 4. [PATTERN_CELLS]: the cells the technique is made of, filled in its colours, with a key under the board.
+ * 5. [PATTERN_LINKS]: the lines between the candidates the argument runs through, solid for a strong link and
+ *    dashed for a weak one.
+ * 6. [ELIMINATIONS]: the candidates the technique removes, crossed out, and the cell that leaves solvable,
+ *    filled green. The digit is still not named: it is what the hint costs.
+ *
+ * Pressing on from [ELIMINATIONS] is what spends the hint and adds the number; there is no step for it,
  * because at that point the hint is over.
  *
  * The steps are the same everywhere a hint exists: the single-player, daily and co-op boards all run this
@@ -28,34 +34,53 @@ import net.luis.sudoku.core.GameSession
  *
  * A step with nothing to say is **skipped**, never shown empty ([shows]). On a board whose notes are already
  * right, the two steps about correcting notes would be two presses to be told twice that there is nothing to
- * correct; the hint is the sequence of things it actually has to say, and the player is never shown a step
- * number to wonder about the gap in.
+ * correct, and a naked pair has no lines to draw.
  */
 enum class HintStep {
 
 	REVIEW_MARKS,
 	MARK_DIFF,
 	FULL_MARKS,
-	PATTERN,
-	TARGET_CELL;
+	PATTERN_CELLS,
+	PATTERN_LINKS,
+	ELIMINATIONS;
 
-	/**
-	 * Whether this step has anything to show for [plan].
-	 *
-	 * Three of the five can come out empty. Naming the notes to look over and drawing how they differ both
-	 * need a difference to exist, and drawing the technique's pattern needs there to be one worth drawing -
-	 * see [hintPatternFrames], which withholds it for every technique whose own beats would name the digit.
-	 * Filling the notes in and marking the cell always have something to do.
-	 */
+	/** Whether this step has anything to show for [plan]. */
 	fun shows(plan: HintPlan): Boolean = when (this) {
 		REVIEW_MARKS, MARK_DIFF -> !plan.review.clean
-		PATTERN -> plan.pattern.isNotEmpty()
-		FULL_MARKS, TARGET_CELL -> true
+		PATTERN_CELLS -> plan.diagram.roles.keys.any { cell -> plan.diagram.roles[cell] != CellRole.TARGET }
+		PATTERN_LINKS -> plan.diagram.links.isNotEmpty()
+		FULL_MARKS, ELIMINATIONS -> true
 	}
 
 	/** The step the next press moves to, or `null` when the next press reveals the digit instead. */
 	fun next(plan: HintPlan): HintStep? =
 		entries.drop(this.ordinal + 1).firstOrNull { step -> step.shows(plan) }
+
+	/**
+	 * What the board draws on this step, or `null` on the steps about notes.
+	 *
+	 * Each layer keeps the ones before it: the cells stay filled while the lines go in, and both stay while
+	 * the candidates are crossed out.
+	 */
+	fun frameOf(plan: HintPlan): ExplanationFrame? {
+		val diagram = plan.diagram
+		return when (this) {
+			REVIEW_MARKS, MARK_DIFF, FULL_MARKS -> null
+			PATTERN_CELLS -> diagram.copy(
+				roles = diagram.roles.filterValues { role -> role != CellRole.TARGET },
+				links = emptyList(),
+				struck = emptyMap(),
+				target = null
+			)
+			PATTERN_LINKS -> diagram.copy(
+				roles = diagram.roles.filterValues { role -> role != CellRole.TARGET },
+				struck = emptyMap(),
+				target = null
+			)
+			ELIMINATIONS -> diagram
+		}
+	}
 
 	companion object {
 
@@ -65,22 +90,50 @@ enum class HintStep {
 }
 
 /**
- * Everything one run of a hint was planned from: the notes as they were when it started, and the beats of the
- * technique's pattern.
+ * Everything one run of a hint was planned from: the notes as they were when it started, and the technique's
+ * diagram.
  *
  * Both are read **once**, when the hint begins, and neither is recomputed as it is stepped. The steps are
  * things to say about *one* reading of the board, and a set that moved under them would have step two drawing
  * something step one did not name.
  *
  * @param review how the player's notes compared to the board when the hint started
- * @param pattern the technique's beats, empty when there is no pattern this hint may show
+ * @param diagram the whole technique as one summary frame, which [HintStep.frameOf] cuts into layers
  */
-data class HintPlan(val review: MarkReview, val pattern: List<ExplanationFrame> = emptyList()) {
+data class HintPlan(val review: MarkReview, val diagram: ExplanationFrame = ExplanationFrame()) {
 
 	companion object {
 
 		val EMPTY: HintPlan = HintPlan(MarkReview.EMPTY)
 	}
+}
+
+/**
+ * The whole diagram a hint draws for [explanation], ending on [target].
+ *
+ * A summary rather than beats: the hint has its own three layers ([HintStep]), and walking the lesson's six
+ * or seven beats inside one of them was the pattern step the player could not tell apart from the next one.
+ * Nothing is cut out of it. The target cell is marked without its digit, which is the one thing a hint only
+ * hands over once it is spent.
+ *
+ * A placing technique's conclusion is its placement, and the placement is what the hint costs, so it is
+ * turned back into the unnamed target.
+ */
+fun hintDiagramOf(explanation: Explanation, target: Int, isPeer: (Int, Int) -> Boolean): ExplanationFrame {
+	val last = framesOf(explanation, isPeer).lastOrNull() ?: return ExplanationFrame(target = target to 0)
+	return last.copy(
+		roles = last.roles.filterKeys { cell -> cell != target || last.roles[cell] != CellRole.TARGET },
+		// The target's own digits would put the answer into the key ("pattern (5)") before it is paid for.
+		digits = last.digits - target,
+		placement = null,
+		target = target to 0,
+		currentCells = emptyList(),
+		currentUnits = emptyList(),
+		currentDigits = emptyMap(),
+		currentLinks = emptyList(),
+		units = emptyList(),
+		focusDigit = 0
+	)
 }
 
 /**

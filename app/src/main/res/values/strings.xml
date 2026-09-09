@@ -431,11 +431,22 @@
 	<!-- Game item 19: a hint is walked through in steps the player presses on through, and only the last
 	     press writes a digit. The same wording is used on the single-player, daily and co-op boards. -->
 	<string name="action_hint_next_step">Next step</string>
+	<!-- Issue 2.2.2/2: the press that changes what kind of help is on screen says what it opens, rather than
+	     counting steps at a player deciding whether pressing on is worth it. It is still free. -->
+	<string name="action_hint_show_pattern">Show it on the board</string>
 	<string name="hint_step_review">Look over your notes for %1$s first. Every technique argues from the notes.</string>
 	<string name="hint_step_diff">Your notes are marked up on the board: a candidate in green is one you have not noted, a note in red cannot be right because its row, column or box already holds that digit.</string>
 	<string name="hint_step_marks">From these notes, one cell can be solved with %1$s.</string>
-	<string name="hint_step_pattern">%1$s\n%2$s</string>
-	<string name="hint_step_target">%1$s solves the marked cell. The next press writes the digit in and spends the hint.</string>
+	<!-- The same step for a technique the learn area does not teach, which has no name to print. Said as a
+	     sentence rather than by dropping a raw technique code into the other one. -->
+	<string name="hint_step_marks_unnamed">From these notes, one cell can be solved with a technique the learn area does not cover yet.</string>
+	<!-- The technique itself, drawn like the learn area draws it: one layer per press, with the key above the
+	     sentence. The digit is only named once the hint is spent. -->
+	<string name="hint_step_cells">The coloured cells are what %1$s is made of here. The key says which part each colour plays.</string>
+	<string name="hint_step_cells_unnamed">The coloured cells are what this technique is made of here. The key says which part each colour plays.</string>
+	<string name="hint_step_links">The lines join the candidates the argument runs through: along a solid line one of the two ends must be true, along a dashed line they cannot both be.</string>
+	<string name="hint_step_eliminations">So the crossed out candidates can go, and that makes the green cell solvable. The next press writes it in and spends the hint.</string>
+	<string name="hint_step_target_only">That makes the green cell solvable. The next press writes it in and spends the hint.</string>
 
 	<!-- Multiplayer game screen. -->
 

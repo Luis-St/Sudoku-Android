@@ -74,7 +74,7 @@ class LearnExampleViewModel @Inject constructor(
 				this@LearnExampleViewModel.exampleCount = examples.size
 				val puzzle = examples.getOrNull(this@LearnExampleViewModel.exampleIndex)
 				this@LearnExampleViewModel.puzzle = puzzle
-				this@LearnExampleViewModel.frames = puzzle?.let { framesOf(it.explanation()) }.orEmpty()
+				this@LearnExampleViewModel.frames = puzzle?.let { framesOf(it.explanation(), target = it.targetCell() to it.targetDigit()) }.orEmpty()
 			} catch (e: CancellationException) {
 				throw e
 			} catch (e: Exception) {

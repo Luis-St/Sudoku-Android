@@ -397,11 +397,16 @@
 
 	<!-- Game item 19: see the English file for what the steps are. -->
 	<string name="action_hint_next_step">Nächster Schritt</string>
+	<string name="action_hint_show_pattern">Auf dem Feld zeigen</string>
 	<string name="hint_step_review">Sieh dir zuerst deine Notizen zu %1$s an. Jede Technik baut auf den Notizen auf.</string>
 	<string name="hint_step_diff">Deine Notizen sind auf dem Feld markiert: Ein grüner Kandidat ist einer, den du nicht notiert hast, eine rote Notiz kann nicht stimmen, weil Zeile, Spalte oder Block diese Ziffer bereits enthält.</string>
 	<string name="hint_step_marks">Mit diesen Notizen lässt sich eine Zelle mit %1$s lösen.</string>
-	<string name="hint_step_pattern">%1$s\n%2$s</string>
-	<string name="hint_step_target">%1$s löst die markierte Zelle. Der nächste Druck trägt die Ziffer ein und verbraucht den Tipp.</string>
+	<string name="hint_step_marks_unnamed">Mit diesen Notizen lässt sich eine Zelle mit einer Technik lösen, die der Lernbereich noch nicht behandelt.</string>
+	<string name="hint_step_cells">Die farbigen Zellen sind das, woraus %1$s hier besteht. Die Legende zeigt, welche Rolle jede Farbe spielt.</string>
+	<string name="hint_step_cells_unnamed">Die farbigen Zellen sind das, woraus diese Technik hier besteht. Die Legende zeigt, welche Rolle jede Farbe spielt.</string>
+	<string name="hint_step_links">Die Linien verbinden die Kandidaten, über die die Überlegung läuft: Entlang einer durchgezogenen Linie muss eines der beiden Enden stimmen, entlang einer gestrichelten können nicht beide stimmen.</string>
+	<string name="hint_step_eliminations">Die durchgestrichenen Kandidaten fallen also weg, und damit lässt sich die grüne Zelle lösen. Der nächste Druck trägt sie ein und verbraucht den Tipp.</string>
+	<string name="hint_step_target_only">Damit lässt sich die grüne Zelle lösen. Der nächste Druck trägt sie ein und verbraucht den Tipp.</string>
 
 	<!-- Multiplayer game screen. -->
 

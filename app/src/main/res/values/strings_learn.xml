@@ -96,6 +96,24 @@
 	<string name="learn_unit_column">column %1$d</string>
 	<string name="learn_unit_region">box %1$d</string>
 	<string name="learn_unit_separator">, </string>
+	<!-- The key under a technique's diagram, on the example screen and under a hint. One row per colour on
+	     the board, named by the part the colour plays. -->
+	<string name="learn_legend_chain">Chain</string>
+	<string name="learn_legend_pattern">Pattern</string>
+	<string name="learn_legend_base">Base cells</string>
+	<string name="learn_legend_cover">Cover cells</string>
+	<string name="learn_legend_pivot">Pivot</string>
+	<string name="learn_legend_wings">Wings</string>
+	<string name="learn_legend_fin">Fin</string>
+	<string name="learn_legend_floor">Floor</string>
+	<string name="learn_legend_roof">Roof</string>
+	<string name="learn_legend_context">Supporting cells</string>
+	<string name="learn_legend_with_digit">%1$s (%2$s)</string>
+	<string name="learn_legend_eliminated">%1$s crossed out</string>
+	<string name="learn_legend_target">Solvable cell</string>
+	<string name="learn_legend_target_digit">Target becomes %1$s</string>
+	<string name="learn_legend_strong_link">Strong link</string>
+	<string name="learn_legend_weak_link">Weak link</string>
 
 	<!-- One name, one plain description and one spotting hint per technique, in the shared
 	     core's difficulty order. The enum constant is never shown to the player, only these. -->

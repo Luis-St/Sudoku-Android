@@ -31,8 +31,7 @@ import net.luis.sudoku.data.remote.match.stringOrNull
 import net.luis.sudoku.domain.ExplanationFrame
 import net.luis.sudoku.domain.HintMarkReview
 import net.luis.sudoku.domain.HintPlan
-import net.luis.sudoku.domain.hintPatternFrames
-import net.luis.sudoku.solver.CellRole
+import net.luis.sudoku.domain.hintDiagramOf
 import net.luis.sudoku.domain.HintStep
 import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.domain.MarkReview
@@ -216,7 +215,7 @@ class CoopViewModel @AssistedInject constructor(
 	 * Local, unlike [hintCell]. The first three steps are about notes and say nothing about the answer, so
 	 * there is nothing there for the group to see, and stepping them on everybody else's screen would be one
 	 * player scrolling four other people's boards. What the match owns is still the offer itself, which goes
-	 * out at [HintStep.TARGET_CELL] exactly as it always did.
+	 * out at the step that marks the cell ([HintStep.ELIMINATIONS]) exactly as it always did.
 	 */
 	var hintStep by mutableStateOf<HintStep?>(null)
 		private set
@@ -231,27 +230,15 @@ class CoopViewModel @AssistedInject constructor(
 	/** The notes half of the plan, unwrapped for the board and the caption. */
 	val hintReview: MarkReview get() = this.hintPlan.review
 
-	/** Which beat of the technique's pattern is on the board (issue 2.2.2/2) - see `GameViewModel`. */
-	var hintPatternBeat by mutableStateOf(0)
-		private set
-
-	/** The beat the board is drawing right now, or null when the hint is not on the pattern step. */
+	/** What this player's board draws of the technique on the current step - see `GameViewModel`. */
 	val hintPatternFrame: ExplanationFrame?
-		get() = if (this.hintStep == HintStep.PATTERN) this.hintPlan.pattern.getOrNull(this.hintPatternBeat) else null
-
-	/** The technique's cells and the part each plays, outlined on every player's board. */
-	val hintPatternRoles: Map<Int, CellRole>
-		get() = this.hintPatternFrame?.roles.orEmpty()
-
-	/** The cells *this* beat names, drawn at full strength against the earlier ones. */
-	val hintPatternCurrentCells: Set<Int>
-		get() = this.hintPatternFrame?.currentCells?.toSet().orEmpty()
+		get() = this.hintStep?.frameOf(this.hintPlan)
 
 	/** The technique the run names, from the step that lays out the full candidate set onwards. */
 	val hintTechnique: Technique?
 		get() = this.hintTarget?.technique()
 			?.takeIf {
-				this.hintStep == HintStep.FULL_MARKS || this.hintStep == HintStep.PATTERN || this.hintStep == HintStep.TARGET_CELL
+				(this.hintStep?.ordinal ?: -1) >= HintStep.FULL_MARKS.ordinal
 			}
 
 	/**
@@ -264,13 +251,13 @@ class CoopViewModel @AssistedInject constructor(
 	val hintMissingMarks: Map<Int, Int>
 		get() = when (this.hintStep) {
 			HintStep.MARK_DIFF -> this.hintReview.missing
-			HintStep.FULL_MARKS, HintStep.PATTERN, HintStep.TARGET_CELL -> this.hintReview.stillUnnoted()
+			HintStep.FULL_MARKS, HintStep.PATTERN_CELLS, HintStep.PATTERN_LINKS, HintStep.ELIMINATIONS -> this.hintReview.stillUnnoted()
 			else -> emptyMap()
 		}
 
 	val hintWrongMarks: Map<Int, Int>
 		get() = when (this.hintStep) {
-			HintStep.MARK_DIFF, HintStep.FULL_MARKS, HintStep.PATTERN, HintStep.TARGET_CELL -> this.hintReview.wrong
+			HintStep.MARK_DIFF, HintStep.FULL_MARKS, HintStep.PATTERN_CELLS, HintStep.PATTERN_LINKS, HintStep.ELIMINATIONS -> this.hintReview.wrong
 			else -> emptyMap()
 		}
 
@@ -279,7 +266,6 @@ class CoopViewModel @AssistedInject constructor(
 		this.hintStep = null
 		this.hintTarget = null
 		this.hintPlan = HintPlan.EMPTY
-		this.hintPatternBeat = 0
 	}
 
 	init {
@@ -567,7 +553,7 @@ class CoopViewModel @AssistedInject constructor(
 		this.hintCell = payload.intOrNull("cell")
 		// Somebody withdrew the offer this run had already put to the match, so the run is over too - the
 		// steps before it are still local, and those keep running until this player ends them.
-		if (this.hintCell == null && this.hintStep == HintStep.TARGET_CELL) clearHintRun()
+		if (this.hintCell == null && this.hintStep == HintStep.ELIMINATIONS) clearHintRun()
 	}
 
 	/**
@@ -632,7 +618,7 @@ class CoopViewModel @AssistedInject constructor(
 		// The match's offer outranks any local run: whoever put it up, it is a question about one shared
 		// board, and a player who arrives at a marked cell reveals it rather than starting four steps of
 		// their own about a cell everybody has already agreed on.
-		val offered = this.hintCell ?: this.hintTarget?.cellIndex()?.takeIf { this.hintStep == HintStep.TARGET_CELL }
+		val offered = this.hintCell ?: this.hintTarget?.cellIndex()?.takeIf { this.hintStep == HintStep.ELIMINATIONS }
 		if (offered != null) {
 			// Anybody may spend the pending offer, not just whoever asked. The cap stays per player by
 			// charging whoever actually presses reveal, which is also why a player with none left cannot.
@@ -655,23 +641,21 @@ class CoopViewModel @AssistedInject constructor(
 			val explained = this.session.explainHint() ?: return
 			this.hintTarget = explained.candidate()
 			// The notes come from the match, not from the cells - see [notes] and `HintMarkReview.of`.
-			val plan = HintPlan(HintMarkReview.of(this.session, this.notes), hintPatternFrames(explained.explanation()))
+			val plan = HintPlan(
+				HintMarkReview.of(this.session, this.notes),
+				hintDiagramOf(explained.explanation(), explained.cellIndex()) { first, second ->
+					second in this@CoopViewModel.session.peersOf(first)
+				}
+			)
 			this.hintPlan = plan
-			this.hintPatternBeat = 0
 			// Straight past the note steps when the group's notes are already right, as single-player does.
 			this.hintStep = HintStep.first(plan)
 			return
 		}
 
-		// The pattern repeats for as many beats as the argument has - see `GameViewModel.onHintTap`.
-		if (step == HintStep.PATTERN && this.hintPatternBeat < this.hintPlan.pattern.lastIndex) {
-			this.hintPatternBeat++
-			return
-		}
-
 		val next = step.next(this.hintPlan) ?: return
 		this.hintStep = next
-		if (next == HintStep.TARGET_CELL) {
+		if (next.next(this.hintPlan) == null) {
 			// Now it becomes the match's: the offer goes out and comes back as a HINT frame, so every board
 			// marks the same cell, exactly as it did before this was stepped at all. Nothing is applied here.
 			val cell = this.hintTarget?.cellIndex() ?: return
