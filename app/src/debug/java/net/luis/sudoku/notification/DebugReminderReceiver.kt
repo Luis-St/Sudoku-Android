@@ -15,11 +15,12 @@ import androidx.work.WorkManager
  *   notification looks like - icon, channel, text, tap target - and nothing about when it would have fired.
  * - [ACTION_RUN] enqueues [DailyReminderWorker] to run now, so the guards decide whether anything is posted.
  *
- * [ACTION_RUN] exists because the scheduled job cannot be forced. `adb shell cmd jobscheduler run -f` does
- * start the job, but WorkManager checks the periodic schedule itself before handing over to the worker and
- * answers "being executed before schedule ... not doing any work and rescheduling for later execution". So a
- * separate one-shot request is the only way to run the real worker early. It carries no schedule of its own;
- * the periodic chain is untouched by it, and the worker re-anchors that chain on its way out as usual.
+ * [ACTION_RUN] exists because neither trigger can be forced: `adb shell cmd jobscheduler run -f` does start
+ * the periodic job, but WorkManager checks the schedule itself before handing over to the worker and answers
+ * "being executed before schedule ... not doing any work and rescheduling for later execution", and the alarm
+ * is an absolute instant that only the clock reaches. So a separate one-shot request is the only way to run
+ * the real worker early. It carries no schedule of its own; the alarm and the periodic backstop are untouched
+ * by it, and the worker re-arms both on its way out as usual.
  *
  * This is `src/debug` only, so no release build contains a receiver that posts notifications or runs workers
  * on request.

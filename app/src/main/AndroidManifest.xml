@@ -10,6 +10,13 @@
 		silently taken multiplayer with it. Single-player never touches the network (feature-spec §9.1).
 	-->
 	<uses-permission android:name="android.permission.INTERNET" />
+	<!--
+		The daily reminder's alarm is what holds 09:00, and AlarmManager keeps no alarm across a reboot, so
+		without this the reminder falls back to the deferrable periodic backstop after the first restart -
+		which is what made it arrive on some days and not others. No exact-alarm permission is needed:
+		DailyReminderScheduler arms `setAndAllowWhileIdle`, not an exact alarm.
+	-->
+	<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
 	<application
 			android:name=".SudokuApplication"
@@ -40,6 +47,24 @@
 					android:value="androidx.startup"
 					tools:node="remove" />
 		</provider>
+
+		<!--
+			The daily reminder's trigger (feature-spec §8.3.2). It receives two unrelated things: the alarm
+			DailyReminderScheduler arms, addressed by component with no action, and the four system broadcasts
+			after which that alarm no longer exists. `exported="false"` covers both - all four are protected
+			system broadcasts, which the system delivers to a private receiver anyway, and nothing else may
+			trigger a reminder run.
+		-->
+		<receiver
+				android:name=".notification.DailyReminderReceiver"
+				android:exported="false">
+			<intent-filter>
+				<action android:name="android.intent.action.BOOT_COMPLETED" />
+				<action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+				<action android:name="android.intent.action.TIMEZONE_CHANGED" />
+				<action android:name="android.intent.action.TIME_SET" />
+			</intent-filter>
+		</receiver>
 
 		<activity
 				android:name=".MainActivity"

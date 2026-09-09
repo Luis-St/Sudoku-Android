@@ -117,7 +117,10 @@ class AppViewModel @Inject constructor(
 		// silently stops working after the first time the player swipes the app away from a settings screen.
 		//
 		// This cannot itself post a notification: `DailyReminderWorker` decides that, and it refuses a day it
-		// has already reminded about.
+		// has already reminded about. It also no longer *cancels* one: re-arming used to mean "the next 09:00
+		// strictly after now", so opening the app at 10:00 on a day whose reminder was still pending pushed
+		// that pending run to tomorrow and the day was lost. `DailyReminderSchedule` now fires a day that is
+		// still owed instead of skipping it.
 		this.viewModelScope.launch {
 			if (this@AppViewModel.settingsStore.isDailyReminderEnabled()) {
 				this@AppViewModel.reminderScheduler.schedule()
@@ -212,8 +215,13 @@ class AppViewModel @Inject constructor(
 	 * only once it is granted, or with `false`, which needs no permission to cancel.
 	 */
 	fun setDailyReminderEnabled(enabled: Boolean) {
-		if (enabled) this.reminderScheduler.schedule() else this.reminderScheduler.cancel()
-		this.viewModelScope.launch { this@AppViewModel.settingsStore.setDailyReminderEnabled(enabled) }
+		this.viewModelScope.launch {
+			this@AppViewModel.settingsStore.setDailyReminderEnabled(enabled)
+			// After the write, not before: arming reads whether today has already been resolved, and it is
+			// the store that answers that.
+			if (enabled) this@AppViewModel.reminderScheduler.schedule()
+			else this@AppViewModel.reminderScheduler.cancel()
+		}
 	}
 
 	/**

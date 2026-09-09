@@ -3,6 +3,8 @@ package net.luis.sudoku.notification
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import net.luis.sudoku.notification.DailyReminderDecision.Outcome
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -25,6 +27,13 @@ class DailyReminderDecisionTest {
 		dailyDate: LocalDate? = null,
 		dailySolved: Boolean = false
 	): Boolean = DailyReminderDecision.shouldNotify(now, this.reminderTime, lastReminded, dailyDate, dailySolved)
+
+	private fun outcome(
+		now: LocalDateTime,
+		lastReminded: LocalDate? = null,
+		dailyDate: LocalDate? = null,
+		dailySolved: Boolean = false
+	): Outcome = DailyReminderDecision.decide(now, this.reminderTime, lastReminded, dailyDate, dailySolved)
 
 	@Test
 	fun onTime_withNothingPlayedAndNoEarlierReminder_notifies() {
@@ -72,5 +81,32 @@ class DailyReminderDecisionTest {
 	@Test
 	fun earlyWins_evenWhenEverythingElseWouldNotify() {
 		assertFalse(decide(now = this.today.atTime(1, 0), lastReminded = this.today.minusDays(1)))
+	}
+
+	// The three outcomes are told apart because the caller re-arms differently for each: only TOO_EARLY
+	// leaves today still owed, and marking it resolved anyway would skip the day the run was meant for,
+	// while *not* marking the other two would leave the catch-up trigger firing in a loop.
+
+	@Test
+	fun early_isTooEarlyRatherThanHandled() {
+		assertEquals(Outcome.TOO_EARLY, outcome(now = this.today.atTime(8, 59)))
+	}
+
+	@Test
+	fun alreadyRemindedToday_isHandled() {
+		assertEquals(Outcome.ALREADY_HANDLED, outcome(now = this.today.atTime(14, 0), lastReminded = this.today))
+	}
+
+	@Test
+	fun todaysDailyAlreadySolved_isHandled() {
+		assertEquals(
+			Outcome.ALREADY_HANDLED,
+			outcome(now = this.today.atTime(9, 0), dailyDate = this.today, dailySolved = true)
+		)
+	}
+
+	@Test
+	fun onTime_withNothingPlayed_isNotify() {
+		assertEquals(Outcome.NOTIFY, outcome(now = this.today.atTime(9, 0)))
 	}
 }

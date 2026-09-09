@@ -111,13 +111,17 @@ class SettingsStore @Inject constructor(@SettingsDataStore private val dataStore
 	}
 
 	/**
-	 * The day the reminder was last posted, or `null` if it never has been.
+	 * The last day a reminder run *resolved*, or `null` if none ever has. That is the day it posted a
+	 * reminder, or decided today needed none because the daily was already solved - both settle the day; only
+	 * a run that landed before the reminder time leaves it unset.
 	 *
 	 * Bookkeeping rather than a preference, so it stays out of [PreferenceSettings] - nothing on the settings
-	 * screen shows it. It is what stops a catch-up run posting a second reminder for a day that already had
-	 * one: the scheduled job does not run while the app is force stopped, so WorkManager executes it the
-	 * moment the app is next launched, and without this that arrives as a notification for a day the player
-	 * has already been reminded about.
+	 * screen shows it. It does two jobs. It stops a catch-up run posting a second reminder for a day that
+	 * already had one: the scheduled job does not run while the app is force stopped, so WorkManager executes
+	 * it the moment the app is next launched, and without this that arrives as a notification for a day the
+	 * player has already been reminded about. And it is how
+	 * [DailyReminderSchedule][net.luis.sudoku.notification.DailyReminderSchedule] tells a day that is still
+	 * owed from one that is done, which is what stops a re-arm silently skipping a day.
 	 */
 	suspend fun lastReminderDate(): LocalDate? =
 		this.dataStore.data.first()[LAST_REMINDER_DATE]?.let(LocalDate::parse)
