@@ -669,15 +669,13 @@ class CoopViewModel @AssistedInject constructor(
 
 	/**
 	 * The last press of a run whose step only removes candidates: the crossed out notes go out as ordinary note
-	 * frames, and the hint is charged to this player.
+	 * frames. Nothing is charged, as in single-player (see `HintController.confirmRemovals`).
 	 *
 	 * No offer is put up first. An offer is a cell for the group to reveal, and this step has no cell; the notes
 	 * it removes are the group's anyway, which any player may change by hand.
 	 */
 	private fun applyHintRemovals() {
-		if (this.hintsRemaining <= 0) return
 		val removals = this.hintPlan.removals
-		this.hintsUsed++
 		clearHintRun()
 		for ((cell, mask) in removals) {
 			val noted = (this.notes[cell] ?: 0) and mask

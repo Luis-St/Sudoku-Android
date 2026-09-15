@@ -834,7 +834,7 @@ class GameViewModel @Inject constructor(
 
 	/**
 	 * The last press of a hint whose step only removes candidates: the crossed out notes come off the board as
-	 * one undoable move, and the hint is spent.
+	 * one undoable move. No hint is spent, see [HintController.confirmRemovals].
 	 */
 	private fun applyHintRemovals() {
 		val removals = this.hintPlan.removals

@@ -452,7 +452,7 @@
 	<string name="hint_step_links">The lines join the candidates the argument runs through: along a solid line one of the two ends must be true, along a dashed line they cannot both be.</string>
 	<string name="hint_step_eliminations">So the crossed out candidates can go, and that makes the green cell solvable. The next press writes it in and spends the hint.</string>
 	<string name="hint_step_target_only">That makes the green cell solvable. The next press writes it in and spends the hint.</string>
-	<string name="hint_step_eliminations_only">So the crossed out candidates can go. The next press removes them from the notes and spends the hint.</string>
+	<string name="hint_step_eliminations_only">So the crossed out candidates can go. The next press removes them from the notes, and that costs no hint.</string>
 
 	<!-- Multiplayer game screen. -->
 

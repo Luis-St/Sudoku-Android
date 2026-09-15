@@ -99,18 +99,17 @@ class HintController(private val session: GameSession, maxHints: Int = 5) {
 	}
 
 	/**
-	 * The last press of a hint that removes candidates: spends it and hands back what to take off the board.
+	 * The last press of a hint that removes candidates: hands back what to take off the board, for free.
 	 *
 	 * Removing the notes is the caller's job, since single-player writes them into the cells as an undoable move
-	 * and co-op sends them to the match. It costs a hint like a placement does: it is the same help, a step the
-	 * player did not find, applied for them.
+	 * and co-op sends them to the match. Unlike a placement it costs no hint (owner's call): only notes come off,
+	 * no digit is revealed, and a player may rub out any note by hand anyway.
 	 *
 	 * @return the eliminations, or `null` when no elimination was pending
 	 */
 	fun confirmRemovals(): Deduction.Eliminations? {
 		val removals = this.pendingRemovals ?: return null
 		this.pendingRemovals = null
-		this.used++
 		return removals
 	}
 

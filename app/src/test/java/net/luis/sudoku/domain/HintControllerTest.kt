@@ -130,7 +130,7 @@ class HintControllerTest {
 	}
 
 	@Test
-	fun nextHint_onAStepThatOnlyEliminates_isConfirmedByRemovingNotesAndSpendsOneHint() {
+	fun nextHint_onAStepThatOnlyEliminates_isConfirmedByRemovingNotesAndSpendsNoHint() {
 		val session = HintFixtures.session(HintFixtures.REPORTED)
 		val controller = HintController(session)
 
@@ -141,7 +141,7 @@ class HintControllerTest {
 		assertNull(controller.confirmHint())
 		assertNull(controller.nextHint(HintMarkReview.of(session).complete))
 		assertEquals(explained.deduction(), controller.confirmRemovals())
-		assertEquals(1, controller.used)
+		assertEquals(0, controller.used)
 		assertNull(controller.confirmRemovals())
 	}
 

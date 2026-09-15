@@ -29,8 +29,8 @@ import net.luis.sudoku.solver.Technique
  * 6. [ELIMINATIONS]: the candidates the technique removes, crossed out, and for a placement the cell it fills,
  *    filled green. The digit is still not named: it is what the hint costs.
  *
- * Pressing on from [ELIMINATIONS] is what spends the hint and applies it; there is no step for it, because at
- * that point the hint is over. What it applies is the step itself ([HintPlan.eliminates]): the digit for a
+ * Pressing on from [ELIMINATIONS] applies the hint, and spends it only for a placement; there is no step for
+ * it, because at that point the hint is over. What it applies is the step itself ([HintPlan.eliminates]): the digit for a
  * placement, and for an elimination the crossed out notes taken off the board. A hint is always the **next**
  * step on the notes, not a walk to the next cell that can be filled: that walk explained a pattern argued from
  * candidates the player had never seen go, and on a tie one that had nothing to do with the green cell.

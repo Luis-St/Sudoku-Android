@@ -410,7 +410,7 @@
 	<string name="hint_step_links">Die Linien verbinden die Kandidaten, über die die Überlegung läuft: Entlang einer durchgezogenen Linie muss eines der beiden Enden stimmen, entlang einer gestrichelten können nicht beide stimmen.</string>
 	<string name="hint_step_eliminations">Die durchgestrichenen Kandidaten fallen also weg, und damit lässt sich die grüne Zelle lösen. Der nächste Druck trägt sie ein und verbraucht den Tipp.</string>
 	<string name="hint_step_target_only">Damit lässt sich die grüne Zelle lösen. Der nächste Druck trägt sie ein und verbraucht den Tipp.</string>
-	<string name="hint_step_eliminations_only">Die durchgestrichenen Kandidaten fallen also weg. Der nächste Druck streicht sie aus den Notizen und verbraucht den Tipp.</string>
+	<string name="hint_step_eliminations_only">Die durchgestrichenen Kandidaten fallen also weg. Der nächste Druck streicht sie aus den Notizen, und das kostet keinen Tipp.</string>
 
 	<!-- Multiplayer game screen. -->
 
