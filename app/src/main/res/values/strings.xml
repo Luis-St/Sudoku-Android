@@ -103,8 +103,8 @@
 	<!-- Preferences (feature-spec §5.2/§5.6/§6b) -->
 	<string name="action_preferences">Preferences</string>
 	<string name="dialog_preferences_title">Preferences</string>
-	<string name="pref_auto_candidate_mode">Auto-candidate mode</string>
-	<string name="pref_auto_candidate_unavailable_lisa">Unavailable on Lisa: it works the candidates out for you, and Lisa leaves that to you.</string>
+	<string name="pref_auto_candidate_mode">Prefill notes</string>
+	<string name="pref_auto_candidate_unavailable_lisa">Every new puzzle starts with all possible candidates noted in its empty cells, and switching this on during a game fills in the current board. After that the notes are yours to edit. Not available on Lisa, which leaves the candidates to you.</string>
 	<string name="pref_hex_display">Hex display (16×16)</string>
 	<string name="pref_sound_enabled">Sound</string>
 

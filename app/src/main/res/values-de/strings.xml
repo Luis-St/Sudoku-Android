@@ -43,8 +43,8 @@
 
 	<string name="action_preferences">Einstellungen</string>
 	<string name="dialog_preferences_title">Einstellungen</string>
-	<string name="pref_auto_candidate_mode">Automatische Kandidaten</string>
-	<string name="pref_auto_candidate_unavailable_lisa">Bei Lisa nicht verfügbar: Die Funktion nimmt dir das Ermitteln der Kandidaten ab, und genau das überlässt Lisa dir.</string>
+	<string name="pref_auto_candidate_mode">Notizen vorausfüllen</string>
+	<string name="pref_auto_candidate_unavailable_lisa">Jedes neue Rätsel beginnt mit allen möglichen Kandidaten als Notizen in den leeren Zellen, und wenn du die Funktion während eines Spiels einschaltest, wird das aktuelle Feld ausgefüllt. Danach bearbeitest du die Notizen selbst. Bei Lisa nicht verfügbar, dort ermittelst du die Kandidaten selbst.</string>
 	<string name="pref_hex_display">Hex-Anzeige (16×16)</string>
 	<string name="pref_sound_enabled">Ton</string>
 
