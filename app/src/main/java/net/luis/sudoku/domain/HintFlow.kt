@@ -19,15 +19,18 @@ import net.luis.sudoku.solver.Technique
  * 2. [MARK_DIFF]: the same disagreement drawn on the board, in green and red, so it is visible which note
  *    is missing and which one cannot be right.
  * 3. [FULL_MARKS]: the complete candidate set, and the name of the technique that solves a cell from it.
+ * 4. [TARGET_CELL]: the cell that technique solves, filled green. From here on the player knows which cell to
+ *    solve and how, and the cell stays green on every step after it. Skipped for a step that only removes
+ *    candidates, which solves no cell.
  *
  * Then the technique itself, drawn the way the learn area draws it (the owner's reference diagram), one layer
  * per press so the picture assembles in the order it is read:
  *
- * 4. [PATTERN_CELLS]: the cells the technique is made of, filled in its colours, with a key under the board.
- * 5. [PATTERN_LINKS]: the lines between the candidates the argument runs through, solid for a strong link and
+ * 5. [PATTERN_CELLS]: the cells the technique is made of, filled in its colours, with a key under the board.
+ * 6. [PATTERN_LINKS]: the lines between the candidates the argument runs through, solid for a strong link and
  *    dashed for a weak one.
- * 6. [ELIMINATIONS]: the candidates the technique removes, crossed out, and for a placement the cell it fills,
- *    filled green. The digit is still not named: it is what the hint costs.
+ * 7. [ELIMINATIONS]: the candidates the technique removes, crossed out. The digit is still not named: it is
+ *    what the hint costs.
  *
  * Pressing on from [ELIMINATIONS] applies the hint, and spends it only for a placement; there is no step for
  * it, because at that point the hint is over. What it applies is the step itself ([HintPlan.eliminates]): the digit for a
@@ -47,6 +50,7 @@ enum class HintStep {
 	REVIEW_MARKS,
 	MARK_DIFF,
 	FULL_MARKS,
+	TARGET_CELL,
 	PATTERN_CELLS,
 	PATTERN_LINKS,
 	ELIMINATIONS;
@@ -54,6 +58,7 @@ enum class HintStep {
 	/** Whether this step has anything to show for [plan]. */
 	fun shows(plan: HintPlan): Boolean = when (this) {
 		REVIEW_MARKS, MARK_DIFF -> !plan.review.clean
+		TARGET_CELL -> plan.diagram.target != null
 		PATTERN_CELLS -> plan.diagram.roles.keys.any { cell -> plan.diagram.roles[cell] != CellRole.TARGET }
 		PATTERN_LINKS -> plan.diagram.links.isNotEmpty()
 		FULL_MARKS, ELIMINATIONS -> true
@@ -66,23 +71,22 @@ enum class HintStep {
 	/**
 	 * What the board draws on this step, or `null` on the steps about notes.
 	 *
-	 * Each layer keeps the ones before it: the cells stay filled while the lines go in, and both stay while
-	 * the candidates are crossed out.
+	 * Each layer keeps the ones before it: the green cell stays while the pattern goes in, the cells stay filled
+	 * while the lines go in, and all of it stays while the candidates are crossed out.
 	 */
 	fun frameOf(plan: HintPlan): ExplanationFrame? {
 		val diagram = plan.diagram
 		return when (this) {
 			REVIEW_MARKS, MARK_DIFF, FULL_MARKS -> null
+			TARGET_CELL -> ExplanationFrame(target = diagram.target)
 			PATTERN_CELLS -> diagram.copy(
 				roles = diagram.roles.filterValues { role -> role != CellRole.TARGET },
 				links = emptyList(),
-				struck = emptyMap(),
-				target = null
+				struck = emptyMap()
 			)
 			PATTERN_LINKS -> diagram.copy(
 				roles = diagram.roles.filterValues { role -> role != CellRole.TARGET },
-				struck = emptyMap(),
-				target = null
+				struck = emptyMap()
 			)
 			ELIMINATIONS -> diagram
 		}

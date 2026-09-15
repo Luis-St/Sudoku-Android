@@ -144,29 +144,32 @@ class TechniqueDiagramCoverageTest {
 			val target = puzzle.targetCell()
 			val answer = puzzle.targetDigit()
 			val plan = HintPlan(MarkReview.EMPTY, hintDiagramOf(puzzle.explanation(), target, ::isClassicPeer), target = target)
+			val marked = HintStep.TARGET_CELL.frameOf(plan)!!
 			val cells = HintStep.PATTERN_CELLS.frameOf(plan)!!
 			val lines = HintStep.PATTERN_LINKS.frameOf(plan)!!
 			val eliminations = HintStep.ELIMINATIONS.frameOf(plan)!!
 
 			if (!HintStep.PATTERN_CELLS.shows(plan)) failures += "$label: hint has no cells to colour"
-			if (cells.links.isNotEmpty() || cells.struck.isNotEmpty() || cells.target != null) failures += "$label: cell layer shows more than cells"
-			if (lines.struck.isNotEmpty() || lines.target != null) failures += "$label: line layer shows eliminations"
+			if (cells.links.isNotEmpty() || cells.struck.isNotEmpty() || cells.target?.first != target) failures += "$label: cell layer shows more than cells"
+			if (lines.struck.isNotEmpty()) failures += "$label: line layer shows eliminations"
+			if (lines.target?.first != target) failures += "$label: line layer loses the target"
 			if (HintStep.PATTERN_LINKS.shows(plan) != plan.diagram.links.isNotEmpty()) failures += "$label: line step shows without lines"
 			if (eliminations.toneOf(target) != DiagramTone.TARGET) failures += "$label: hint target is not green"
 			if (eliminations.struck.values.all { it == 0 } && puzzle.explanation().steps().any { it.kind() == StepKind.ELIMINATION }) {
 				failures += "$label: an eliminating technique crosses nothing out"
 			}
 
-			for ((step, frame) in listOf("cells" to cells, "lines" to lines, "eliminations" to eliminations)) {
+			for ((step, frame) in listOf("target" to marked, "cells" to cells, "lines" to lines, "eliminations" to eliminations)) {
 				if (frame.placement != null) failures += "$label $step: hint places a digit"
 				if ((frame.target?.second ?: 0) != 0) failures += "$label $step: hint target names its digit"
 				if (frame.digits.containsKey(target)) failures += "$label $step: target digits reach the key"
 				if (legendOf(frame).any { it.tone == DiagramTone.TARGET && it.digits != 0 }) failures += "$label $step: key names the answer"
 				if ((frame.struck[target] ?: 0) shr answer and 1 == 1) failures += "$label $step: the answer is crossed out"
 			}
-			// Clean notes skip the review, and the fill step comes straight before the diagram.
+			// Clean notes skip the review, and the fill step and the target come straight before the diagram.
 			if (HintStep.first(plan) != HintStep.FULL_MARKS) failures += "$label: clean notes do not open on the fill"
-			if (HintStep.FULL_MARKS.next(plan) != HintStep.PATTERN_CELLS) failures += "$label: the diagram does not follow the fill"
+			if (HintStep.FULL_MARKS.next(plan) != HintStep.TARGET_CELL) failures += "$label: the target does not follow the fill"
+			if (HintStep.TARGET_CELL.next(plan) != HintStep.PATTERN_CELLS) failures += "$label: the diagram does not follow the target"
 			if (HintStep.ELIMINATIONS.next(plan) != null) failures += "$label: something follows the eliminations"
 		}
 		report(failures)

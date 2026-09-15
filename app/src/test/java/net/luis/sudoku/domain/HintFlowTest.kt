@@ -296,11 +296,12 @@ class HintFlowTest {
 				val cells = HintStep.PATTERN_CELLS.frameOf(plan)!!
 				assertTrue("the cells go in without lines", cells.links.isEmpty())
 				assertTrue("and without anything crossed out", cells.struck.isEmpty())
-				assertNull("and without the solvable cell", cells.target)
+				assertEquals("but keeps the solvable cell", plan.target?.let { it to 0 }, cells.target)
 
 				val lines = HintStep.PATTERN_LINKS.frameOf(plan)!!
 				assertEquals(plan.diagram.links, lines.links)
 				assertTrue("the lines go in before the eliminations", lines.struck.isEmpty())
+				assertEquals("and the solvable cell stays", plan.target?.let { it to 0 }, lines.target)
 
 				val eliminations = HintStep.ELIMINATIONS.frameOf(plan)!!
 				assertEquals(plan.diagram.struck, eliminations.struck)
@@ -315,6 +316,22 @@ class HintFlowTest {
 			}
 		}
 		assertTrue("no board produced a hint with lines and eliminations", layered > 0)
+	}
+
+	@Test
+	fun `the target step marks only the cell, and only for a placement`() {
+		val placement = HintPlan(MarkReview.EMPTY, ExplanationFrame(roles = mapOf(3 to CellRole.PATTERN), target = 7 to 0), target = 7)
+		val frame = HintStep.TARGET_CELL.frameOf(placement)!!
+
+		assertTrue(HintStep.TARGET_CELL.shows(placement))
+		assertEquals(HintStep.TARGET_CELL, HintStep.FULL_MARKS.next(placement))
+		assertEquals(HintStep.PATTERN_CELLS, HintStep.TARGET_CELL.next(placement))
+		assertEquals(7 to 0, frame.target)
+		assertTrue("no pattern yet", frame.roles.isEmpty() && frame.links.isEmpty() && frame.struck.isEmpty())
+
+		val elimination = HintPlan(MarkReview.EMPTY, ExplanationFrame(roles = mapOf(3 to CellRole.PATTERN), struck = mapOf(4 to 2)), removals = mapOf(4 to 2))
+		assertFalse(HintStep.TARGET_CELL.shows(elimination))
+		assertEquals(HintStep.PATTERN_CELLS, HintStep.FULL_MARKS.next(elimination))
 	}
 
 	@Test

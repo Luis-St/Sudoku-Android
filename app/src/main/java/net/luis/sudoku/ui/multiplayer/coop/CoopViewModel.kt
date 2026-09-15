@@ -261,13 +261,13 @@ class CoopViewModel @AssistedInject constructor(
 	val hintMissingMarks: Map<Int, Int>
 		get() = when (this.hintStep) {
 			HintStep.MARK_DIFF -> this.hintReview.missing
-			HintStep.FULL_MARKS, HintStep.PATTERN_CELLS, HintStep.PATTERN_LINKS, HintStep.ELIMINATIONS -> this.hintReview.stillUnnoted()
+			HintStep.FULL_MARKS, HintStep.TARGET_CELL, HintStep.PATTERN_CELLS, HintStep.PATTERN_LINKS, HintStep.ELIMINATIONS -> this.hintReview.stillUnnoted()
 			else -> emptyMap()
 		}
 
 	val hintWrongMarks: Map<Int, Int>
 		get() = when (this.hintStep) {
-			HintStep.MARK_DIFF, HintStep.FULL_MARKS, HintStep.PATTERN_CELLS, HintStep.PATTERN_LINKS, HintStep.ELIMINATIONS -> this.hintReview.wrong
+			HintStep.MARK_DIFF, HintStep.FULL_MARKS, HintStep.TARGET_CELL, HintStep.PATTERN_CELLS, HintStep.PATTERN_LINKS, HintStep.ELIMINATIONS -> this.hintReview.wrong
 			else -> emptyMap()
 		}
 

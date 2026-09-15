@@ -405,6 +405,8 @@
 	<string name="hint_step_marks_unnamed">Mit diesen Notizen lässt sich eine Zelle mit einer Technik lösen, die der Lernbereich noch nicht behandelt.</string>
 	<string name="hint_step_marks_eliminate">Mit diesen Notizen lassen sich Kandidaten mit %1$s streichen.</string>
 	<string name="hint_step_marks_eliminate_unnamed">Mit diesen Notizen lassen sich Kandidaten mit einer Technik streichen, die der Lernbereich noch nicht behandelt.</string>
+	<string name="hint_step_target">Die grüne Zelle ist die, die du mit %1$s lösen kannst.</string>
+	<string name="hint_step_target_unnamed">Die grüne Zelle ist die, die du mit einer Technik lösen kannst, die der Lernbereich noch nicht behandelt.</string>
 	<string name="hint_step_cells">Die farbigen Zellen sind das, woraus %1$s hier besteht. Die Legende zeigt, welche Rolle jede Farbe spielt.</string>
 	<string name="hint_step_cells_unnamed">Die farbigen Zellen sind das, woraus diese Technik hier besteht. Die Legende zeigt, welche Rolle jede Farbe spielt.</string>
 	<string name="hint_step_links">Die Linien verbinden die Kandidaten, über die die Überlegung läuft: Entlang einer durchgezogenen Linie muss eines der beiden Enden stimmen, entlang einer gestrichelten können nicht beide stimmen.</string>

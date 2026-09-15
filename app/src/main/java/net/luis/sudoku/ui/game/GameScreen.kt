@@ -499,6 +499,12 @@ internal fun hintStepText(
 			strings != null -> stringResource(R.string.hint_step_marks, techniqueName)
 			else -> stringResource(R.string.hint_step_marks_unnamed)
 		}
+		// Which cell and how, before any of the why: the green cell stays for every step after this one.
+		HintStep.TARGET_CELL -> if (strings != null) {
+			stringResource(R.string.hint_step_target, techniqueName)
+		} else {
+			stringResource(R.string.hint_step_target_unnamed)
+		}
 		// The board and its key are the hint on these three steps; the sentence says which layer just went
 		// in and how to read it.
 		HintStep.PATTERN_CELLS -> if (strings != null) {

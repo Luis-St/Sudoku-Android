@@ -445,6 +445,9 @@
 	<!-- The same step when the next thing the notes allow is an elimination rather than a solved cell. -->
 	<string name="hint_step_marks_eliminate">From these notes, %1$s can cross out candidates.</string>
 	<string name="hint_step_marks_eliminate_unnamed">From these notes, a technique the learn area does not cover yet can cross out candidates.</string>
+	<!-- The cell the technique solves, marked green before the pattern is drawn; it stays green from here on. -->
+	<string name="hint_step_target">The green cell is the one to solve, with %1$s.</string>
+	<string name="hint_step_target_unnamed">The green cell is the one to solve, with a technique the learn area does not cover yet.</string>
 	<!-- The technique itself, drawn like the learn area draws it: one layer per press, with the key above the
 	     sentence. The digit is only named once the hint is spent. -->
 	<string name="hint_step_cells">The coloured cells are what %1$s is made of here. The key says which part each colour plays.</string>
