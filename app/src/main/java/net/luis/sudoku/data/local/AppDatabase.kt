@@ -17,7 +17,7 @@ import net.luis.sudoku.data.local.entity.ServerStatsEntity
 
 @Database(
 	entities = [SavedGameEntity::class, GameResultEntity::class, PendingDailyResultEntity::class, LearnProgressEntity::class, ServerStatsEntity::class],
-	version = 7,
+	version = 8,
 	exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -147,5 +147,18 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
 				"hintsUsed INTEGER NOT NULL, " +
 				"PRIMARY KEY(size, variant, difficulty))"
 		)
+	}
+}
+
+/**
+ * Gives `saved_games` the hint debt (`HintDebt`): the free removals taken and the targets shown after them.
+ *
+ * A column addition, so every save survives it and simply starts owing nothing.
+ */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+
+	override fun migrate(db: SupportSQLiteDatabase) {
+		db.execSQL("ALTER TABLE saved_games ADD COLUMN freeHintRemovals INTEGER NOT NULL DEFAULT 0")
+		db.execSQL("ALTER TABLE saved_games ADD COLUMN shownHintCellsJson TEXT NOT NULL DEFAULT '[]'")
 	}
 }

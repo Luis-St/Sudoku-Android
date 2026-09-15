@@ -1,5 +1,6 @@
 package net.luis.sudoku.data.local
 
+import javax.inject.Inject
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -9,6 +10,7 @@ import net.luis.sudoku.core.PuzzleProvider
 import net.luis.sudoku.data.local.dao.SavedGameDao
 import net.luis.sudoku.data.local.entity.SavedGameEntity
 import net.luis.sudoku.difficulty.Difficulty
+import net.luis.sudoku.domain.HintDebt
 import net.luis.sudoku.domain.PersistedUndoStack
 import net.luis.sudoku.domain.UndoStack
 import net.luis.sudoku.domain.restoreFrom
@@ -16,7 +18,6 @@ import net.luis.sudoku.domain.toPersisted
 import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.grid.Variant
 import net.luis.sudoku.key.PuzzleKey
-import javax.inject.Inject
 
 /** Exactly two slots (feature-spec §7): a normal game and a paused daily, kept separate on purpose. */
 enum class SaveSlot { NORMAL, DAILY }
@@ -26,7 +27,9 @@ data class SavedGame(
 	val undoStack: UndoStack,
 	val elapsedMillis: Long,
 	val livesRemaining: Int,
-	val hintsUsed: Int
+	val hintsUsed: Int,
+	val freeHintRemovals: Int = 0,
+	val shownHintCells: Map<Int, Int> = emptyMap()
 )
 
 /**
@@ -38,7 +41,7 @@ data class SavedGame(
  */
 class SavedGameStore @Inject constructor(private val dao: SavedGameDao, private val puzzleProvider: PuzzleProvider) {
 
-	suspend fun save(slot: SaveSlot, session: GameSession, undoStack: UndoStack, elapsedMillis: Long, livesRemaining: Int, hintsUsed: Int) {
+	suspend fun save(slot: SaveSlot, session: GameSession, undoStack: UndoStack, elapsedMillis: Long, livesRemaining: Int, hintsUsed: Int, debt: HintDebt? = null) {
 		this.dao.upsert(
 			SavedGameEntity(
 				slot = slot.name,
@@ -54,7 +57,9 @@ class SavedGameStore @Inject constructor(private val dao: SavedGameDao, private 
 				undoStackJson = Json.encodeToString(undoStack.toPersisted()),
 				// Written on every save, including the autosave, so a game is restorable from the moment it
 				// starts rather than from whenever it is next touched.
-				givens = session.encodedGivens()
+				givens = session.encodedGivens(),
+				freeHintRemovals = debt?.freeRemovals ?: 0,
+				shownHintCellsJson = Json.encodeToString(debt?.shownCells.orEmpty().map { (cell, digit) -> listOf(cell, digit) })
 			)
 		)
 	}
@@ -76,7 +81,10 @@ class SavedGameStore @Inject constructor(private val dao: SavedGameDao, private 
 		val pencilMarks = Json.decodeFromString<List<Int>>(entity.pencilMarksJson).toIntArray()
 		val session = this.puzzleProvider.restore(key, entity.givens, values, pencilMarks) { onPuzzleKnown(key, it) }
 		val undoStack = UndoStack().apply { restoreFrom(Json.decodeFromString<PersistedUndoStack>(entity.undoStackJson)) }
-		return SavedGame(session, undoStack, entity.elapsedMillis, entity.livesRemaining, entity.hintsUsed)
+		val shownHintCells = Json.decodeFromString<List<List<Int>>>(entity.shownHintCellsJson)
+			.filter { it.size == 2 }
+			.associate { (cell, digit) -> cell to digit }
+		return SavedGame(session, undoStack, entity.elapsedMillis, entity.livesRemaining, entity.hintsUsed, entity.freeHintRemovals, shownHintCells)
 	}
 
 	suspend fun clear(slot: SaveSlot) = this.dao.delete(slot.name)

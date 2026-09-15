@@ -21,6 +21,7 @@ import net.luis.sudoku.data.local.DailyResultQueueStore
 import net.luis.sudoku.data.local.DailyStore
 import net.luis.sudoku.data.local.DailySummaryRecord
 import net.luis.sudoku.data.local.SaveSlot
+import net.luis.sudoku.data.local.SavedGame
 import net.luis.sudoku.data.local.SavedGameStore
 import net.luis.sudoku.data.local.PreferenceSettings
 import net.luis.sudoku.data.local.ServerConfigStore
@@ -38,6 +39,7 @@ import net.luis.sudoku.domain.DailyController
 import net.luis.sudoku.domain.DailyRecord
 import net.luis.sudoku.domain.GameResultUploader
 import net.luis.sudoku.domain.HintController
+import net.luis.sudoku.domain.HintDebt
 import net.luis.sudoku.domain.ExplanationFrame
 import net.luis.sudoku.domain.HintMarkReview
 import net.luis.sudoku.domain.HintPlan
@@ -373,7 +375,7 @@ class GameViewModel @Inject constructor(
 			this@GameViewModel.loading = PuzzleLoading()
 			val saved = this@GameViewModel.savedGameStore.load(SaveSlot.NORMAL) { key, origin -> describeLoading(key, origin) }
 			if (saved != null) {
-				installSession(saved.session, saved.undoStack, saved.elapsedMillis, saved.livesRemaining, saved.hintsUsed, freshPuzzle = false)
+				installSession(saved.session, saved.undoStack, saved.elapsedMillis, saved.livesRemaining, saved.hintsUsed, freshPuzzle = false, saved = saved)
 			} else {
 				installSession(newSession(DEFAULT_KEY), UndoStack(), 0L, 5, 0, freshPuzzle = true)
 			}
@@ -421,7 +423,8 @@ class GameViewModel @Inject constructor(
 		elapsedMillis: Long,
 		lives: Int,
 		hintsUsed: Int,
-		freshPuzzle: Boolean
+		freshPuzzle: Boolean,
+		saved: SavedGame? = null
 	) {
 		val modifiers = ModifierSet.forDifficulty(session.key.difficulty())
 		// Lisa withholds auto-candidate mode (§4.3) - modifiers is the single gate, same pattern as
@@ -434,7 +437,9 @@ class GameViewModel @Inject constructor(
 		this.editor = BoardEditor(session, undoStack)
 		if (autoCandidateActive && freshPuzzle) this.editor.recomputeAllCandidates()
 		this.livesController = LivesController(modifiers.maxLives).apply { restore(lives) }
-		this.hintController = HintController(session, maxHints = if (modifiers.hintsAllowed) 5 else 0).apply { restore(hintsUsed) }
+		this.hintController = HintController(session, maxHints = if (modifiers.hintsAllowed) 5 else 0).apply {
+			restore(hintsUsed, saved?.freeHintRemovals ?: 0, saved?.shownHintCells.orEmpty())
+		}
 		this.mistakeChecker = MistakeChecker(session)
 		this.timerController.restore(elapsedMillis)
 		this.lock = LockState(mode = InputMode.PENCIL)
@@ -474,7 +479,7 @@ class GameViewModel @Inject constructor(
 			this@GameViewModel.loading = PuzzleLoading()
 			val saved = this@GameViewModel.savedGameStore.load(SaveSlot.NORMAL) { key, origin -> describeLoading(key, origin) }
 			if (saved != null) {
-				installSession(saved.session, saved.undoStack, saved.elapsedMillis, saved.livesRemaining, saved.hintsUsed, freshPuzzle = false)
+				installSession(saved.session, saved.undoStack, saved.elapsedMillis, saved.livesRemaining, saved.hintsUsed, freshPuzzle = false, saved = saved)
 			} else {
 				installSession(newSession(DEFAULT_KEY), UndoStack(), 0L, 5, 0, freshPuzzle = true)
 			}
@@ -530,7 +535,7 @@ class GameViewModel @Inject constructor(
 			val saved = this@GameViewModel.savedGameStore.load(SaveSlot.DAILY) { savedKey, origin -> describeLoading(savedKey, origin) }
 
 			if (saved != null && saved.session.key == key) {
-				installSession(saved.session, saved.undoStack, saved.elapsedMillis, saved.livesRemaining, saved.hintsUsed, freshPuzzle = false)
+				installSession(saved.session, saved.undoStack, saved.elapsedMillis, saved.livesRemaining, saved.hintsUsed, freshPuzzle = false, saved = saved)
 				// The board came back from disk, so its solve order has to as well: the server verifies the
 				// submission by replaying it, and a resumed attempt that starts the list again from empty
 				// submits a grid full of cells it never accounts for.
@@ -720,6 +725,12 @@ class GameViewModel @Inject constructor(
 			return true
 		}
 		this.editor.apply(action)
+		// Before checkForWin, which writes the summary: a digit a hint had shown after free removals costs that
+		// hint, and the cell counts as a hinted one (see HintDebt).
+		if (action is TapAction.EnterPen && this.hintController.onPlayerEntered(action.index, action.digit)) {
+			this.hintCells.add(action.index)
+			this.hintsRemaining = this.hintController.remaining
+		}
 		if (this.isDailyMode && action is TapAction.EnterPen) this.dailySolveOrder.add(listOf(action.index, action.digit))
 		if (this.preferences.soundEnabled) soundEventFor(action)?.let(this.soundPlayer::play)
 		refresh()
@@ -1129,6 +1140,7 @@ class GameViewModel @Inject constructor(
 		val elapsedMillis = this.timerController.elapsedMillis()
 		val livesRemaining = this.livesController.remaining
 		val hintsUsed = this.hintController.used
+		val debt = this.hintController.debt.let { live -> HintDebt().apply { restore(live.freeRemovals, live.shownCells) } }
 		// Snapshotted here for the same reason everything else is: the daily's own fields are reassigned the
 		// moment the other slot is switched to.
 		// `dailyRecord` is only initialized once the daily has been opened, so the slot decides whether it is
@@ -1136,7 +1148,7 @@ class GameViewModel @Inject constructor(
 		val dailyDate = if (slot == SaveSlot.DAILY) this.dailyRecord.date else null
 		val solveOrder = this.dailySolveOrder.toList()
 		this.viewModelScope.launch {
-			this@GameViewModel.savedGameStore.save(slot, session, undoStack, elapsedMillis, livesRemaining, hintsUsed)
+			this@GameViewModel.savedGameStore.save(slot, session, undoStack, elapsedMillis, livesRemaining, hintsUsed, debt)
 			dailyDate?.let { this@GameViewModel.dailyStore.saveSolveOrder(it, solveOrder) }
 		}
 	}

@@ -7,6 +7,7 @@ import net.luis.sudoku.grid.Variant
 import net.luis.sudoku.key.PuzzleKey
 import net.luis.sudoku.solver.Deduction
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -143,6 +144,35 @@ class HintControllerTest {
 		assertEquals(explained.deduction(), controller.confirmRemovals())
 		assertEquals(0, controller.used)
 		assertNull(controller.confirmRemovals())
+	}
+
+	@Test
+	fun onPlayerEntered_theCellAHintShowedAfterAFreeRemoval_chargesAHintEvenAfterCancel() {
+		val session = HintFixtures.session(HintFixtures.REPORTED)
+		val controller = HintController(session)
+		controller.nextHint(HintMarkReview.of(session).complete)
+		controller.confirmRemovals()
+		val candidate = controller.requestHint()!!
+		val cell = candidate.cellIndex()
+
+		// Cancelling the run must not forgive it, or the digit could be typed in for free straight after.
+		controller.cancelPending()
+
+		assertFalse(controller.onPlayerEntered(cell, session.solutionAt(cell) % 9 + 1))
+		assertEquals(0, controller.used)
+		assertTrue(controller.onPlayerEntered(cell, session.solutionAt(cell)))
+		assertEquals(1, controller.used)
+		assertEquals(0, controller.debt.freeRemovals)
+	}
+
+	@Test
+	fun onPlayerEntered_withoutAFreeRemovalFirst_chargesNothing() {
+		val session = session()
+		val controller = HintController(session)
+		val cell = controller.requestHint()!!.cellIndex()
+
+		assertFalse(controller.onPlayerEntered(cell, session.solutionAt(cell)))
+		assertEquals(0, controller.used)
 	}
 
 	@Test

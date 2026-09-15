@@ -82,6 +82,9 @@ class MatchSocketClient @Inject constructor(private val client: HttpClient, priv
 	/** Co-op only: offers [cell] to the whole group as the pending hint. */
 	suspend fun hint(cell: Int) = send(MessageType.HINT, buildJsonObject { put("cell", cell) })
 
+	/** Co-op only: reports a hint charged to this player, so the server can hand the count back on a reconnect. */
+	suspend fun hintUsed() = send(MessageType.HINT, buildJsonObject { put("used", true) })
+
 	/** Withdraws this player's own pending hint offer. */
 	suspend fun clearHint() = send(MessageType.HINT, buildJsonObject { put("clear", true) })
 	suspend fun resign() = send(MessageType.RESIGN)

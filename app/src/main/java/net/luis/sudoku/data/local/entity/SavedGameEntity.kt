@@ -1,5 +1,6 @@
 package net.luis.sudoku.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -34,5 +35,11 @@ data class SavedGameEntity(
 	 * [net.luis.sudoku.data.local.MIGRATION_3_4] deletes those rather than restore them wrongly, so nothing
 	 * this version writes ever leaves it null.
 	 */
-	val givens: String? = null
+	val givens: String? = null,
+	/** `HintDebt.freeRemovals`, so resuming a game does not forgive the removals taken before it was left. */
+	@ColumnInfo(defaultValue = "0")
+	val freeHintRemovals: Int = 0,
+	/** `HintDebt.shownCells` as `[[cell, digit], ...]`, kept for the same reason. */
+	@ColumnInfo(defaultValue = "[]")
+	val shownHintCellsJson: String = "[]"
 )

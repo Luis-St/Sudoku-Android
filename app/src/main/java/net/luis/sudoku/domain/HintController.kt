@@ -23,6 +23,9 @@ class HintController(private val session: GameSession, maxHints: Int = 5) {
 	/** The pending step when it removes candidates instead of filling a cell - see [confirmRemovals]. */
 	private var pendingRemovals: Deduction.Eliminations? = null
 
+	/** What a player owes for a target shown after free removals, see [HintDebt]. */
+	val debt = HintDebt()
+
 	val remaining: Int get() = this.maxHints - this.used
 	val canHint: Boolean get() = this.remaining > 0
 
@@ -32,6 +35,7 @@ class HintController(private val session: GameSession, maxHints: Int = 5) {
 		if (this.pendingRemovals != null || !this.canHint) return null
 		val candidate = this.session.peekHint() ?: return null
 		this.pending = candidate
+		this.debt.onPlacementShown(candidate.cellIndex(), this.session.solutionAt(candidate.cellIndex()))
 		return candidate
 	}
 
@@ -56,7 +60,10 @@ class HintController(private val session: GameSession, maxHints: Int = 5) {
 		if (!this.canHint) return null
 		val explained = this.session.nextHint(candidates) ?: return null
 		when (val deduction = explained.deduction()) {
-			is Deduction.Placement -> this.pending = HintCandidate(deduction.cell(), deduction.technique())
+			is Deduction.Placement -> {
+				this.pending = HintCandidate(deduction.cell(), deduction.technique())
+				this.debt.onPlacementShown(deduction.cell(), this.session.solutionAt(deduction.cell()))
+			}
 			is Deduction.Eliminations -> this.pendingRemovals = deduction
 		}
 		return explained
@@ -95,6 +102,7 @@ class HintController(private val session: GameSession, maxHints: Int = 5) {
 		// Incremented only once a digit has actually been revealed, never on the peek - a peek is free and
 		// repeatable (feature-spec §4.4).
 		this.used++
+		this.debt.onHintCharged(index)
 		return digit
 	}
 
@@ -110,7 +118,20 @@ class HintController(private val session: GameSession, maxHints: Int = 5) {
 	fun confirmRemovals(): Deduction.Eliminations? {
 		val removals = this.pendingRemovals ?: return null
 		this.pendingRemovals = null
+		this.debt.onRemovalsTaken()
 		return removals
+	}
+
+	/**
+	 * The player typed [digit] into [cell] themselves: charges a hint when a hint had shown them that cell after
+	 * free removals, see [HintDebt].
+	 *
+	 * @return whether a hint was charged
+	 */
+	fun onPlayerEntered(cell: Int, digit: Int): Boolean {
+		if (!this.debt.onEntered(cell, digit, this.canHint)) return false
+		this.used++
+		return true
 	}
 
 	fun cancelPending() {
@@ -118,7 +139,8 @@ class HintController(private val session: GameSession, maxHints: Int = 5) {
 		this.pendingRemovals = null
 	}
 
-	fun restore(used: Int) {
+	fun restore(used: Int, freeRemovals: Int = 0, shownCells: Map<Int, Int> = emptyMap()) {
 		this.used = used.coerceIn(0, this.maxHints)
+		this.debt.restore(freeRemovals, shownCells)
 	}
 }

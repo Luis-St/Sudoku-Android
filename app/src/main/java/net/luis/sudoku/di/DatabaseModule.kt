@@ -13,6 +13,7 @@ import net.luis.sudoku.data.local.MIGRATION_3_4
 import net.luis.sudoku.data.local.MIGRATION_4_5
 import net.luis.sudoku.data.local.MIGRATION_5_6
 import net.luis.sudoku.data.local.MIGRATION_6_7
+import net.luis.sudoku.data.local.MIGRATION_7_8
 import net.luis.sudoku.data.local.dao.LearnProgressDao
 import net.luis.sudoku.data.local.dao.PendingDailyResultDao
 import net.luis.sudoku.data.local.dao.SavedGameDao
@@ -36,7 +37,8 @@ object DatabaseModule {
 			// the classic ones, which is a distinction destructive fallback could not make. Version 6 adds
 			// the learn area's progress, which nothing else could rebuild once it exists, and version 7 the
 			// mirror of the server's statistics, which is a cache but sits beside three tables that are not.
-			.addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+			// Version 8 only adds the hint debt's two columns to saved_games.
+			.addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
 			.fallbackToDestructiveMigration(true)
 			.build()
 

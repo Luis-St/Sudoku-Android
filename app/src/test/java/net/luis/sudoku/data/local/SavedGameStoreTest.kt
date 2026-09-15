@@ -5,6 +5,7 @@ import net.luis.sudoku.core.GameSession
 import net.luis.sudoku.core.testPuzzleProvider
 import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.domain.BoardEditor
+import net.luis.sudoku.domain.HintDebt
 import net.luis.sudoku.domain.TapAction
 import net.luis.sudoku.domain.UndoStack
 import net.luis.sudoku.grid.GridSize
@@ -68,6 +69,17 @@ class SavedGameStoreTest {
 		assertEquals(3, loaded.livesRemaining)
 		assertEquals(1, loaded.hintsUsed)
 		assertEquals(true, loaded.undoStack.canUndo)
+	}
+
+	@Test
+	fun saveThenLoad_restoresTheHintDebt() = kotlinx.coroutines.runBlocking {
+		val debt = HintDebt().apply { restore(2, mapOf(5 to 3, 9 to 1)) }
+
+		this@SavedGameStoreTest.store.save(SaveSlot.NORMAL, session(), UndoStack(), 0L, 5, 1, debt)
+
+		val loaded = this@SavedGameStoreTest.store.load(SaveSlot.NORMAL)!!
+		assertEquals(2, loaded.freeHintRemovals)
+		assertEquals(mapOf(5 to 3, 9 to 1), loaded.shownHintCells)
 	}
 
 	@Test

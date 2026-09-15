@@ -29,6 +29,7 @@ import net.luis.sudoku.data.remote.match.intOrNull
 import net.luis.sudoku.data.remote.match.matchSocketUrl
 import net.luis.sudoku.data.remote.match.stringOrNull
 import net.luis.sudoku.domain.ExplanationFrame
+import net.luis.sudoku.domain.HintDebt
 import net.luis.sudoku.domain.HintMarkReview
 import net.luis.sudoku.domain.HintPlan
 import net.luis.sudoku.domain.HintStep
@@ -43,6 +44,7 @@ import net.luis.sudoku.domain.resolveNumberButtonTap
 import net.luis.sudoku.domain.resolveTap
 import net.luis.sudoku.domain.tapReleasedFocus
 import net.luis.sudoku.hint.HintCandidate
+import net.luis.sudoku.solver.Deduction
 import net.luis.sudoku.solver.Technique
 
 /**
@@ -188,8 +190,17 @@ class CoopViewModel @AssistedInject constructor(
 	var hintsEnabled by mutableStateOf(true)
 		private set
 
+	/**
+	 * Hints this player has been charged in this match.
+	 *
+	 * Every charge is reported to the server (`HINT { used: true }`), which hands the count back in this player's
+	 * snapshot, so a reconnect no longer resets it to zero.
+	 */
 	var hintsUsed by mutableStateOf(0)
 		private set
+
+	/** This player's own [HintDebt], local like [hintStep]: what the group sees is only the charge. */
+	private val hintDebt = HintDebt()
 
 	/**
 	 * The peeked-but-not-yet-taken hint cell, same two-stage contract as single-player (feature-spec §4.4) -
@@ -406,6 +417,9 @@ class CoopViewModel @AssistedInject constructor(
 		// A snapshot carries the pending offer too, so a player who joins or reconnects mid-decision sees the
 		// same marked cell as everybody else rather than an unexplained gap in the group's attention.
 		this.hintCell = if (this.hintsEnabled) payload.intOrNull("hintCell") else null
+		// The larger of the two: a charge this device has just sent may not have reached the server yet, and after a
+		// reconnect into a new view model the server's count is the only one there is.
+		this.hintsUsed = maxOf(this.hintsUsed, payload.intOrNull("hintsUsed") ?: 0)
 
 		(payload["board"] as? JsonObject)?.entries?.forEach { (cellKey, digitElement) ->
 			val cell = cellKey.toIntOrNull() ?: return@forEach
@@ -460,6 +474,8 @@ class CoopViewModel @AssistedInject constructor(
 		// This player's own run is a different matter: it is local, and once somebody has filled the cell it
 		// was walking towards it has nothing left to say.
 		if (this.hintTarget?.cellIndex() == cell) clearHintRun()
+		// Whoever filled it, this player can no longer enter it; their own entry was charged when they sent it.
+		this.hintDebt.onFilledByOther(cell)
 		refresh()
 	}
 
@@ -623,7 +639,8 @@ class CoopViewModel @AssistedInject constructor(
 			// charging whoever actually presses reveal, which is also why a player with none left cannot.
 			if (this.hintsRemaining <= 0) return
 			val digit = this.session.solutionAt(offered)
-			this.hintsUsed++
+			chargeHint()
+			this.hintDebt.onHintCharged(offered)
 			clearHintRun()
 			// The placement clears the offer server-side, since a filled cell has nothing left to point at.
 			this.viewModelScope.launch { this@CoopViewModel.socketClient.place(offered, digit) }
@@ -646,6 +663,9 @@ class CoopViewModel @AssistedInject constructor(
 			}
 			this.hintTarget = plan.target?.let { cell -> HintCandidate(cell, explained.deduction().technique()) }
 			this.hintPlan = plan
+			(explained.deduction() as? Deduction.Placement)?.let { placement ->
+				this.hintDebt.onPlacementShown(placement.cell(), this.session.solutionAt(placement.cell()))
+			}
 			// Straight past the note steps when the group's notes are already right, as single-player does.
 			this.hintStep = HintStep.first(plan)
 			return
@@ -676,6 +696,7 @@ class CoopViewModel @AssistedInject constructor(
 	 */
 	private fun applyHintRemovals() {
 		val removals = this.hintPlan.removals
+		this.hintDebt.onRemovalsTaken()
 		clearHintRun()
 		for ((cell, mask) in removals) {
 			val noted = (this.notes[cell] ?: 0) and mask
@@ -684,6 +705,12 @@ class CoopViewModel @AssistedInject constructor(
 				this.viewModelScope.launch { this@CoopViewModel.socketClient.note(cell, digit, add = false) }
 			}
 		}
+	}
+
+	/** Charges this player one hint and tells the server, which keeps the count for a reconnect. */
+	private fun chargeHint() {
+		this.hintsUsed++
+		this.viewModelScope.launch { this@CoopViewModel.socketClient.hintUsed() }
 	}
 
 	/** Drops the pending offer without spending it. Any player may, since any player may spend it. */
@@ -704,8 +731,14 @@ class CoopViewModel @AssistedInject constructor(
 	 */
 	private fun sendIfEntry(action: TapAction) {
 		when (action) {
-			is TapAction.EnterPen ->
+			is TapAction.EnterPen -> {
+				// Charged on sending, like a revealed hint: the digit is the solution's, so the server accepts it
+				// unless somebody filled the cell a moment earlier.
+				if (this.session.snapshot(action.index).empty && this.hintDebt.onEntered(action.index, action.digit, this.hintsRemaining > 0)) {
+					chargeHint()
+				}
 				this.viewModelScope.launch { this@CoopViewModel.socketClient.place(action.index, action.digit) }
+			}
 
 			is TapAction.TogglePencil -> {
 				val add = (this.notes[action.index] ?: 0) shr action.digit and 1 == 0
