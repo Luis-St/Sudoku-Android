@@ -275,7 +275,7 @@ private fun SudokuApp(appViewModel: AppViewModel) {
 					// drawn as one and stays out of the way; the message is still there for anyone who wants
 					// it, one tap away, which is the only popup left for this.
 					//
-					// Issue 2.2.2/4: first in the row, so it holds the same place on every screen. It used to
+					// Issue 2.3.0/4: first in the row, so it holds the same place on every screen. It used to
 					// sit next to the friends button, which is the leftmost action on the home screen and no
 					// action at all on a board or in the wiki - so the warning moved to the far right there,
 					// and the one status the whole app shares changed position depending on where it appeared.

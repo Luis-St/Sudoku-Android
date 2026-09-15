@@ -185,7 +185,7 @@ class AccountSyncRulesTest {
 		assertNull(merged.restorableUntil)
 	}
 
-	// --- issue 2.2.2/1: two runs are merged as runs, not as a number and a date ---
+	// --- issue 2.3.0/1: two runs are merged as runs, not as a number and a date ---
 
 	@Test
 	fun mergeStreak_aRunThatRestartedTodayAndAnOlderBrokenOne_keepsTheLiveRun() {

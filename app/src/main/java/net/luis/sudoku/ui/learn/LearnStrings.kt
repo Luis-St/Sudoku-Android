@@ -30,7 +30,7 @@ fun stringsOf(technique: Technique): LearnStrings = stringsOrNull(technique)
 	?: throw IllegalArgumentException("The learn area does not teach $technique")
 
 /**
- * The same copy, or `null` for a technique the learn area does not teach (issue 2.2.2/2).
+ * The same copy, or `null` for a technique the learn area does not teach (issue 2.3.0/2).
  *
  * A hint runs on whatever the solver needed, which is not the taught set: the five level-15 dynamic
  * techniques are deferred, and `LAW_OF_LEFTOVERS` and `MULTI_COLOURING` were dropped. Every one of them can

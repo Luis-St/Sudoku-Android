@@ -53,7 +53,7 @@ object AccountSyncRules {
 	 *
 	 * The two sides are *runs*, not numbers: a count means nothing without the day it ends on, and merging
 	 * them is [mergeRuns]. Taking the larger count and the later anchor - which is what this did - invents
-	 * a run neither side ever had, and that invention is issue 2.2.2/1: a device that had just restarted at
+	 * a run neither side ever had, and that invention is issue 2.3.0/1: a device that had just restarted at
 	 * 1 after a missed day was handed the account's pre-break count with today's date on it, and
 	 * `StreakPublisher` then offered that back to the server as a run it had itself already broken.
 	 *

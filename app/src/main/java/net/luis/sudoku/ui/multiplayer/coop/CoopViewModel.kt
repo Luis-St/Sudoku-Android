@@ -636,7 +636,7 @@ class CoopViewModel @AssistedInject constructor(
 			// The cell is chosen here - shared-core's hint engine is local, and every client has the same
 			// puzzle - but it is not *offered* yet: every step before the last is about this player's own
 			// reading of the position, and the match only hears about the cell when the run reaches it.
-			// Issue 2.2.2/2: explained, so the run can walk the technique's pattern before it offers the cell.
+			// Issue 2.3.0/2: explained, so the run can walk the technique's pattern before it offers the cell.
 			// The notes come from the match, not from the cells - see [notes] and `HintMarkReview.of`. The step is
 			// found on the set the run proposes, so its pattern is drawn on candidates that are on the board.
 			val review = HintMarkReview.of(this.session, this.notes)

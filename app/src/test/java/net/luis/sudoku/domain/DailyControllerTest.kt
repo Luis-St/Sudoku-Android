@@ -167,7 +167,7 @@ class DailyControllerTest {
 		assertEquals(day2, day2Record.lastCompletedDate)
 	}
 
-	// --- issue 2.2.2/1: the increment may not bridge a day nobody solved ---
+	// --- issue 2.3.0/1: the increment may not bridge a day nobody solved ---
 
 	@Test
 	fun recordSuccess_afterAMissedDay_restartsTheRunAtOne() {

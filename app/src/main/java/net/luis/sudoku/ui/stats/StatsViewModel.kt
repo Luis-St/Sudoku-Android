@@ -53,7 +53,7 @@ class StatsViewModel @Inject constructor(
 	 *
 	 * Held apart from "the section is empty" because the two read differently to a player: no server is a
 	 * thing to go and set up, while a server that did not answer is a thing to come back to later - and
-	 * since issue 2.2.2/5 the second one says nothing at all here, so the note must not claim the first.
+	 * since issue 2.3.0/5 the second one says nothing at all here, so the note must not claim the first.
 	 */
 	var serverConnected by mutableStateOf(false)
 		private set
@@ -96,7 +96,7 @@ class StatsViewModel @Inject constructor(
 				} catch (e: CancellationException) {
 					throw e
 				} catch (e: Exception) {
-					// Issue 2.2.2/5: silence. Nobody asked for the per-tier aggregates - they come with the
+					// Issue 2.3.0/5: silence. Nobody asked for the per-tier aggregates - they come with the
 					// screen - and the screen is perfectly useful without them, since the local statistics are
 					// already on it. A modal over a screen the player has just opened, for a request they did
 					// not make, is the failure; the top bar's warning is the app's one report that the server

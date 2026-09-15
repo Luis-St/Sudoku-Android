@@ -418,7 +418,7 @@ internal fun HintStepRow(
 	review: MarkReview,
 	technique: Technique?,
 	hexDisplay: Boolean,
-	/** The beat of the technique's pattern on the board, when the hint is on its pattern step (issue 2.2.2/2). */
+	/** The beat of the technique's pattern on the board, when the hint is on its pattern step (issue 2.3.0/2). */
 	patternFrame: ExplanationFrame? = null,
 	edgeLength: Int = 9,
 	/** Whether the hint's step removes candidates rather than filling a cell, see [HintPlan.eliminates]. */
@@ -518,7 +518,7 @@ internal fun hintStepText(
 }
 
 /**
- * What the hint button says, which is always what the **next** press does (issue 2.2.2/2).
+ * What the hint button says, which is always what the **next** press does (issue 2.3.0/2).
  *
  * It used to say "Next step" for every press between the first and the reveal, which is true and tells the
  * player nothing about whether pressing on is worth it. The press that changes what kind of help is on screen

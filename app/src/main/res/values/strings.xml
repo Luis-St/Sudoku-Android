@@ -433,7 +433,7 @@
 	<!-- Game item 19: a hint is walked through in steps the player presses on through, and only the last
 	     press writes a digit. The same wording is used on the single-player, daily and co-op boards. -->
 	<string name="action_hint_next_step">Next step</string>
-	<!-- Issue 2.2.2/2: the press that changes what kind of help is on screen says what it opens, rather than
+	<!-- Issue 2.3.0/2: the press that changes what kind of help is on screen says what it opens, rather than
 	     counting steps at a player deciding whether pressing on is worth it. It is still free. -->
 	<string name="action_hint_show_pattern">Show it on the board</string>
 	<string name="hint_step_review">Look over your notes for %1$s first. Every technique argues from the notes.</string>

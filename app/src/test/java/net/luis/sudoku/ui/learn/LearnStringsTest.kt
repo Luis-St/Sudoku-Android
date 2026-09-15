@@ -10,7 +10,7 @@ import org.junit.Test
 /**
  * Covers [stringsOrNull] against the core's own taught set.
  *
- * The two have to agree in both directions, and since issue 2.2.2/2 something depends on it: a hint decides
+ * The two have to agree in both directions, and since issue 2.3.0/2 something depends on it: a hint decides
  * whether it has a technique step to show by asking [LearnTechniques.isTaught], and then renders the copy.
  * A taught technique without copy is a crash on the game screen; copy for an untaught one is a lesson the
  * learn area never lists and nothing can reach.

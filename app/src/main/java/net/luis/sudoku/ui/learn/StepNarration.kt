@@ -116,7 +116,7 @@ private fun digitNames(mask: Int, edgeLength: Int, hexDisplay: Boolean): String 
 /**
  * The default grid the captions are written for: the learn area is 9x9 classic only.
  *
- * A caller on a play board passes its own edge length, since since issue 2.2.2/2 a hint draws these same
+ * A caller on a play board passes its own edge length, since since issue 2.3.0/2 a hint draws these same
  * captions over boards from 4x4 to 16x16.
  */
 private const val BOARD_SIZE = 9

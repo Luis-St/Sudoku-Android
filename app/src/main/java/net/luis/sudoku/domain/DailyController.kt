@@ -142,7 +142,7 @@ class DailyController(
 	 * The streak increments immediately on success - [rollover] only ever breaks it, never increments it.
 	 *
 	 * The increment is **continuity checked against [DailyRecord.lastCompletedDate]**, and restarts the run
-	 * at 1 for a solve that is not the day after it (issue 2.2.2/1). [rollover] alone is not enough to
+	 * at 1 for a solve that is not the day after it (issue 2.3.0/1). [rollover] alone is not enough to
 	 * decide that: it breaks the run from the *previous stored day*, which is the last day this device had
 	 * a record for and not necessarily the last day solved - and `AccountSync.mergeStreak` then adopts the
 	 * account's longer count, whose anchor may be days older. Adding one to that count regardless is how a

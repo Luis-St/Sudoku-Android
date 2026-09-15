@@ -767,7 +767,7 @@ class GameViewModel @Inject constructor(
 	 * Steps the hint on by one press (game item 19); the press past the last step spends it (§4.4).
 	 *
 	 * The first press promises a cell and reads the position; the ones after it talk about the notes, name
-	 * the technique and then walk its pattern one beat at a time (issue 2.2.2/2); and only the press past the
+	 * the technique and then walk its pattern one beat at a time (issue 2.3.0/2); and only the press past the
 	 * last step writes a digit. Nothing is charged until that one, so a player who works it out halfway
 	 * through walks away having paid nothing, which is the point of stepping it at all.
 	 *
