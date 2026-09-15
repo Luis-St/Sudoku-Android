@@ -2,7 +2,10 @@ package net.luis.sudoku.domain
 
 import net.luis.sudoku.core.GameSession
 import net.luis.sudoku.solver.CellRole
+import net.luis.sudoku.solver.Deduction
+import net.luis.sudoku.solver.ExplainedDeduction
 import net.luis.sudoku.solver.Explanation
+import net.luis.sudoku.solver.Technique
 
 /**
  * The steps a hint walks through before it writes anything (game item 19 of 2.1.0).
@@ -23,11 +26,14 @@ import net.luis.sudoku.solver.Explanation
  * 4. [PATTERN_CELLS]: the cells the technique is made of, filled in its colours, with a key under the board.
  * 5. [PATTERN_LINKS]: the lines between the candidates the argument runs through, solid for a strong link and
  *    dashed for a weak one.
- * 6. [ELIMINATIONS]: the candidates the technique removes, crossed out, and the cell that leaves solvable,
+ * 6. [ELIMINATIONS]: the candidates the technique removes, crossed out, and for a placement the cell it fills,
  *    filled green. The digit is still not named: it is what the hint costs.
  *
- * Pressing on from [ELIMINATIONS] is what spends the hint and adds the number; there is no step for it,
- * because at that point the hint is over.
+ * Pressing on from [ELIMINATIONS] is what spends the hint and applies it; there is no step for it, because at
+ * that point the hint is over. What it applies is the step itself ([HintPlan.eliminates]): the digit for a
+ * placement, and for an elimination the crossed out notes taken off the board. A hint is always the **next**
+ * step on the notes, not a walk to the next cell that can be filled: that walk explained a pattern argued from
+ * candidates the player had never seen go, and on a tie one that had nothing to do with the green cell.
  *
  * The steps are the same everywhere a hint exists: the single-player, daily and co-op boards all run this
  * one, so the help never changes shape from screen to screen.
@@ -90,8 +96,8 @@ enum class HintStep {
 }
 
 /**
- * Everything one run of a hint was planned from: the notes as they were when it started, and the technique's
- * diagram.
+ * Everything one run of a hint was planned from: the notes as they were when it started, and the step it is
+ * about.
  *
  * Both are read **once**, when the hint begins, and neither is recomputed as it is stepped. The steps are
  * things to say about *one* reading of the board, and a set that moved under them would have step two drawing
@@ -99,12 +105,57 @@ enum class HintStep {
  *
  * @param review how the player's notes compared to the board when the hint started
  * @param diagram the whole technique as one summary frame, which [HintStep.frameOf] cuts into layers
+ * @param technique the technique the step uses, which is the one the hint names
+ * @param target the cell the step fills, or `null` when it only removes candidates
+ * @param removals cell index -> the candidates the step removes, as pencil mark bitmasks; what the last press
+ *   takes off the board when there is no [target]
  */
-data class HintPlan(val review: MarkReview, val diagram: ExplanationFrame = ExplanationFrame()) {
+data class HintPlan(
+	val review: MarkReview,
+	val diagram: ExplanationFrame = ExplanationFrame(),
+	val technique: Technique? = null,
+	val target: Int? = null,
+	val removals: Map<Int, Int> = emptyMap()
+) {
+
+	/** Whether the last press removes notes rather than writing a digit. */
+	val eliminates: Boolean get() = this.target == null && this.removals.isNotEmpty()
 
 	companion object {
 
 		val EMPTY: HintPlan = HintPlan(MarkReview.EMPTY)
+
+		/**
+		 * The plan for [explained], the step [GameSession.nextHint] found on [review]'s complete notes.
+		 *
+		 * @param isPeer whether two cells share a row, column or region on this board
+		 */
+		fun of(review: MarkReview, explained: ExplainedDeduction, isPeer: (Int, Int) -> Boolean): HintPlan {
+			return when (val deduction = explained.deduction()) {
+				is Deduction.Placement -> HintPlan(
+					review,
+					hintDiagramOf(explained.explanation(), deduction.cell(), isPeer),
+					deduction.technique(),
+					target = deduction.cell()
+				)
+				is Deduction.Eliminations -> HintPlan(
+					review,
+					hintDiagramOf(explained.explanation(), null, isPeer),
+					deduction.technique(),
+					removals = removalsOf(deduction)
+				)
+			}
+		}
+
+		private fun removalsOf(eliminations: Deduction.Eliminations): Map<Int, Int> {
+			val removals = mutableMapOf<Int, Int>()
+			val cells = eliminations.cells()
+			val digits = eliminations.digits()
+			for (index in cells.indices) {
+				removals[cells[index]] = (removals[cells[index]] ?: 0) or (1 shl digits[index])
+			}
+			return removals
+		}
 	}
 }
 
@@ -118,15 +169,18 @@ data class HintPlan(val review: MarkReview, val diagram: ExplanationFrame = Expl
  *
  * A placing technique's conclusion is its placement, and the placement is what the hint costs, so it is
  * turned back into the unnamed target.
+ *
+ * @param target the cell the step fills, or `null` for a step that only removes candidates, whose diagram
+ *   then ends on what it crosses out and marks no cell green
  */
-fun hintDiagramOf(explanation: Explanation, target: Int, isPeer: (Int, Int) -> Boolean): ExplanationFrame {
-	val last = framesOf(explanation, isPeer).lastOrNull() ?: return ExplanationFrame(target = target to 0)
+fun hintDiagramOf(explanation: Explanation, target: Int?, isPeer: (Int, Int) -> Boolean): ExplanationFrame {
+	val last = framesOf(explanation, isPeer).lastOrNull() ?: return ExplanationFrame(target = target?.let { it to 0 })
 	return last.copy(
 		roles = last.roles.filterKeys { cell -> cell != target || last.roles[cell] != CellRole.TARGET },
 		// The target's own digits would put the answer into the key ("pattern (5)") before it is paid for.
-		digits = last.digits - target,
+		digits = if (target == null) last.digits else last.digits - target,
 		placement = null,
-		target = target to 0,
+		target = target?.let { it to 0 },
 		currentCells = emptyList(),
 		currentUnits = emptyList(),
 		currentDigits = emptyMap(),

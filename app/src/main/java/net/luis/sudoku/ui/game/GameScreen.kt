@@ -226,7 +226,8 @@ fun GameScreen(
 							technique = viewModel.hintTechnique,
 							hexDisplay = viewModel.preferences.hexDisplay,
 							patternFrame = viewModel.hintPatternFrame,
-							edgeLength = viewModel.edgeLength
+							edgeLength = viewModel.edgeLength,
+							eliminates = viewModel.hintPlan.eliminates
 						)
 					}
 				}
@@ -419,7 +420,9 @@ internal fun HintStepRow(
 	hexDisplay: Boolean,
 	/** The beat of the technique's pattern on the board, when the hint is on its pattern step (issue 2.2.2/2). */
 	patternFrame: ExplanationFrame? = null,
-	edgeLength: Int = 9
+	edgeLength: Int = 9,
+	/** Whether the hint's step removes candidates rather than filling a cell, see [HintPlan.eliminates]. */
+	eliminates: Boolean = false
 ) {
 	Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
 		// The key to the diagram, above the sentence: the sentence talks about "the green cell" and "the
@@ -433,7 +436,7 @@ internal fun HintStepRow(
 			)
 		}
 		Text(
-			text = hintStepText(step, review, technique, hexDisplay, patternFrame),
+			text = hintStepText(step, review, technique, hexDisplay, patternFrame, eliminates),
 			style = MaterialTheme.typography.bodySmall,
 			color = MaterialTheme.colorScheme.onSurfaceVariant,
 			// Item 4 of 2.2.0: past a few lines the tip scrolls **inside itself** instead of growing.
@@ -472,7 +475,8 @@ internal fun hintStepText(
 	review: MarkReview,
 	technique: Technique?,
 	hexDisplay: Boolean,
-	patternFrame: ExplanationFrame? = null
+	patternFrame: ExplanationFrame? = null,
+	eliminates: Boolean = false
 ): String {
 	// The learn area's copy for this technique, or null for one it does not teach. A hint runs on whatever the
 	// solver needed, which includes the level-15 techniques the learn area has not been given lessons for, and
@@ -487,10 +491,13 @@ internal fun hintStepText(
 		)
 
 		HintStep.MARK_DIFF -> stringResource(R.string.hint_step_diff)
-		HintStep.FULL_MARKS -> if (strings != null) {
-			stringResource(R.string.hint_step_marks, techniqueName)
-		} else {
-			stringResource(R.string.hint_step_marks_unnamed)
+		// A step that only removes candidates solves no cell, and saying one gets solved would send the player
+		// looking for a cell the hint never marks.
+		HintStep.FULL_MARKS -> when {
+			eliminates && strings != null -> stringResource(R.string.hint_step_marks_eliminate, techniqueName)
+			eliminates -> stringResource(R.string.hint_step_marks_eliminate_unnamed)
+			strings != null -> stringResource(R.string.hint_step_marks, techniqueName)
+			else -> stringResource(R.string.hint_step_marks_unnamed)
 		}
 		// The board and its key are the hint on these three steps; the sentence says which layer just went
 		// in and how to read it.
@@ -502,10 +509,10 @@ internal fun hintStepText(
 		HintStep.PATTERN_LINKS -> stringResource(R.string.hint_step_links)
 		// A hidden single removes nothing, and telling its player to look at crossed out candidates would send
 		// them looking for something that is not there.
-		HintStep.ELIMINATIONS -> if (patternFrame?.struck.isNullOrEmpty()) {
-			stringResource(R.string.hint_step_target_only)
-		} else {
-			stringResource(R.string.hint_step_eliminations)
+		HintStep.ELIMINATIONS -> when {
+			eliminates -> stringResource(R.string.hint_step_eliminations_only)
+			patternFrame?.struck.isNullOrEmpty() -> stringResource(R.string.hint_step_target_only)
+			else -> stringResource(R.string.hint_step_eliminations)
 		}
 	}
 }
@@ -525,6 +532,7 @@ internal fun hintButtonText(step: HintStep?, plan: HintPlan, hintsRemaining: Int
 	step == null -> stringResource(R.string.action_hint_with_count, hintsRemaining)
 	// The last step is the one before the digit, so the button says what the press after it actually does
 	// rather than carrying on counting.
+	step.next(plan) == null && plan.eliminates -> stringResource(R.string.action_hint_remove_notes)
 	step.next(plan) == null -> stringResource(R.string.action_hint_reveal)
 	step == HintStep.FULL_MARKS -> stringResource(R.string.action_hint_show_pattern)
 	else -> stringResource(R.string.action_hint_next_step)

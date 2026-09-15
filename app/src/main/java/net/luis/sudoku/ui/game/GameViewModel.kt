@@ -42,7 +42,6 @@ import net.luis.sudoku.domain.ExplanationFrame
 import net.luis.sudoku.domain.HintMarkReview
 import net.luis.sudoku.domain.HintPlan
 import net.luis.sudoku.domain.HintStep
-import net.luis.sudoku.domain.hintDiagramOf
 import net.luis.sudoku.domain.MarkReview
 import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.domain.LivesController
@@ -305,7 +304,7 @@ class GameViewModel @Inject constructor(
 	 * half-written notes teaches the technique against a position that is not on the board.
 	 */
 	val hintTechnique: Technique?
-		get() = this.hintCandidate?.technique()
+		get() = this.hintPlan.technique
 			?.takeIf {
 				(this.hintStep?.ordinal ?: -1) >= HintStep.FULL_MARKS.ordinal
 			}
@@ -780,17 +779,15 @@ class GameViewModel @Inject constructor(
 		if (this.outcome != null) return
 		val step = this.hintStep
 		if (step == null) {
-			// Issue 2.2.2/2: the explained peek, so the pattern is read from the *same* board state the notes
-			// are. Asking for it later would re-run the solver over a board the fill step has since changed.
-			val explained = this.hintController.explainHint() ?: return
-			this.hintCandidate = explained.candidate()
-			// Read once, here, and kept for the whole run - see [hintPlan].
-			val plan = HintPlan(
-				HintMarkReview.of(this.session),
-				hintDiagramOf(explained.explanation(), explained.cellIndex()) { first, second ->
-					second in this@GameViewModel.session.peersOf(first)
-				}
-			)
+			// Read once, here, and kept for the whole run - see [hintPlan]. The step is found on the notes the fill
+			// step is about to leave on the board, so the pattern is drawn on candidates that are really there and
+			// an elimination the player has already made is not handed back to them.
+			val review = HintMarkReview.of(this.session)
+			val explained = this.hintController.nextHint(review.complete) ?: return
+			val plan = HintPlan.of(review, explained) { first, second ->
+				second in this@GameViewModel.session.peersOf(first)
+			}
+			this.hintCandidate = plan.target?.let { cell -> HintCandidate(cell, explained.deduction().technique()) }
 			this.hintPlan = plan
 			// Straight past the note steps on a board whose notes are already right - see [HintStep.shows].
 			// A board with no notes at all is such a board, so the first step is often the fill itself, and
@@ -803,6 +800,11 @@ class GameViewModel @Inject constructor(
 		val next = step.next(this.hintPlan)
 		if (next != null) {
 			enterHintStep(next)
+			return
+		}
+
+		if (this.hintPlan.eliminates) {
+			applyHintRemovals()
 			return
 		}
 
@@ -831,6 +833,20 @@ class GameViewModel @Inject constructor(
 	}
 
 	/**
+	 * The last press of a hint whose step only removes candidates: the crossed out notes come off the board as
+	 * one undoable move, and the hint is spent.
+	 */
+	private fun applyHintRemovals() {
+		val removals = this.hintPlan.removals
+		this.hintController.confirmRemovals() ?: return
+		this.editor.removePencilMarks(removals)
+		this.hintStep = null
+		this.hintPlan = HintPlan.EMPTY
+		this.hintsRemaining = this.hintController.remaining
+		refresh()
+	}
+
+	/**
 	 * Moves the running hint onto [step], however it got there - from the step before it or as the first one.
 	 *
 	 * [HintStep.FULL_MARKS] is the one step that changes the board rather than only drawing on it. It is a
@@ -855,7 +871,8 @@ class GameViewModel @Inject constructor(
 	 * the player did not want was to fill that exact cell.
 	 */
 	fun onHintCancel() {
-		if (this.outcome != null || this.hintCandidate == null) return
+		// The run, not the cell: a hint that only removes candidates has no cell to promise and is withdrawn all the same.
+		if (this.outcome != null || this.hintStep == null) return
 		clearPendingHint()
 		refresh()
 	}

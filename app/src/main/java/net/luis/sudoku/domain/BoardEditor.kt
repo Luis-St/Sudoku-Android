@@ -75,6 +75,30 @@ class BoardEditor(
 		return true
 	}
 
+	/**
+	 * Takes [removals] off the notes as **one undoable move**: the last press of a hint that eliminates.
+	 *
+	 * A candidate that is not noted any more is simply passed over, since the player may have rubbed it out
+	 * between the press that showed it and the one that applies it.
+	 *
+	 * @param removals cell index -> the marks to remove there, as a bitmask
+	 * @return whether anything changed
+	 */
+	fun removePencilMarks(removals: Map<Int, Int>): Boolean {
+		val edits = mutableListOf<CellEdit>()
+		for ((index, mask) in removals) {
+			val snapshot = this.session.snapshot(index)
+			if (snapshot.given || !snapshot.empty || snapshot.pencilMarks and mask == 0) continue
+			val cell = this.session.cellForUndo(index)
+			val before = cell.copy()
+			cell.setPencilMarks(snapshot.pencilMarks and mask.inv())
+			edits += CellEdit(index, before, cell.copy())
+		}
+		if (edits.isEmpty()) return false
+		this.undoStack.push(Command(edits))
+		return true
+	}
+
 	private fun enterPen(index: Int, digit: Int) {
 		val cell = this.session.cellForUndo(index)
 		val edits = mutableListOf<CellEdit>()

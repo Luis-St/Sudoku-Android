@@ -6,12 +6,12 @@ import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.grid.Puzzle
 import net.luis.sudoku.grid.Variant
 import net.luis.sudoku.hint.HintCandidate
-import net.luis.sudoku.hint.ExplainedHint
 import net.luis.sudoku.hint.HintEngine
 import net.luis.sudoku.hint.HintResult
 import net.luis.sudoku.key.PuzzleKey
 import net.luis.sudoku.sharecode.GivensCodec
 import net.luis.sudoku.solver.CandidateGrid
+import net.luis.sudoku.solver.ExplainedDeduction
 import net.luis.sudoku.solver.TechniqueReport
 import net.luis.sudoku.solver.TechniqueSolver
 
@@ -127,14 +127,20 @@ class GameSession private constructor(
 	fun peekHint(): HintCandidate? = HintEngine.peek(this.puzzle).orElse(null)
 
 	/**
-	 * The same peek, with the technique's pattern attached (issue 2.2.2/2).
+	 * The next step the hint walks the player through, on [candidates] rather than on the placed digits alone.
 	 *
-	 * What the hint walks the player through is shared-core's own [net.luis.sudoku.solver.Explanation], the
-	 * one the learn area's lessons are drawn from, so a technique looks the same on a board as it does on its
-	 * wiki page. Costlier than [peekHint] - a strategy that records its pattern while it searches does that
-	 * work here - and paid once, when a hint starts.
+	 * The step is the next deduction on exactly that candidate set, a placement or an elimination, and nothing is
+	 * applied on the way to it. The hint used to walk eliminations forwards until some cell could be placed and
+	 * then explain the hardest of them, which drew a pattern argued from candidates the player never saw removed,
+	 * and on a tie a pattern that had nothing to do with the cell it marked.
+	 *
+	 * @param candidates cell index -> the candidates to reason from, as pencil mark bitmasks. The hint passes
+	 *   [net.luis.sudoku.domain.MarkReview.complete], the notes the fill step leaves on the board, so an
+	 *   elimination the player has already made is not suggested again. Every mask must still hold the cell's
+	 *   solution digit, which that set does; a cell absent from the map, or whose mask shares no digit with the
+	 *   board, keeps every digit the board allows.
 	 */
-	fun explainHint(): ExplainedHint? = HintEngine.explain(this.puzzle).orElse(null)
+	fun nextHint(candidates: Map<Int, Int>): ExplainedDeduction? = HintEngine.next(candidateGridOf(candidates)).orElse(null)
 
 	/**
 	 * Second tap: consumes [candidate] and fills in the correct digit. shared-core's [HintEngine] is
@@ -235,6 +241,19 @@ class GameSession private constructor(
 	 * belongs to the domain layer, not to the UI.
 	 */
 	internal fun candidateGrid(): CandidateGrid = CandidateGrid(this.puzzle)
+
+	/** [candidateGrid] narrowed to [candidates] - see [nextHint]. */
+	internal fun candidateGridOf(candidates: Map<Int, Int>): CandidateGrid {
+		val grid = candidateGrid()
+		for ((cell, mask) in candidates) {
+			// A mask that shares nothing with the board would empty the cell, which no deduction survives.
+			if (!grid.isEmpty(cell) || mask and grid.candidates(cell) == 0) continue
+			for (digit in 1..this.edgeLength) {
+				if (mask shr digit and 1 == 0) grid.eliminate(cell, digit)
+			}
+		}
+		return grid
+	}
 
 	/**
 	 * Exposes the underlying puzzle for the undo stack, which restores whole [Cell] states via

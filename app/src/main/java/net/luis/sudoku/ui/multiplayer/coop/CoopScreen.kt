@@ -169,7 +169,8 @@ fun CoopScreen(
 					technique = viewModel.hintTechnique,
 					hexDisplay = false,
 					patternFrame = viewModel.hintPatternFrame,
-					edgeLength = viewModel.edgeLength
+					edgeLength = viewModel.edgeLength,
+					eliminates = viewModel.hintPlan.eliminates
 				)
 			}
 		},

@@ -394,6 +394,7 @@
 	     buttons appear on the single-player and the co-op board, and in co-op on every player's. -->
 	<string name="action_hint_reveal">Zelle aufdecken</string>
 	<string name="action_hint_withdraw">Zurückziehen</string>
+	<string name="action_hint_remove_notes">Notizen streichen</string>
 
 	<!-- Game item 19: see the English file for what the steps are. -->
 	<string name="action_hint_next_step">Nächster Schritt</string>
@@ -402,11 +403,14 @@
 	<string name="hint_step_diff">Deine Notizen sind auf dem Feld markiert: Ein grüner Kandidat ist einer, den du nicht notiert hast, eine rote Notiz kann nicht stimmen, weil Zeile, Spalte oder Block diese Ziffer bereits enthält.</string>
 	<string name="hint_step_marks">Mit diesen Notizen lässt sich eine Zelle mit %1$s lösen.</string>
 	<string name="hint_step_marks_unnamed">Mit diesen Notizen lässt sich eine Zelle mit einer Technik lösen, die der Lernbereich noch nicht behandelt.</string>
+	<string name="hint_step_marks_eliminate">Mit diesen Notizen lassen sich Kandidaten mit %1$s streichen.</string>
+	<string name="hint_step_marks_eliminate_unnamed">Mit diesen Notizen lassen sich Kandidaten mit einer Technik streichen, die der Lernbereich noch nicht behandelt.</string>
 	<string name="hint_step_cells">Die farbigen Zellen sind das, woraus %1$s hier besteht. Die Legende zeigt, welche Rolle jede Farbe spielt.</string>
 	<string name="hint_step_cells_unnamed">Die farbigen Zellen sind das, woraus diese Technik hier besteht. Die Legende zeigt, welche Rolle jede Farbe spielt.</string>
 	<string name="hint_step_links">Die Linien verbinden die Kandidaten, über die die Überlegung läuft: Entlang einer durchgezogenen Linie muss eines der beiden Enden stimmen, entlang einer gestrichelten können nicht beide stimmen.</string>
 	<string name="hint_step_eliminations">Die durchgestrichenen Kandidaten fallen also weg, und damit lässt sich die grüne Zelle lösen. Der nächste Druck trägt sie ein und verbraucht den Tipp.</string>
 	<string name="hint_step_target_only">Damit lässt sich die grüne Zelle lösen. Der nächste Druck trägt sie ein und verbraucht den Tipp.</string>
+	<string name="hint_step_eliminations_only">Die durchgestrichenen Kandidaten fallen also weg. Der nächste Druck streicht sie aus den Notizen und verbraucht den Tipp.</string>
 
 	<!-- Multiplayer game screen. -->
 

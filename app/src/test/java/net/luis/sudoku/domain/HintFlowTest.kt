@@ -5,8 +5,8 @@ import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.grid.Variant
 import net.luis.sudoku.key.PuzzleKey
-import net.luis.sudoku.hint.ExplainedHint
 import net.luis.sudoku.solver.CellRole
+import net.luis.sudoku.solver.Deduction
 import net.luis.sudoku.solver.Explanation
 import net.luis.sudoku.solver.ExplanationStep
 import net.luis.sudoku.solver.PatternCell
@@ -14,6 +14,7 @@ import net.luis.sudoku.solver.StepKind
 import net.luis.sudoku.solver.Technique
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -291,7 +292,7 @@ class HintFlowTest {
 	fun `the diagram is drawn in layers, cells then lines then eliminations`() {
 		var layered = 0
 		for (session in boards()) {
-			playThrough(session) { explained, plan ->
+			playThrough(session) { plan, _ ->
 				val cells = HintStep.PATTERN_CELLS.frameOf(plan)!!
 				assertTrue("the cells go in without lines", cells.links.isEmpty())
 				assertTrue("and without anything crossed out", cells.struck.isEmpty())
@@ -303,7 +304,13 @@ class HintFlowTest {
 
 				val eliminations = HintStep.ELIMINATIONS.frameOf(plan)!!
 				assertEquals(plan.diagram.struck, eliminations.struck)
-				assertEquals(DiagramTone.TARGET, eliminations.toneOf(explained.cellIndex()))
+				val target = plan.target
+				if (target != null) {
+					assertEquals(DiagramTone.TARGET, eliminations.toneOf(target))
+				} else {
+					assertNull("a step that only removes candidates marks no cell", eliminations.target)
+					assertEquals("and crosses out exactly what it removes", plan.removals, eliminations.struck)
+				}
 				if (plan.diagram.links.isNotEmpty() && plan.diagram.struck.isNotEmpty()) layered++
 			}
 		}
@@ -323,21 +330,73 @@ class HintFlowTest {
 	fun `no step names the digit before the hint is spent`() {
 		// The digit is what the last press costs, so neither the board nor the key may carry it before then.
 		for (session in boards()) {
-			playThrough(session) { explained, plan ->
-				val cell = explained.cellIndex()
-				val digit = session.solutionAt(cell)
+			playThrough(session) { plan, _ ->
 				for (step in listOf(HintStep.PATTERN_CELLS, HintStep.PATTERN_LINKS, HintStep.ELIMINATIONS)) {
 					val frame = step.frameOf(plan)!!
 					assertNull(frame.placement)
 					assertEquals(0, frame.target?.second ?: 0)
-					assertFalse("the target cell's digits stay out of the key", frame.digits.containsKey(cell))
 					for (entry in legendOf(frame).filter { it.tone == DiagramTone.TARGET }) {
 						assertEquals(0, entry.digits)
 					}
-					assertFalse("the answer is never crossed out", (frame.struck[cell] ?: 0) shr digit and 1 == 1)
+					plan.target?.let { cell ->
+						assertFalse("the target cell's digits stay out of the key", frame.digits.containsKey(cell))
+					}
+					for ((cell, mask) in frame.struck) {
+						assertFalse("the answer is never crossed out", mask shr session.solutionAt(cell) and 1 == 1)
+					}
 				}
 			}
 		}
+	}
+
+	/**
+	 * The rule the hint was rewritten for: what the board shows is the position the step was found on.
+	 *
+	 * The hint used to walk eliminations forwards to the next fillable cell and explain the hardest of them, so the
+	 * pattern leaned on candidates the player had never seen removed, and could belong to a different cell than
+	 * the green one.
+	 */
+	@Test
+	fun `every hint is drawn on the notes it was found on`() {
+		var eliminating = 0
+		for (session in boards()) {
+			playThrough(session) { plan, notes ->
+				val frame = HintStep.ELIMINATIONS.frameOf(plan)!!
+				for ((cell, mask) in frame.struck) {
+					assertEquals("crosses out only noted candidates in cell $cell", mask, mask and (notes[cell] ?: 0))
+				}
+				for ((cell, role) in frame.roles) {
+					if (role == CellRole.CONTEXT || role == CellRole.ROOF || !session.snapshot(cell).empty) continue
+					val mask = frame.digits[cell] ?: 0
+					assertEquals("$role cell $cell is drawn on digits it holds", mask, mask and (notes[cell] ?: 0))
+				}
+				plan.target?.let { cell -> assertTrue("the green cell is empty", session.snapshot(cell).empty) }
+				if (plan.eliminates) eliminating++
+			}
+		}
+		assertTrue("no board produced a hint that only removes candidates", eliminating > 0)
+	}
+
+	@Test
+	fun `the reported board hints the next elimination and removes it on the last press`() {
+		val session = HintFixtures.session(HintFixtures.REPORTED)
+		val review = HintMarkReview.of(session)
+
+		val first = HintPlan.of(review, session.nextHint(review.complete)!!) { a, b -> b in session.peersOf(a) }
+		assertTrue(first.eliminates)
+		assertNull(first.target)
+		assertEquals(Technique.POINTING, first.technique)
+		assertEquals(mapOf(HintFixtures.cell(4, 4) to (1 shl 9), HintFixtures.cell(5, 4) to (1 shl 9)), first.removals)
+
+		// The notes as the last press leaves them: the next hint is the step that really settles r1c8.
+		val afterFirst = without(review.complete, first.removals)
+		val second = HintPlan.of(review, session.nextHint(afterFirst)!!) { a, b -> b in session.peersOf(a) }
+		assertEquals(mapOf(HintFixtures.cell(1, 8) to (1 shl 2)), second.removals)
+
+		val third = HintPlan.of(review, session.nextHint(without(afterFirst, second.removals))!!) { a, b -> b in session.peersOf(a) }
+		assertEquals(HintFixtures.cell(1, 8), third.target)
+		assertEquals(Technique.NAKED_SINGLE, third.technique)
+		assertFalse(third.eliminates)
 	}
 
 	@Test
@@ -448,23 +507,40 @@ class HintFlowTest {
 
 	private fun mask(vararg digits: Int): Int = digits.fold(0) { mask, digit -> mask or (1 shl digit) }
 
-	/** A spread of boards, so the sweeps above meet the easy techniques as well as the eliminating ones. */
-	private fun boards(): List<GameSession> = listOf(Difficulty.ONE, Difficulty.THREE, Difficulty.FIVE, Difficulty.EIGHT)
-		.map { difficulty -> GameSession.generate(PuzzleKey.of(GridSize.NINE, Variant.CLASSIC, difficulty, 1L)) }
+	private fun without(notes: Map<Int, Int>, removals: Map<Int, Int>): Map<Int, Int> =
+		notes.mapValues { (cell, mask) -> mask and (removals[cell] ?: 0).inv() }
+
+	/** Fixed boards, so the sweeps above meet the easy techniques, the eliminating ones and the chains every run. */
+	private fun boards(): List<GameSession> = (HintFixtures.WALKED + HintFixtures.REPORTED).map(HintFixtures::session)
 
 	/**
-	 * Solves the board with the hint engine, handing every hint and the plan it would run to [check].
+	 * Solves the board one hint at a time, handing every hint's plan and the notes it was found on to [check].
 	 *
 	 * A whole solve rather than one position: the rules a hint's picture has to keep are about every hint the
-	 * engine can produce, and a board's first one is always the same trivial single.
+	 * engine can produce, and a board's first one is always the same trivial single. The notes start complete and
+	 * follow each step, as they do on a board where the player presses on through every hint.
 	 */
-	private fun playThrough(session: GameSession, check: (ExplainedHint, HintPlan) -> Unit) {
-		repeat(session.cellCount) {
-			val explained = session.explainHint() ?: return
-			val cell = explained.cellIndex()
-			val diagram = hintDiagramOf(explained.explanation(), cell) { first, second -> second in session.peersOf(first) }
-			check(explained, HintPlan(MarkReview.EMPTY, diagram))
-			session.setValue(cell, session.solutionAt(cell))
+	private fun playThrough(session: GameSession, check: (HintPlan, Map<Int, Int>) -> Unit) {
+		var notes = HintMarkReview.of(session).complete
+		// Every step removes a candidate or fills a cell, so the walk is bounded by the candidates on the board.
+		var steps = 0
+		while (!session.isSolved() && steps++ < session.cellCount * session.edgeLength) {
+			val explained = session.nextHint(notes)
+			assertNotNull("a hint on an unsolved board", explained)
+			explained!!
+			val plan = HintPlan.of(MarkReview.EMPTY, explained) { first, second -> second in session.peersOf(first) }
+			check(plan, notes)
+			when (val deduction = explained.deduction()) {
+				is Deduction.Placement -> {
+					val cell = deduction.cell()
+					assertEquals(session.solutionAt(cell), deduction.digit())
+					session.setValue(cell, deduction.digit())
+					val peers = session.peersOf(cell)
+					notes = (notes - cell).mapValues { (peer, mask) -> if (peer in peers) mask and (1 shl deduction.digit()).inv() else mask }
+				}
+				is Deduction.Eliminations -> notes = without(notes, plan.removals)
+			}
 		}
+		assertTrue("the walk ends on a solved board", session.isSolved())
 	}
 }

@@ -427,6 +427,8 @@
 	     buttons appear on the single-player and the co-op board, and in co-op on every player's. -->
 	<string name="action_hint_reveal">Reveal this cell</string>
 	<string name="action_hint_withdraw">Withdraw</string>
+	<!-- The last press of a hint whose step only crosses out candidates: it takes them off the notes. -->
+	<string name="action_hint_remove_notes">Remove these notes</string>
 
 	<!-- Game item 19: a hint is walked through in steps the player presses on through, and only the last
 	     press writes a digit. The same wording is used on the single-player, daily and co-op boards. -->
@@ -440,6 +442,9 @@
 	<!-- The same step for a technique the learn area does not teach, which has no name to print. Said as a
 	     sentence rather than by dropping a raw technique code into the other one. -->
 	<string name="hint_step_marks_unnamed">From these notes, one cell can be solved with a technique the learn area does not cover yet.</string>
+	<!-- The same step when the next thing the notes allow is an elimination rather than a solved cell. -->
+	<string name="hint_step_marks_eliminate">From these notes, %1$s can cross out candidates.</string>
+	<string name="hint_step_marks_eliminate_unnamed">From these notes, a technique the learn area does not cover yet can cross out candidates.</string>
 	<!-- The technique itself, drawn like the learn area draws it: one layer per press, with the key above the
 	     sentence. The digit is only named once the hint is spent. -->
 	<string name="hint_step_cells">The coloured cells are what %1$s is made of here. The key says which part each colour plays.</string>
@@ -447,6 +452,7 @@
 	<string name="hint_step_links">The lines join the candidates the argument runs through: along a solid line one of the two ends must be true, along a dashed line they cannot both be.</string>
 	<string name="hint_step_eliminations">So the crossed out candidates can go, and that makes the green cell solvable. The next press writes it in and spends the hint.</string>
 	<string name="hint_step_target_only">That makes the green cell solvable. The next press writes it in and spends the hint.</string>
+	<string name="hint_step_eliminations_only">So the crossed out candidates can go. The next press removes them from the notes and spends the hint.</string>
 
 	<!-- Multiplayer game screen. -->
 

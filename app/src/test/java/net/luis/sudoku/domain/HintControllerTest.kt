@@ -5,6 +5,7 @@ import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.grid.GridSize
 import net.luis.sudoku.grid.Variant
 import net.luis.sudoku.key.PuzzleKey
+import net.luis.sudoku.solver.Deduction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
@@ -125,6 +126,34 @@ class HintControllerTest {
 		controller.cancelPending()
 
 		assertNull(controller.confirmHint())
+		assertEquals(0, controller.used)
+	}
+
+	@Test
+	fun nextHint_onAStepThatOnlyEliminates_isConfirmedByRemovingNotesAndSpendsOneHint() {
+		val session = HintFixtures.session(HintFixtures.REPORTED)
+		val controller = HintController(session)
+
+		val explained = controller.nextHint(HintMarkReview.of(session).complete)!!
+
+		assertTrue(explained.deduction() is Deduction.Eliminations)
+		// Nothing to reveal and nothing to explain twice while it is pending.
+		assertNull(controller.confirmHint())
+		assertNull(controller.nextHint(HintMarkReview.of(session).complete))
+		assertEquals(explained.deduction(), controller.confirmRemovals())
+		assertEquals(1, controller.used)
+		assertNull(controller.confirmRemovals())
+	}
+
+	@Test
+	fun cancelPending_dropsAPendingEliminationWithoutSpendingIt() {
+		val session = HintFixtures.session(HintFixtures.REPORTED)
+		val controller = HintController(session)
+		controller.nextHint(HintMarkReview.of(session).complete)
+
+		controller.cancelPending()
+
+		assertNull(controller.confirmRemovals())
 		assertEquals(0, controller.used)
 	}
 }

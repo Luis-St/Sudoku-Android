@@ -31,7 +31,6 @@ import net.luis.sudoku.data.remote.match.stringOrNull
 import net.luis.sudoku.domain.ExplanationFrame
 import net.luis.sudoku.domain.HintMarkReview
 import net.luis.sudoku.domain.HintPlan
-import net.luis.sudoku.domain.hintDiagramOf
 import net.luis.sudoku.domain.HintStep
 import net.luis.sudoku.domain.InputMode
 import net.luis.sudoku.domain.MarkReview
@@ -236,7 +235,7 @@ class CoopViewModel @AssistedInject constructor(
 
 	/** The technique the run names, from the step that lays out the full candidate set onwards. */
 	val hintTechnique: Technique?
-		get() = this.hintTarget?.technique()
+		get() = this.hintPlan.technique
 			?.takeIf {
 				(this.hintStep?.ordinal ?: -1) >= HintStep.FULL_MARKS.ordinal
 			}
@@ -638,28 +637,54 @@ class CoopViewModel @AssistedInject constructor(
 			// puzzle - but it is not *offered* yet: every step before the last is about this player's own
 			// reading of the position, and the match only hears about the cell when the run reaches it.
 			// Issue 2.2.2/2: explained, so the run can walk the technique's pattern before it offers the cell.
-			val explained = this.session.explainHint() ?: return
-			this.hintTarget = explained.candidate()
-			// The notes come from the match, not from the cells - see [notes] and `HintMarkReview.of`.
-			val plan = HintPlan(
-				HintMarkReview.of(this.session, this.notes),
-				hintDiagramOf(explained.explanation(), explained.cellIndex()) { first, second ->
-					second in this@CoopViewModel.session.peersOf(first)
-				}
-			)
+			// The notes come from the match, not from the cells - see [notes] and `HintMarkReview.of`. The step is
+			// found on the set the run proposes, so its pattern is drawn on candidates that are on the board.
+			val review = HintMarkReview.of(this.session, this.notes)
+			val explained = this.session.nextHint(review.complete) ?: return
+			val plan = HintPlan.of(review, explained) { first, second ->
+				second in this@CoopViewModel.session.peersOf(first)
+			}
+			this.hintTarget = plan.target?.let { cell -> HintCandidate(cell, explained.deduction().technique()) }
 			this.hintPlan = plan
 			// Straight past the note steps when the group's notes are already right, as single-player does.
 			this.hintStep = HintStep.first(plan)
 			return
 		}
 
-		val next = step.next(this.hintPlan) ?: return
+		val next = step.next(this.hintPlan)
+		if (next == null) {
+			// Only a run that removes candidates gets here: a placement's last step has already put its cell up
+			// as the match's offer, which the press above reveals.
+			if (this.hintPlan.eliminates) applyHintRemovals()
+			return
+		}
 		this.hintStep = next
 		if (next.next(this.hintPlan) == null) {
 			// Now it becomes the match's: the offer goes out and comes back as a HINT frame, so every board
 			// marks the same cell, exactly as it did before this was stepped at all. Nothing is applied here.
 			val cell = this.hintTarget?.cellIndex() ?: return
 			this.viewModelScope.launch { this@CoopViewModel.socketClient.hint(cell) }
+		}
+	}
+
+	/**
+	 * The last press of a run whose step only removes candidates: the crossed out notes go out as ordinary note
+	 * frames, and the hint is charged to this player.
+	 *
+	 * No offer is put up first. An offer is a cell for the group to reveal, and this step has no cell; the notes
+	 * it removes are the group's anyway, which any player may change by hand.
+	 */
+	private fun applyHintRemovals() {
+		if (this.hintsRemaining <= 0) return
+		val removals = this.hintPlan.removals
+		this.hintsUsed++
+		clearHintRun()
+		for ((cell, mask) in removals) {
+			val noted = (this.notes[cell] ?: 0) and mask
+			for (digit in 1..this.edgeLength) {
+				if (noted shr digit and 1 == 0) continue
+				this.viewModelScope.launch { this@CoopViewModel.socketClient.note(cell, digit, add = false) }
+			}
 		}
 	}
 

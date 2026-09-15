@@ -143,7 +143,7 @@ class TechniqueDiagramCoverageTest {
 		for ((label, puzzle) in positions()) {
 			val target = puzzle.targetCell()
 			val answer = puzzle.targetDigit()
-			val plan = HintPlan(MarkReview.EMPTY, hintDiagramOf(puzzle.explanation(), target, ::isClassicPeer))
+			val plan = HintPlan(MarkReview.EMPTY, hintDiagramOf(puzzle.explanation(), target, ::isClassicPeer), target = target)
 			val cells = HintStep.PATTERN_CELLS.frameOf(plan)!!
 			val lines = HintStep.PATTERN_LINKS.frameOf(plan)!!
 			val eliminations = HintStep.ELIMINATIONS.frameOf(plan)!!
@@ -192,15 +192,20 @@ class TechniqueDiagramCoverageTest {
 			// With the notes complete the hint opens straight on its own steps, and the session can explain a hint.
 			val clean = HintMarkReview.of(session)
 			if (!clean.wrong.isEmpty()) failures += "$label: notes still wrong after the fill"
-			val explained = session.explainHint()
+			val explained = session.nextHint(clean.complete)
 			if (explained == null) {
 				failures += "$label: no hint on the position"
 				continue
 			}
-			val diagram = hintDiagramOf(explained.explanation(), explained.cellIndex()) { first, second -> second in session.peersOf(first) }
-			if (diagram.toneOf(explained.cellIndex()) != DiagramTone.TARGET) failures += "$label: live hint target is not green"
-			val digit = session.solutionAt(explained.cellIndex())
-			if ((diagram.struck[explained.cellIndex()] ?: 0) shr digit and 1 == 1) failures += "$label: live hint crosses out its answer"
+			val plan = HintPlan.of(clean, explained) { first, second -> second in session.peersOf(first) }
+			val frame = HintStep.ELIMINATIONS.frameOf(plan)!!
+			plan.target?.let { target ->
+				if (frame.toneOf(target) != DiagramTone.TARGET) failures += "$label: live hint target is not green"
+			}
+			for ((cell, mask) in frame.struck) {
+				if (mask shr session.solutionAt(cell) and 1 == 1) failures += "$label: live hint crosses out the answer of cell $cell"
+				if (mask and session.snapshot(cell).pencilMarks != mask) failures += "$label: live hint crosses out ${digits(mask)} in cell $cell, which is not noted"
+			}
 		}
 		report(failures)
 	}

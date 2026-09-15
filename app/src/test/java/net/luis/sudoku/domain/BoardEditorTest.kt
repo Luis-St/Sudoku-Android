@@ -228,4 +228,24 @@ class BoardEditorTest {
 		assertFalse(editor.fillAllCandidates(HintMarkReview.of(session).complete))
 		assertTrue(undoStack.canUndo)
 	}
+
+	@Test
+	fun removePencilMarks_takesOnlyThoseNotesOffAsOneUndoableMove() {
+		val session = session()
+		val undoStack = UndoStack()
+		val editor = BoardEditor(session, undoStack)
+		editor.fillAllCandidates(HintMarkReview.of(session).complete)
+		val index = firstEmptyNonGiven(session)
+		val marks = session.snapshot(index).pencilMarks
+		val digit = (1..session.edgeLength).first { marks shr it and 1 == 1 }
+
+		assertTrue(editor.removePencilMarks(mapOf(index to (1 shl digit))))
+
+		assertEquals(marks and (1 shl digit).inv(), session.snapshot(index).pencilMarks)
+		undoStack.undo(session)
+		assertEquals(marks, session.snapshot(index).pencilMarks)
+		// A note already gone changes nothing and pushes nothing.
+		undoStack.redo(session)
+		assertFalse(editor.removePencilMarks(mapOf(index to (1 shl digit))))
+	}
 }
