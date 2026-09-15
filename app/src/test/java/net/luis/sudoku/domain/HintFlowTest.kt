@@ -73,13 +73,26 @@ class HintFlowTest {
 	}
 
 	@Test
-	fun `a board without notes has nothing to review`() {
-		// A player who writes no marks has written nothing wrong. Reporting every unwritten note would make
-		// step one accuse almost every board in the game.
-		val review = HintMarkReview.of(session())
+	fun `a board without notes names every digit it is missing`() {
+		// The hint argues from the full candidate set, so a player with no notes is told which digits to
+		// look at first rather than having the fill land on the very first press.
+		val session = session()
+		val review = HintMarkReview.of(session)
 
-		assertTrue(review.clean)
-		assertTrue(review.digitsToReview.isEmpty())
+		assertFalse(review.clean)
+		assertTrue(review.wrong.isEmpty())
+		val cell = firstEmptyCell(session)
+		assertEquals(CandidateCalculator.legalDigits(session, cell), review.missing[cell])
+		assertTrue(legalDigit(session, cell) in review.digitsToReview)
+	}
+
+	@Test
+	fun `a board without notes starts on the review`() {
+		val plan = HintPlan(HintMarkReview.of(session()))
+
+		assertEquals(HintStep.REVIEW_MARKS, HintStep.first(plan))
+		assertEquals(HintStep.MARK_DIFF, HintStep.REVIEW_MARKS.next(plan))
+		assertEquals(HintStep.FULL_MARKS, HintStep.MARK_DIFF.next(plan))
 	}
 
 	@Test
@@ -224,7 +237,7 @@ class HintFlowTest {
 		val review = HintMarkReview.of(session)
 
 		assertEquals(review.missing[cell], review.stillUnnoted()[cell])
-		// A cell with no notes at all is not reviewed, but the fill still has everything to add to it.
+		// A cell with no notes at all is missing everything, and the fill has everything to add to it.
 		val untouched = (0 until session.cellCount).first { it != cell && session.snapshot(it).empty }
 		assertEquals(CandidateCalculator.legalDigits(session, untouched), review.stillUnnoted()[untouched])
 	}
@@ -248,9 +261,11 @@ class HintFlowTest {
 
 	@Test
 	fun `the note steps are skipped when there is nothing to correct`() {
-		// Nothing to review and nothing to draw, so the hint opens on the step that fills the notes in rather
+		// Notes already complete: nothing to review and nothing to draw, so the hint opens on the step that fills the notes in rather
 		// than spending two presses saying it has nothing to say.
-		val plan = HintPlan(HintMarkReview.of(session()))
+		val session = session()
+		BoardEditor(session, UndoStack()).fillAllCandidates(HintMarkReview.of(session).complete)
+		val plan = HintPlan(HintMarkReview.of(session))
 
 		assertTrue(plan.review.clean)
 		assertFalse(HintStep.REVIEW_MARKS.shows(plan))

@@ -139,10 +139,10 @@ fun hintDiagramOf(explanation: Explanation, target: Int, isPeer: (Int, Int) -> B
 /**
  * How the player's pencil marks compare to the candidates the board actually allows.
  *
- * Only cells the player has **annotated** are reviewed. An empty cell with no notes at all is not a mistake:
- * writing notes is optional, and treating every unwritten note as an error would report every board played
- * without notes as wrong in step one. [complete] is the exception and covers every empty cell, because that
- * is what step three fills in.
+ * Every empty cell is reviewed, annotated or not. A cell with no notes at all is missing every candidate it
+ * has, and step one says so by naming those digits: the hint argues from a complete candidate set, and a
+ * player who has written none is exactly the player who needs to be told which digits to go and look at
+ * before the fill writes them in. Skipping the review for them turned the first press into the fill itself.
  *
  * Item 5 of 2.2.0 narrowed what counts as a gap. A candidate a **technique** has already ruled out is not
  * missing from an annotated cell, it was *removed* from it, and the review says so by leaving it out of
@@ -150,8 +150,8 @@ fun hintDiagramOf(explanation: Explanation, target: Int, isPeer: (Int, Int) -> B
  * impossible note is still [wrong], and a cell the player never annotated is still filled with everything
  * the board allows, since there is no removal to respect in a cell nothing was removed from.
  *
- * @param missing cell index -> the candidates that survive every technique there but are not noted, for the
- *   cells that carry notes
+ * @param missing cell index -> the candidates that survive every technique there but are not noted, or every
+ *   legal candidate in a cell that carries no notes at all
  * @param wrong cell index -> the noted digits a peer already holds as a placed digit, so they cannot be right
  * @param complete cell index -> what the fill step should leave in the cell, for **all** empty cells: the
  *   player's own notes minus the impossible ones plus what is [missing], or simply every legal candidate in
@@ -229,7 +229,8 @@ object HintMarkReview {
 			val marks = if (notes != null) notes[index] ?: 0 else snapshot.pencilMarks
 			if (marks == 0) {
 				// Nothing was removed from a cell nothing was written in, so there is nothing to respect:
-				// the fill puts everything the board allows into it, exactly as it always has.
+				// everything the board allows is missing, and the fill puts all of it in.
+				if (legal != 0) missing[index] = legal
 				complete[index] = legal
 				continue
 			}

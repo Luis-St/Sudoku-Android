@@ -793,22 +793,16 @@ class GameViewModel @Inject constructor(
 			)
 			this.hintPlan = plan
 			// Straight past the note steps on a board whose notes are already right - see [HintStep.shows].
-			this.hintStep = HintStep.first(plan)
+			// A board with no notes at all is such a board, so the first step is often the fill itself, and
+			// it has to fill: skipping the review used to skip the fill with it, and the player was left to
+			// write every candidate by hand before the hint had anything to argue from.
+			enterHintStep(HintStep.first(plan))
 			return
 		}
 
 		val next = step.next(this.hintPlan)
 		if (next != null) {
-			// The one step that changes the board rather than only drawing on it. It is a real, undoable move:
-			// from here on the notes the next two steps argue from are the ones actually in the cells, so a
-			// player who reads the technique's name can check it against what they are looking at.
-			if (next == HintStep.FULL_MARKS) {
-				// Item 5 of 2.2.0: the review's own set, not a fresh legal-digit scan - it is what keeps a
-				// mark the player eliminated with a technique off the board.
-				this.editor.fillAllCandidates(this.hintReview.complete)
-				refresh()
-			}
-			this.hintStep = next
+			enterHintStep(next)
 			return
 		}
 
@@ -834,6 +828,23 @@ class GameViewModel @Inject constructor(
 		this.undoStack.push(Command(edits))
 		refresh()
 		checkForWin()
+	}
+
+	/**
+	 * Moves the running hint onto [step], however it got there - from the step before it or as the first one.
+	 *
+	 * [HintStep.FULL_MARKS] is the one step that changes the board rather than only drawing on it. It is a
+	 * real, undoable move: from here on the notes the later steps argue from are the ones actually in the
+	 * cells, so a player who reads the technique's name can check it against what they are looking at.
+	 */
+	private fun enterHintStep(step: HintStep) {
+		if (step == HintStep.FULL_MARKS) {
+			// Item 5 of 2.2.0: the review's own set, not a fresh legal-digit scan - it is what keeps a mark the
+			// player eliminated with a technique off the board.
+			this.editor.fillAllCandidates(this.hintReview.complete)
+			refresh()
+		}
+		this.hintStep = step
 	}
 
 	/**
