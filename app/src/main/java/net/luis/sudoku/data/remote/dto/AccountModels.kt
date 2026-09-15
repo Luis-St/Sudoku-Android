@@ -17,7 +17,18 @@ data class AccountResponse(
 	val displayName: String,
 	val role: String,
 	val email: String? = null,
-	val emailVerified: Boolean = false
+	val emailVerified: Boolean = false,
+	/**
+	 * Whether an operator has marked **this device** for a full resync (server-spec §7.3).
+	 *
+	 * Not a property of the account despite riding on an account endpoint: the column is on the device row
+	 * the session's key belongs to, so one player's phone can be told to start over while their tablet is
+	 * left alone. Nothing in either the app or the server writes it - it is raised and lowered by hand in
+	 * SQL - so a client may not treat having read it as having consumed it.
+	 *
+	 * Defaulted, like every added field: a server that predates it simply omits it, and this reads as false.
+	 */
+	val forceUpdate: Boolean = false
 )
 
 @Serializable

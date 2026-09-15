@@ -162,7 +162,7 @@ class SavedGameMigrationTest {
 		createVersion3Database()
 
 		val database = Room.databaseBuilder(RuntimeEnvironment.getApplication(), AppDatabase::class.java, this.name)
-			.addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+			.addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
 			.allowMainThreadQueries()
 			.build()
 
@@ -198,7 +198,7 @@ class SavedGameMigrationTest {
 		createVersion3Database()
 
 		val database = Room.databaseBuilder(RuntimeEnvironment.getApplication(), AppDatabase::class.java, this.name)
-			.addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+			.addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
 			.allowMainThreadQueries()
 			.build()
 

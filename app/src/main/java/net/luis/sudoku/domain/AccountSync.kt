@@ -4,12 +4,16 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import net.luis.sudoku.data.local.CurrencyStore
+import net.luis.sudoku.data.local.DailyResultQueueStore
 import net.luis.sudoku.data.local.DailyStore
 import net.luis.sudoku.data.local.LearnProgressStore
 import net.luis.sudoku.data.local.entity.LearnProgressEntity
 import net.luis.sudoku.data.local.ServerConfig
 import net.luis.sudoku.data.local.ServerConfigStore
+import net.luis.sudoku.data.local.ServerStatsStore
+import net.luis.sudoku.data.local.StatisticsStore
 import net.luis.sudoku.data.remote.ApiClient
+import net.luis.sudoku.data.remote.dto.AccountResponse
 import net.luis.sudoku.data.remote.dto.LearnProgressEntry
 import net.luis.sudoku.difficulty.Difficulty
 import java.time.LocalDate
@@ -41,10 +45,16 @@ import javax.inject.Singleton
  *   device has finished is offered, what the account holds is adopted, and a solve never loses to a
  *   partial: two devices may both work offline for as long as they like, so "the latest upload wins" would
  *   silently un-earn an achievement the player has already been shown.
- * - **Statistics** - deliberately *not* pulled. The per-tier aggregates are read straight from the server
+ * - **Statistics** - deliberately *not* merged. The per-tier aggregates are read straight from the server
  *   wherever they are shown (the stats screen, a player profile), and the local Room history is the record
  *   of games played *on this device*, which no server field can reconstruct. Writing one from the other
  *   would either invent rows or double the counters, which only ever increment.
+ *
+ * **The forced resync is the exception to all of it.** When an operator has marked this device in the
+ * database (server-spec §7.3), [forceUpdate] runs instead: the server's copy is taken outright, every rule
+ * above about which side wins is off, and nothing this device holds is offered first. It exists for the
+ * case those rules cannot reach - a device holding values the account does not have, which every merge here
+ * is built to protect rather than correct.
  *
  * **Silent and best-effort throughout**, like every other reconnect flush: an unreachable server leaves
  * every store exactly as it was, and the next beat tries again. Nothing here is worth an error dialog -
@@ -57,16 +67,21 @@ class AccountSync @Inject constructor(
 	private val currencyStore: CurrencyStore,
 	private val dailyStore: DailyStore,
 	private val streakPublisher: StreakPublisher,
-	private val learnProgressStore: LearnProgressStore
+	private val learnProgressStore: LearnProgressStore,
+	private val statisticsStore: StatisticsStore,
+	private val serverStatsStore: ServerStatsStore,
+	private val dailyResultQueueStore: DailyResultQueueStore
 ) {
 
 	private val mutex = Mutex()
 
 	/**
-	 * Reconciles every account-owned store, one part at a time.
+	 * Reconciles every account-owned store, one part at a time - or replaces all of them, when an operator
+	 * has asked for that.
 	 *
-	 * Each part is guarded separately: a server that answers the balance and then fails on the streak must
-	 * still leave the balance adopted, or a partial outage would mean nothing ever syncs at all.
+	 * Each part of the ordinary path is guarded separately: a server that answers the balance and then fails
+	 * on the streak must still leave the balance adopted, or a partial outage would mean nothing ever syncs
+	 * at all. [forceUpdate] is deliberately the opposite, and says why.
 	 */
 	suspend fun sync() {
 		this.mutex.withLock {
@@ -75,10 +90,130 @@ class AccountSync @Inject constructor(
 				return
 			}
 
+			// Asked first, because the answer decides which of the two syncs runs. An unreachable server
+			// answers nothing, which reads as "not asked" and leaves every store alone.
+			val account = readAccount(config)
+			if (account != null && account.forceUpdate && !config.forceUpdateApplied) {
+				forceUpdate(config, account)
+				return
+			}
+			if (account != null && !account.forceUpdate && config.forceUpdateApplied) {
+				// The operator has lowered the flag, which is what arms the next one.
+				this.serverConfigStore.setForceUpdateApplied(false)
+			}
+
 			syncCurrency(config)
 			syncDailyDifficulty(config)
 			syncStreak(config)
 			syncLearnProgress(config)
+		}
+	}
+
+	/**
+	 * The account as the server sees it right now, or null if it could not be asked.
+	 *
+	 * Read for one field: whether an operator has marked *this device* for a resync (server-spec §7.3).
+	 * Nothing is written from it here, deliberately - the email-verification state in particular is the
+	 * settings screen's, and half of it ("a code was sent and not yet used") is not something any endpoint
+	 * reports, so a sync that wrote it every half minute would take the player out of the middle of the
+	 * round-trip.
+	 *
+	 * **The flag is an edge, not a level**, and [ServerConfig.forceUpdateApplied] is what turns it into one.
+	 * Nothing in the app or the server ever lowers it - it is raised and lowered by hand in SQL - so it is
+	 * still standing after a client has acted on it. Acting on the level would mean overwriting every store
+	 * on every sync for as long as it stands, and a player whose device was being repaired could not keep
+	 * anything they earned in the meantime.
+	 */
+	private suspend fun readAccount(config: ServerConfig): AccountResponse? {
+		return try {
+			val baseUrl = config.serverUrl ?: return null
+			val token = config.sessionToken ?: return null
+			this.apiClient.currentAccount(baseUrl, token)
+		} catch (e: CancellationException) {
+			throw e
+		} catch (e: Exception) {
+			null
+		}
+	}
+
+	/**
+	 * Replaces every account-owned store on this device with the server's copy, then records that it has
+	 * been done.
+	 *
+	 * **Nothing is offered first.** That is the whole difference from [sync]: the ordinary path uploads what
+	 * this device holds before it reads, precisely so work done offline is not discarded, and here that
+	 * would push the wrong values straight back at the server the operator has just corrected. So the
+	 * queued daily results, the queued games and the undelivered difficulty choice are dropped rather than
+	 * sent, and the account's values are taken as they are - a smaller balance, a shorter streak, an
+	 * exercise that turns out to be unsolved.
+	 *
+	 * **All or nothing, unlike [sync].** Each part of the ordinary sync is guarded separately so a partial
+	 * outage still lets the rest through; a resync guarded that way would leave the device half repaired and
+	 * mark itself finished, and the operator would have no way to tell. So one failure abandons the whole
+	 * pass with [forceUpdateApplied][ServerConfig.forceUpdateApplied] unset, and the next beat tries again
+	 * from the top.
+	 *
+	 * What is *not* replaced is the local game history: it is the record of games played on this device,
+	 * which no server field can reconstruct. It is marked as already uploaded instead, so nothing in it is
+	 * ever offered to the server again - see [StatisticsStore.markAllUploaded].
+	 */
+	private suspend fun forceUpdate(config: ServerConfig, account: AccountResponse) {
+		try {
+			val baseUrl = config.serverUrl ?: return
+			val token = config.sessionToken ?: return
+			val today = today(config)
+
+			val balance = ForceUpdateRules.balance(this.apiClient.currencyBalance(baseUrl, token).balance)
+			val remoteStreak = this.apiClient.dailyStreak(baseUrl, token)
+			val remoteDifficulty = ForceUpdateRules.difficulty(
+				this.apiClient.dailyDifficultyPreference(baseUrl, token).dailyDifficulty
+			)
+			val remoteLearn = this.apiClient.learnProgress(baseUrl, token).entries
+			// The one call that needs the user id, and the one part that is skipped rather than refused when
+			// it is missing: a device signed in without one still has three other stores worth repairing.
+			val remoteStats = config.userId?.let { this.apiClient.playerStats(baseUrl, token, it) }.orEmpty()
+
+			// Every request has landed, so from here on it is only local writes.
+			this.serverConfigStore.setDisplayName(account.displayName)
+			this.serverConfigStore.setRole(account.role)
+			if (balance != null) {
+				this.currencyStore.adoptServerBalance(balance)
+			}
+
+			var record = ForceUpdateRules.adoptStreak(
+				this.dailyStore.current(),
+				remoteStreak.current,
+				remoteStreak.lastCompletedDate?.let(LocalDate::parse),
+				today,
+				remoteStreak.restorableMissedDays,
+				remoteStreak.restorableUntil?.let(LocalDate::parse)
+			)
+			if (remoteDifficulty != null) {
+				// The same rule a chosen difficulty follows, not an outright overwrite: the server's own
+				// contract is that a change takes effect from the next day (server-spec §8.1), so forcing it
+				// onto a daily the player is halfway through would hand them a different grid mid-solve.
+				record = AccountSyncRules.adoptDailyDifficulty(record, remoteDifficulty, today) ?: record
+			}
+			this.dailyStore.save(record)
+			// The queued daily results go, and only those. The solve order of an attempt still in progress is
+			// not an account value at all - it is the board the player has in front of them, and the server's
+			// verification replays it - so clearing it would quietly make a daily they are halfway through
+			// unverifiable when it is submitted.
+			this.dailyResultQueueStore.clear()
+
+			this.learnProgressStore.replaceAll(ForceUpdateRules.learnRows(remoteLearn, System.currentTimeMillis()))
+			this.serverStatsStore.replaceAll(ForceUpdateRules.statsRows(remoteStats))
+			this.statisticsStore.markAllUploaded()
+
+			// Nothing is left for this device to offer: the streak it holds is the server's own, and the
+			// difficulty it holds is what the server just reported.
+			this.serverConfigStore.markStreakPublished(record.streak)
+			this.serverConfigStore.clearPendingDailyDifficultyPush()
+			this.serverConfigStore.setForceUpdateApplied(true)
+		} catch (e: CancellationException) {
+			throw e
+		} catch (e: Exception) {
+			// Left half-applied at worst, and not marked done - see the doc comment. The next beat repeats it.
 		}
 	}
 

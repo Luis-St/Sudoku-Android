@@ -17,4 +17,7 @@ interface PendingDailyResultDao {
 
 	@Delete
 	suspend fun delete(entity: PendingDailyResultEntity)
+
+	@Query("DELETE FROM pending_daily_results")
+	suspend fun clear()
 }

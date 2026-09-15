@@ -10,11 +10,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import net.luis.sudoku.data.local.LearnProgressStore
 import net.luis.sudoku.data.local.ServerConfigStore
+import net.luis.sudoku.data.local.ServerStatsStore
 import net.luis.sudoku.data.local.Statistics
 import net.luis.sudoku.data.local.StatisticsStore
 import net.luis.sudoku.data.remote.ApiClient
 import net.luis.sudoku.data.remote.ApiException
 import net.luis.sudoku.data.remote.dto.StatsEntryResponse
+import net.luis.sudoku.domain.ForceUpdateRules
 import net.luis.sudoku.domain.LearnProgressRules
 import javax.inject.Inject
 
@@ -27,12 +29,18 @@ class StatsViewModel @Inject constructor(
 	private val statisticsStore: StatisticsStore,
 	private val apiClient: ApiClient,
 	private val serverConfigStore: ServerConfigStore,
-	private val learnProgressStore: LearnProgressStore
+	private val learnProgressStore: LearnProgressStore,
+	private val serverStatsStore: ServerStatsStore
 ) : ViewModel() {
 
 	var localStatistics by mutableStateOf<Statistics?>(null)
 		private set
 
+	/**
+	 * The account's totals by tier, live from the server where it answers and from the local mirror where it
+	 * does not - so a player who opens this screen without a connection still sees the numbers they saw last
+	 * time rather than a section that reads as "you have played nothing".
+	 */
 	var serverStatsByTier by mutableStateOf<List<StatsEntryResponse>>(emptyList())
 		private set
 
@@ -74,8 +82,13 @@ class StatsViewModel @Inject constructor(
 			val userId = config.userId
 			this@StatsViewModel.serverConnected = baseUrl != null && token != null && userId != null
 			if (baseUrl != null && token != null && userId != null) {
+				// What was mirrored last time, first: the section then has the account's totals on it while the
+				// request is in flight, and keeps them if the request never answers.
+				this@StatsViewModel.serverStatsByTier = this@StatsViewModel.serverStatsStore.current()
 				try {
-					this@StatsViewModel.serverStatsByTier = this@StatsViewModel.apiClient.playerStats(baseUrl, token, userId)
+					val fresh = this@StatsViewModel.apiClient.playerStats(baseUrl, token, userId)
+					this@StatsViewModel.serverStatsByTier = fresh
+					this@StatsViewModel.serverStatsStore.replaceAll(ForceUpdateRules.statsRows(fresh))
 				} catch (e: ApiException) {
 					// The server answered, and said no. That is worth showing: it is about this account rather
 					// than about the connection, and nothing else in the app is going to mention it.
@@ -90,7 +103,8 @@ class StatsViewModel @Inject constructor(
 					// is not answering (settings item 1) and it is already showing it.
 					//
 					// `serverConnected` deliberately stays true: there *is* a server, it just did not answer,
-					// and the note in its place is an instruction to go and connect one.
+					// and the note in its place is an instruction to go and connect one. What is drawn instead
+					// is the mirror read above, which is normally the same numbers one sync old.
 				}
 			}
 		}

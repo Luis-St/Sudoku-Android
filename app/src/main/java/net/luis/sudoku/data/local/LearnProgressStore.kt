@@ -122,6 +122,23 @@ class LearnProgressStore @Inject constructor(
 		}
 	}
 
+	/**
+	 * Replaces everything this device holds with what the account holds, which only a forced resync
+	 * (server-spec §7.3) may do.
+	 *
+	 * Every rule [merge] follows is deliberately absent. Nothing is kept because it is further along, and
+	 * the pending reset markers go too: a marker says "this device has a reset the server has not been told
+	 * about", and after a resync there is nothing outstanding to tell it. An exercise the account has not
+	 * solved therefore reads as unsolved again, which is the point - a device showing an achievement the
+	 * account never earned is exactly what this is called in to correct.
+	 */
+	suspend fun replaceAll(rows: List<LearnProgressEntity>) {
+		this.dao.clear()
+		if (rows.isNotEmpty()) {
+			this.dao.upsertAll(rows)
+		}
+	}
+
 	private fun group(rows: List<LearnProgressEntity>): List<TechniqueProgress> {
 		val byTechnique = rows.groupBy { it.technique }
 		return LearnTechniques.taught().map { technique ->

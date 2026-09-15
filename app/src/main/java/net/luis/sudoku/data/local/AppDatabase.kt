@@ -7,15 +7,17 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import net.luis.sudoku.data.local.dao.LearnProgressDao
 import net.luis.sudoku.data.local.dao.PendingDailyResultDao
 import net.luis.sudoku.data.local.dao.SavedGameDao
+import net.luis.sudoku.data.local.dao.ServerStatsDao
 import net.luis.sudoku.data.local.dao.StatisticsDao
 import net.luis.sudoku.data.local.entity.GameResultEntity
 import net.luis.sudoku.data.local.entity.LearnProgressEntity
 import net.luis.sudoku.data.local.entity.PendingDailyResultEntity
 import net.luis.sudoku.data.local.entity.SavedGameEntity
+import net.luis.sudoku.data.local.entity.ServerStatsEntity
 
 @Database(
-	entities = [SavedGameEntity::class, GameResultEntity::class, PendingDailyResultEntity::class, LearnProgressEntity::class],
-	version = 6,
+	entities = [SavedGameEntity::class, GameResultEntity::class, PendingDailyResultEntity::class, LearnProgressEntity::class, ServerStatsEntity::class],
+	version = 7,
 	exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -23,6 +25,7 @@ abstract class AppDatabase : RoomDatabase() {
 	abstract fun statisticsDao(): StatisticsDao
 	abstract fun pendingDailyResultDao(): PendingDailyResultDao
 	abstract fun learnProgressDao(): LearnProgressDao
+	abstract fun serverStatsDao(): ServerStatsDao
 }
 
 /**
@@ -116,6 +119,33 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
 				"updatedAt INTEGER NOT NULL, " +
 				"uploaded INTEGER NOT NULL DEFAULT 0, " +
 				"PRIMARY KEY(technique, level, subLevel))"
+		)
+	}
+}
+
+/**
+ * Adds the mirror of the server's per-tier statistics.
+ *
+ * Written out rather than left to destructive migration, like every version since 3 - not for this table's
+ * own sake, which is a cache the next sync refills, but for the three around it: `game_results`,
+ * `learn_progress` and `saved_games` are all irreplaceable and a destructive migration would take them
+ * with it. Created empty, which is honest - the device has not been told the account's totals yet.
+ */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+
+	override fun migrate(db: SupportSQLiteDatabase) {
+		db.execSQL(
+			"CREATE TABLE IF NOT EXISTS server_stats (" +
+				"size INTEGER NOT NULL, " +
+				"variant TEXT NOT NULL, " +
+				"difficulty INTEGER NOT NULL, " +
+				"gamesPlayed INTEGER NOT NULL, " +
+				"solved INTEGER NOT NULL, " +
+				"failed INTEGER NOT NULL, " +
+				"bestTimeMs INTEGER, " +
+				"averageTimeMs INTEGER, " +
+				"hintsUsed INTEGER NOT NULL, " +
+				"PRIMARY KEY(size, variant, difficulty))"
 		)
 	}
 }

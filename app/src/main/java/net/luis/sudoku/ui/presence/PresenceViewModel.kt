@@ -141,9 +141,12 @@ class PresenceViewModel @Inject constructor(
 					// flushes above landed.
 					//
 					// On its own throttle rather than every beat. A beat is five seconds and exists to say
-					// "still here", which costs one request; this costs three, and account state that is at
+					// "still here", which costs one request; this costs four, and account state that is at
 					// most half a minute stale is indistinguishable from live for anything the player looks
 					// at. The sign-in path syncs directly, so a freshly linked device never waits for this.
+					//
+					// This is also the interval a forced resync is picked up on (server-spec §7.3): the first
+					// of those four requests is the account read that carries the flag.
 					if (System.currentTimeMillis() - lastAccountSyncAt >= ACCOUNT_SYNC_INTERVAL_MS) {
 						lastAccountSyncAt = System.currentTimeMillis()
 						this.accountSync.sync()

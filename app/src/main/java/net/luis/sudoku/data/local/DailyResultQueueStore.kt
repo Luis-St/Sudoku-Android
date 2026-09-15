@@ -61,6 +61,17 @@ class DailyResultQueueStore @Inject constructor(private val dao: PendingDailyRes
 			if (submit(request)) this.dao.delete(entity)
 		}
 	}
+
+	/**
+	 * Throws the queue away unsubmitted, which only a forced resync (server-spec §7.3) may do.
+	 *
+	 * It is a real loss and it is meant to be: a queued result is a solve the server has not accepted, and
+	 * a resync exists to make the server's record of this account the only one. Submitting the backlog
+	 * first would put back exactly the days the operator is repairing.
+	 */
+	suspend fun clear() {
+		this.dao.clear()
+	}
 }
 
 /**
