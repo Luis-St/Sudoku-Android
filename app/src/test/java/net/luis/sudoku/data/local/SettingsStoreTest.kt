@@ -1,9 +1,12 @@
 package net.luis.sudoku.data.local
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import java.time.LocalDate
+import java.time.LocalTime
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -22,18 +25,56 @@ class SettingsStoreTest {
 
 	@Test
 	fun isDailyReminderEnabled_defaultsToFalse() = runBlocking {
-		assertFalse(newStore().isDailyReminderEnabled())
+		assertFalse(newStore().isReminderEnabled(ReminderKind.DAILY))
 	}
 
 	@Test
 	fun setDailyReminderEnabled_roundTrips() = runBlocking {
 		val store = newStore()
 
-		store.setDailyReminderEnabled(true)
-		assertTrue(store.isDailyReminderEnabled())
+		store.setReminderEnabled(ReminderKind.DAILY, true)
+		assertTrue(store.isReminderEnabled(ReminderKind.DAILY))
 
-		store.setDailyReminderEnabled(false)
-		assertFalse(store.isDailyReminderEnabled())
+		store.setReminderEnabled(ReminderKind.DAILY, false)
+		assertFalse(store.isReminderEnabled(ReminderKind.DAILY))
+	}
+
+	@Test
+	fun endOfDayReminder_isIndependentOfTheDailyOne() = runBlocking {
+		val store = newStore()
+		assertFalse(store.isReminderEnabled(ReminderKind.END_OF_DAY))
+
+		store.setReminderEnabled(ReminderKind.END_OF_DAY, true)
+		assertTrue(store.isReminderEnabled(ReminderKind.END_OF_DAY))
+		assertFalse(store.isReminderEnabled(ReminderKind.DAILY))
+	}
+
+	@Test
+	fun reminderTime_defaultsPerKind() = runBlocking {
+		val store = newStore()
+		assertEquals(LocalTime.of(9, 0), store.reminderTime(ReminderKind.DAILY))
+		assertEquals(LocalTime.of(20, 0), store.reminderTime(ReminderKind.END_OF_DAY))
+	}
+
+	@Test
+	fun setReminderTime_roundTripsPerKind() = runBlocking {
+		val store = newStore()
+		store.setReminderTime(ReminderKind.DAILY, LocalTime.of(7, 45))
+		store.setReminderTime(ReminderKind.END_OF_DAY, LocalTime.of(22, 5))
+
+		assertEquals(LocalTime.of(7, 45), store.reminderTime(ReminderKind.DAILY))
+		assertEquals(LocalTime.of(22, 5), store.reminderTime(ReminderKind.END_OF_DAY))
+		assertEquals(LocalTime.of(22, 5), store.current().endOfDayReminderTime)
+	}
+
+	@Test
+	fun lastReminderDate_isKeptPerKind() = runBlocking {
+		val store = newStore()
+		val day = LocalDate.of(2026, 9, 29)
+		store.setLastReminderDate(ReminderKind.DAILY, day)
+
+		assertEquals(day, store.lastReminderDate(ReminderKind.DAILY))
+		assertNull(store.lastReminderDate(ReminderKind.END_OF_DAY))
 	}
 
 	@Test

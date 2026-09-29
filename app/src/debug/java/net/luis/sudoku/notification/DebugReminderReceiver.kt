@@ -6,9 +6,10 @@ import android.content.Intent
 import android.util.Log
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import net.luis.sudoku.data.local.ReminderKind
 
 /**
- * Two ways to exercise the daily reminder without waiting for 09:00 or moving the device clock. Both are
+ * Two ways to exercise a daily reminder without waiting for 09:00 or moving the device clock. Both are
  * driven by `send-notifications.sh`, which carries the adb commands.
  *
  * - [ACTION_SHOW] posts the notification straight through [DailyReminderNotifier]. It proves what the
@@ -22,6 +23,9 @@ import androidx.work.WorkManager
  * the real worker early. It carries no schedule of its own; the alarm and the periodic backstop are untouched
  * by it, and the worker re-arms both on its way out as usual.
  *
+ * Both take an optional `DailyReminderReceiver.EXTRA_KIND` string extra naming the [ReminderKind];
+ * `send-notifications.sh -e` sends `END_OF_DAY`.
+ *
  * This is `src/debug` only, so no release build contains a receiver that posts notifications or runs workers
  * on request.
  */
@@ -29,16 +33,19 @@ class DebugReminderReceiver : BroadcastReceiver() {
 
 	override fun onReceive(context: Context, intent: Intent) {
 		val applicationContext = context.applicationContext
+		// Same extra as the real alarm carries; without one it is the daily reminder, as it always was.
+		val kind = intent.getStringExtra(DailyReminderReceiver.EXTRA_KIND)
+			?.let { name -> ReminderKind.entries.firstOrNull { it.name == name } } ?: ReminderKind.DAILY
 
 		when (intent.action) {
 			ACTION_SHOW -> {
-				Log.i(TAG, "Posting the daily reminder directly, bypassing every guard")
-				DailyReminderNotifier.show(applicationContext)
+				Log.i(TAG, "Posting the $kind reminder directly, bypassing every guard")
+				DailyReminderNotifier.show(applicationContext, kind)
 			}
 			ACTION_RUN -> {
-				Log.i(TAG, "Enqueueing DailyReminderWorker to run now")
+				Log.i(TAG, "Enqueueing DailyReminderWorker for $kind to run now")
 				WorkManager.getInstance(applicationContext)
-					.enqueue(OneTimeWorkRequestBuilder<DailyReminderWorker>().build())
+					.enqueue(OneTimeWorkRequestBuilder<DailyReminderWorker>().setInputData(DailyReminderWorker.inputFor(kind)).build())
 			}
 			else -> Log.w(TAG, "Ignoring unknown action ${intent.action}")
 		}

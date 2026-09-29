@@ -1,6 +1,7 @@
 package net.luis.sudoku.ui.settings
 
 import android.Manifest
+import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -11,10 +12,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,6 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import net.luis.sudoku.R
+import net.luis.sudoku.data.local.ReminderKind
 import net.luis.sudoku.data.local.ServerConfig
 import net.luis.sudoku.data.local.ThemeMode
 import net.luis.sudoku.difficulty.Difficulty
@@ -38,6 +44,9 @@ import net.luis.sudoku.ui.common.DropdownTrigger
 import net.luis.sudoku.ui.common.difficultyLabel
 import net.luis.sudoku.ui.common.OutlinedActionButton
 import net.luis.sudoku.ui.common.SectionCard
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /**
  * Everything configurable, in one place (UI item 7): appearance (language + light/dark), the gameplay
@@ -102,10 +111,21 @@ fun SettingsScreen(
 					color = MaterialTheme.colorScheme.onSurfaceVariant,
 					modifier = Modifier.padding(top = 6.dp)
 				)
-				DailyReminderSwitch(
+				ReminderSetting(
+					label = stringResource(R.string.daily_remind_me),
 					enabled = preferences.dailyReminderEnabled,
-					onChange = appViewModel::setDailyReminderEnabled,
+					time = preferences.dailyReminderTime,
+					onEnabledChange = { appViewModel.setReminderEnabled(ReminderKind.DAILY, it) },
+					onTimeChange = { appViewModel.setReminderTime(ReminderKind.DAILY, it) },
 					modifier = Modifier.padding(top = 8.dp)
+				)
+				ReminderSetting(
+					label = stringResource(R.string.settings_end_of_day_reminder),
+					enabled = preferences.endOfDayReminderEnabled,
+					time = preferences.endOfDayReminderTime,
+					onEnabledChange = { appViewModel.setReminderEnabled(ReminderKind.END_OF_DAY, it) },
+					onTimeChange = { appViewModel.setReminderTime(ReminderKind.END_OF_DAY, it) },
+					modifier = Modifier.padding(top = 4.dp)
 				)
 			}
 		}
@@ -318,31 +338,86 @@ private fun DailyDifficultyDropdown(
 }
 
 /**
- * The daily reminder opt-in (daily item 1, feature-spec §8.3.2). Where `POST_NOTIFICATIONS` exists it is
- * asked for at opt-in time, not on first launch, which is why the launcher lives next to the switch rather
- * than in the Activity. Below Android 13 there is no such permission and the switch simply takes effect,
- * which is what [NotificationPermission] decides.
+ * One reminder opt-in (daily item 1, feature-spec §8.3.2) and, while it is on, the time it fires at. Where
+ * `POST_NOTIFICATIONS` exists it is asked for at opt-in time, not on first launch, which is why the launcher
+ * lives next to the switch rather than in the Activity. Below Android 13 there is no such permission and the
+ * switch simply takes effect, which is what [NotificationPermission] decides.
+ *
+ * The time is hidden while the switch is off: a time for a notification that will not be sent is a setting
+ * that does nothing, and the stored one is kept for when it is switched back on.
  */
 @Composable
-private fun DailyReminderSwitch(enabled: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+private fun ReminderSetting(
+	label: String,
+	enabled: Boolean,
+	time: LocalTime,
+	onEnabledChange: (Boolean) -> Unit,
+	onTimeChange: (LocalTime) -> Unit,
+	modifier: Modifier = Modifier
+) {
 	val context = LocalContext.current
 	val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-		if (granted) onChange(true)
+		if (granted) onEnabledChange(true)
+	}
+	var picking by remember { mutableStateOf(false) }
+	// The device's own 12/24 hour choice rather than the locale's, so the setting reads the way the status bar
+	// clock does.
+	val is24Hour = DateFormat.is24HourFormat(context)
+
+	Column(modifier = modifier.fillMaxWidth()) {
+		SettingSwitch(
+			label = label,
+			checked = enabled,
+			onCheckedChange = { enable ->
+				when {
+					!enable -> onEnabledChange(false)
+					NotificationPermission.isGranted(context) -> onEnabledChange(true)
+					else -> permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+				}
+			}
+		)
+		if (enabled) {
+			OutlinedActionButton(
+				text = stringResource(R.string.settings_reminder_time, formatTime(time, is24Hour)),
+				onClick = { picking = true },
+				modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)
+			)
+		}
 	}
 
-	SettingSwitch(
-		label = stringResource(R.string.daily_remind_me),
-		checked = enabled,
-		onCheckedChange = { enable ->
-			when {
-				!enable -> onChange(false)
-				NotificationPermission.isGranted(context) -> onChange(true)
-				else -> permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+	if (picking) {
+		ReminderTimeDialog(
+			initial = time,
+			is24Hour = is24Hour,
+			onDismiss = { picking = false },
+			onConfirm = {
+				picking = false
+				onTimeChange(it)
+			}
+		)
+	}
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReminderTimeDialog(initial: LocalTime, is24Hour: Boolean, onDismiss: () -> Unit, onConfirm: (LocalTime) -> Unit) {
+	val state = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = is24Hour)
+
+	AlertDialog(
+		onDismissRequest = onDismiss,
+		title = { Text(stringResource(R.string.settings_reminder_time_dialog_title)) },
+		text = { TimePicker(state = state) },
+		confirmButton = {
+			TextButton(onClick = { onConfirm(LocalTime.of(state.hour, state.minute)) }) {
+				Text(stringResource(R.string.action_ok))
 			}
 		},
-		modifier = modifier
+		dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } }
 	)
 }
+
+private fun formatTime(time: LocalTime, is24Hour: Boolean): String =
+	time.format(DateTimeFormatter.ofPattern(if (is24Hour) "HH:mm" else "h:mm a", Locale.getDefault()))
 
 @Composable
 private fun <T> LabelledDropdown(

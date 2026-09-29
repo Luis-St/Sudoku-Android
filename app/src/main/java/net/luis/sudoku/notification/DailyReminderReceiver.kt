@@ -6,6 +6,7 @@ import android.content.Intent
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import net.luis.sudoku.data.local.ReminderKind
 
 /**
  * Every trigger that is not the periodic backstop lands here: the alarm armed by [DailyReminderScheduler],
@@ -33,16 +34,33 @@ import androidx.work.WorkManager
  */
 class DailyReminderReceiver : BroadcastReceiver() {
 
+	/**
+	 * An alarm names its [ReminderKind]; a system broadcast names none and runs every kind, because it may
+	 * have dropped the alarms of both. A kind that is switched off cancels itself inside the worker.
+	 */
 	override fun onReceive(context: Context, intent: Intent) {
-		WorkManager.getInstance(context.applicationContext).enqueueUniqueWork(
-			RUN_NAME,
-			ExistingWorkPolicy.KEEP,
-			OneTimeWorkRequestBuilder<DailyReminderWorker>().build()
-		)
+		val kinds = intent.getStringExtra(EXTRA_KIND)
+			?.let { name -> ReminderKind.entries.firstOrNull { it.name == name } }
+			?.let(::listOf)
+			?: ReminderKind.entries
+
+		val workManager = WorkManager.getInstance(context.applicationContext)
+		for (kind in kinds) {
+			workManager.enqueueUniqueWork(
+				runName(kind),
+				ExistingWorkPolicy.KEEP,
+				OneTimeWorkRequestBuilder<DailyReminderWorker>().setInputData(DailyReminderWorker.inputFor(kind)).build()
+			)
+		}
 	}
 
-	private companion object {
+	companion object {
 
-		const val RUN_NAME = "daily_reminder_run"
+		const val EXTRA_KIND = "net.luis.sudoku.extra.REMINDER_KIND"
+
+		private fun runName(kind: ReminderKind): String = when (kind) {
+			ReminderKind.DAILY -> "daily_reminder_run"
+			ReminderKind.END_OF_DAY -> "daily_end_of_day_reminder_run"
+		}
 	}
 }

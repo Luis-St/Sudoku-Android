@@ -20,6 +20,9 @@
 	<string name="daily_streak">Serie: %1$d</string>
 	<string name="daily_difficulty_button">Schwierigkeit</string>
 	<string name="daily_remind_me">Täglich erinnern</string>
+	<string name="settings_reminder_time">Um %1$s</string>
+	<string name="settings_end_of_day_reminder">Abends erinnern, wenn das Tagesrätsel noch offen ist</string>
+	<string name="settings_reminder_time_dialog_title">Uhrzeit der Erinnerung</string>
 	<string name="daily_locked_message">Das heutige Tagesrätsel ist gelöst. Komm morgen wieder!</string>
 	<string name="dialog_start_new_puzzle">Neues Rätsel starten</string>
 	<string name="dialog_overwrites_saved_game">Dies überschreibt deinen gespeicherten Spielstand.</string>
@@ -426,6 +429,9 @@
 	<string name="notification_channel_daily">Erinnerung an das tägliche Rätsel</string>
 	<string name="notification_daily_ready_title">Das heutige Rätsel ist bereit</string>
 	<string name="notification_daily_ready_text">Halte deine Serie am Laufen.</string>
+	<string name="notification_channel_end_of_day">Erinnerung an ein offenes Tagesrätsel</string>
+	<string name="notification_end_of_day_title">Das heutige Rätsel ist noch offen</string>
+	<string name="notification_end_of_day_text">Noch ist Zeit, deine Serie zu halten.</string>
 
 	<string name="puzzle_loading_title">Dein Rätsel wird vorbereitet</string>
 	<string name="puzzle_loading_from_server">Ein frisches Gitter wird vom Server geladen.</string>

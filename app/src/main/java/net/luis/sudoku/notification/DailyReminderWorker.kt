@@ -3,18 +3,22 @@ package net.luis.sudoku.notification
 import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
+import androidx.work.Data
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.time.LocalDate
 import java.time.LocalDateTime
 import net.luis.sudoku.data.local.DailyStore
+import net.luis.sudoku.data.local.ReminderKind
 import net.luis.sudoku.data.local.SettingsStore
 
 /**
  * Fires the opt-in local reminder (feature-spec §8.3.2) - never a server push, so it works whether or
  * not a server is even configured. The notification itself is [DailyReminderNotifier]'s; this class decides
- * whether today deserves one and re-arms the next.
+ * whether today deserves one and re-arms the next. One worker class serves both [ReminderKind]s; the kind
+ * travels in the input data and decides the time, the bookkeeping and the text, never the rule.
  *
  * It runs from two triggers, the alarm and the periodic backstop - [DailyReminderScheduler] carries why there
  * are two - and from neither of them can it assume it is 09:00.
@@ -36,37 +40,53 @@ class DailyReminderWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, params) {
 
 	override suspend fun doWork(): Result {
+		val kind = kindOf(this.inputData)
+
 		// Switched off since this run was queued. Cancel rather than merely returning: this is periodic work,
 		// so leaving it alone would keep firing it once a day forever, and the alarm would keep re-arming.
-		if (!this.settingsStore.isDailyReminderEnabled()) {
-			this.scheduler.cancel()
+		if (!this.settingsStore.isReminderEnabled(kind)) {
+			this.scheduler.cancel(kind)
 			return Result.success()
 		}
 
 		val daily = this.dailyStore.current()
 		val outcome = DailyReminderDecision.decide(
 			now = LocalDateTime.now(),
-			reminderTime = DailyReminderScheduler.DEFAULT_TIME,
-			lastReminded = this.settingsStore.lastReminderDate(),
+			reminderTime = this.settingsStore.reminderTime(kind),
+			lastReminded = this.settingsStore.lastReminderDate(kind),
 			dailyDate = daily.date,
 			dailySolved = daily.solved
 		)
 
 		if (outcome == DailyReminderDecision.Outcome.NOTIFY) {
-			DailyReminderNotifier.show(this.applicationContext)
+			DailyReminderNotifier.show(this.applicationContext, kind)
 		}
 		// Marked on every outcome except too-early, not only on the one that posted. The mark is what tells
 		// the re-arm that today is dealt with; leaving it unset after a day that was deliberately skipped -
 		// the daily was already solved - would leave today looking owed forever and the catch-up trigger
 		// would fire again immediately, over and over.
 		if (outcome != DailyReminderDecision.Outcome.TOO_EARLY) {
-			this.settingsStore.setLastReminderDate(LocalDate.now())
+			this.settingsStore.setLastReminderDate(kind, LocalDate.now())
 		}
 
 		// Re-state the next run time, including on the paths that posted nothing, so the next reminder is
 		// pinned to the clock rather than to 24 hours after whenever this run happened to be let through.
 		// This is also what extends the alarm chain (see the scheduler).
-		this.scheduler.schedule()
+		this.scheduler.schedule(kind)
 		return Result.success()
+	}
+
+	companion object {
+
+		private const val KEY_KIND = "reminder_kind"
+
+		fun inputFor(kind: ReminderKind): Data = workDataOf(KEY_KIND to kind.name)
+
+		/**
+		 * A request without a kind is the daily one: that is what every request the previous version enqueued
+		 * looks like, and those are still in WorkManager's database until the next re-arm replaces them.
+		 */
+		fun kindOf(data: Data): ReminderKind =
+			data.getString(KEY_KIND)?.let { name -> ReminderKind.entries.firstOrNull { it.name == name } } ?: ReminderKind.DAILY
 	}
 }

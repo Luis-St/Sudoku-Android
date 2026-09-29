@@ -4,12 +4,14 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
+import java.time.LocalTime
 import javax.inject.Inject
 import javax.inject.Qualifier
 
@@ -31,8 +33,27 @@ enum class ThemeMode {
 	}
 }
 
+/**
+ * The two opt-in daily notifications (feature-spec §8.3.2). They are independent of each other: each has its
+ * own switch, its own time and its own "last resolved" day, so either can be on alone.
+ *
+ * - [DAILY] says today's daily is ready.
+ * - [END_OF_DAY] is the late one, and only says anything if today's daily is still not solved by its time.
+ *
+ * Both stay quiet on a day whose daily is already solved - the morning one because telling a player who has
+ * played that the puzzle is waiting is noise - so the difference between them is the time and the wording,
+ * not the rule.
+ */
+enum class ReminderKind(val defaultTime: LocalTime) {
+	DAILY(LocalTime.of(9, 0)),
+	END_OF_DAY(LocalTime.of(20, 0))
+}
+
 data class PreferenceSettings(
 	val dailyReminderEnabled: Boolean,
+	val dailyReminderTime: LocalTime,
+	val endOfDayReminderEnabled: Boolean,
+	val endOfDayReminderTime: LocalTime,
 	val autoCandidateMode: Boolean,
 	val hexDisplay: Boolean,
 	val soundEnabled: Boolean,
@@ -69,6 +90,9 @@ data class PreferenceSettings(
 	companion object {
 		val DEFAULT = PreferenceSettings(
 			dailyReminderEnabled = false,
+			dailyReminderTime = ReminderKind.DAILY.defaultTime,
+			endOfDayReminderEnabled = false,
+			endOfDayReminderTime = ReminderKind.END_OF_DAY.defaultTime,
 			autoCandidateMode = false, // default off (§5.6), and forced off under Lisa regardless (§4.3)
 			hexDisplay = false,
 			soundEnabled = true,
@@ -88,6 +112,9 @@ class SettingsStore @Inject constructor(@SettingsDataStore private val dataStore
 	val settings: Flow<PreferenceSettings> = this.dataStore.data.map { prefs ->
 		PreferenceSettings(
 			dailyReminderEnabled = prefs[DAILY_REMINDER_ENABLED] ?: PreferenceSettings.DEFAULT.dailyReminderEnabled,
+			dailyReminderTime = timeOf(prefs[DAILY_REMINDER_TIME], ReminderKind.DAILY),
+			endOfDayReminderEnabled = prefs[END_OF_DAY_REMINDER_ENABLED] ?: PreferenceSettings.DEFAULT.endOfDayReminderEnabled,
+			endOfDayReminderTime = timeOf(prefs[END_OF_DAY_REMINDER_TIME], ReminderKind.END_OF_DAY),
 			autoCandidateMode = prefs[AUTO_CANDIDATE_MODE] ?: PreferenceSettings.DEFAULT.autoCandidateMode,
 			hexDisplay = prefs[HEX_DISPLAY] ?: PreferenceSettings.DEFAULT.hexDisplay,
 			soundEnabled = prefs[SOUND_ENABLED] ?: PreferenceSettings.DEFAULT.soundEnabled,
@@ -104,16 +131,30 @@ class SettingsStore @Inject constructor(@SettingsDataStore private val dataStore
 
 	suspend fun current(): PreferenceSettings = this.settings.first()
 
-	suspend fun isDailyReminderEnabled(): Boolean = this.current().dailyReminderEnabled
+	suspend fun isReminderEnabled(kind: ReminderKind): Boolean = when (kind) {
+		ReminderKind.DAILY -> this.current().dailyReminderEnabled
+		ReminderKind.END_OF_DAY -> this.current().endOfDayReminderEnabled
+	}
 
-	suspend fun setDailyReminderEnabled(enabled: Boolean) {
-		this.dataStore.edit { it[DAILY_REMINDER_ENABLED] = enabled }
+	suspend fun setReminderEnabled(kind: ReminderKind, enabled: Boolean) {
+		this.dataStore.edit { it[enabledKey(kind)] = enabled }
+	}
+
+	suspend fun reminderTime(kind: ReminderKind): LocalTime = when (kind) {
+		ReminderKind.DAILY -> this.current().dailyReminderTime
+		ReminderKind.END_OF_DAY -> this.current().endOfDayReminderTime
+	}
+
+	/** Stored as minutes past midnight: a reminder has no use for seconds, and an int needs no parsing. */
+	suspend fun setReminderTime(kind: ReminderKind, time: LocalTime) {
+		this.dataStore.edit { it[timeKey(kind)] = time.hour * 60 + time.minute }
 	}
 
 	/**
-	 * The last day a reminder run *resolved*, or `null` if none ever has. That is the day it posted a
+	 * The last day a run of [kind] *resolved*, or `null` if none ever has. That is the day it posted a
 	 * reminder, or decided today needed none because the daily was already solved - both settle the day; only
-	 * a run that landed before the reminder time leaves it unset.
+	 * a run that landed before the reminder time leaves it unset. Each kind keeps its own, so the morning
+	 * reminder having fired says nothing about whether the evening one still has to.
 	 *
 	 * Bookkeeping rather than a preference, so it stays out of [PreferenceSettings] - nothing on the settings
 	 * screen shows it. It does two jobs. It stops a catch-up run posting a second reminder for a day that
@@ -123,11 +164,11 @@ class SettingsStore @Inject constructor(@SettingsDataStore private val dataStore
 	 * [DailyReminderSchedule][net.luis.sudoku.notification.DailyReminderSchedule] tells a day that is still
 	 * owed from one that is done, which is what stops a re-arm silently skipping a day.
 	 */
-	suspend fun lastReminderDate(): LocalDate? =
-		this.dataStore.data.first()[LAST_REMINDER_DATE]?.let(LocalDate::parse)
+	suspend fun lastReminderDate(kind: ReminderKind): LocalDate? =
+		this.dataStore.data.first()[lastDateKey(kind)]?.let(LocalDate::parse)
 
-	suspend fun setLastReminderDate(date: LocalDate) {
-		this.dataStore.edit { it[LAST_REMINDER_DATE] = date.toString() }
+	suspend fun setLastReminderDate(kind: ReminderKind, date: LocalDate) {
+		this.dataStore.edit { it[lastDateKey(kind)] = date.toString() }
 	}
 
 	suspend fun setAutoCandidateMode(enabled: Boolean) {
@@ -180,7 +221,13 @@ class SettingsStore @Inject constructor(@SettingsDataStore private val dataStore
 	}
 
 	private companion object {
+		// The daily reminder's keys predate the second reminder and keep their names, so an existing opt-in
+		// and its "already reminded today" mark survive the update.
 		val DAILY_REMINDER_ENABLED = booleanPreferencesKey("daily_reminder_enabled")
+		val DAILY_REMINDER_TIME = intPreferencesKey("daily_reminder_time")
+		val END_OF_DAY_REMINDER_ENABLED = booleanPreferencesKey("end_of_day_reminder_enabled")
+		val END_OF_DAY_REMINDER_TIME = intPreferencesKey("end_of_day_reminder_time")
+		val LAST_END_OF_DAY_REMINDER_DATE = stringPreferencesKey("last_end_of_day_reminder_date")
 		val AUTO_CANDIDATE_MODE = booleanPreferencesKey("auto_candidate_mode")
 		val HEX_DISPLAY = booleanPreferencesKey("hex_display")
 		val SOUND_ENABLED = booleanPreferencesKey("sound_enabled")
@@ -191,5 +238,24 @@ class SettingsStore @Inject constructor(@SettingsDataStore private val dataStore
 		val BETA_EVERY_OCCURRENCE_PEERS = booleanPreferencesKey("beta_every_occurrence_peers")
 		val LAST_REMINDER_DATE = stringPreferencesKey("last_reminder_date")
 		val LEARN_BRIEF_SKIPPED = stringSetPreferencesKey("learn_brief_skipped_levels")
+
+		fun enabledKey(kind: ReminderKind) = when (kind) {
+			ReminderKind.DAILY -> DAILY_REMINDER_ENABLED
+			ReminderKind.END_OF_DAY -> END_OF_DAY_REMINDER_ENABLED
+		}
+
+		fun timeKey(kind: ReminderKind) = when (kind) {
+			ReminderKind.DAILY -> DAILY_REMINDER_TIME
+			ReminderKind.END_OF_DAY -> END_OF_DAY_REMINDER_TIME
+		}
+
+		fun lastDateKey(kind: ReminderKind) = when (kind) {
+			ReminderKind.DAILY -> LAST_REMINDER_DATE
+			ReminderKind.END_OF_DAY -> LAST_END_OF_DAY_REMINDER_DATE
+		}
+
+		/** Anything outside one day's minutes falls back to the default rather than failing the whole read. */
+		fun timeOf(minutes: Int?, kind: ReminderKind): LocalTime =
+			minutes?.takeIf { it in 0 until 24 * 60 }?.let { LocalTime.of(it / 60, it % 60) } ?: kind.defaultTime
 	}
 }

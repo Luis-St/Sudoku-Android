@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import net.luis.sudoku.data.local.DailyStore
 import net.luis.sudoku.data.local.PreferenceSettings
+import net.luis.sudoku.data.local.ReminderKind
 import net.luis.sudoku.data.local.ServerConfig
 import net.luis.sudoku.data.local.ServerConfigStore
 import net.luis.sudoku.data.local.SettingsStore
@@ -23,6 +24,7 @@ import net.luis.sudoku.difficulty.Difficulty
 import net.luis.sudoku.domain.DailyController
 import net.luis.sudoku.notification.DailyReminderScheduler
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import javax.inject.Inject
 
@@ -121,11 +123,7 @@ class AppViewModel @Inject constructor(
 		// strictly after now", so opening the app at 10:00 on a day whose reminder was still pending pushed
 		// that pending run to tomorrow and the day was lost. `DailyReminderSchedule` now fires a day that is
 		// still owed instead of skipping it.
-		this.viewModelScope.launch {
-			if (this@AppViewModel.settingsStore.isDailyReminderEnabled()) {
-				this@AppViewModel.reminderScheduler.schedule()
-			}
-		}
+		this.viewModelScope.launch { this@AppViewModel.reminderScheduler.scheduleEnabled() }
 	}
 
 	/**
@@ -214,13 +212,21 @@ class AppViewModel @Inject constructor(
 	 * `POST_NOTIFICATIONS` runtime permission is still the caller's job (it needs an Activity) - call this
 	 * only once it is granted, or with `false`, which needs no permission to cancel.
 	 */
-	fun setDailyReminderEnabled(enabled: Boolean) {
+	fun setReminderEnabled(kind: ReminderKind, enabled: Boolean) {
 		this.viewModelScope.launch {
-			this@AppViewModel.settingsStore.setDailyReminderEnabled(enabled)
+			this@AppViewModel.settingsStore.setReminderEnabled(kind, enabled)
 			// After the write, not before: arming reads whether today has already been resolved, and it is
 			// the store that answers that.
-			if (enabled) this@AppViewModel.reminderScheduler.schedule()
-			else this@AppViewModel.reminderScheduler.cancel()
+			if (enabled) this@AppViewModel.reminderScheduler.rearm(kind)
+			else this@AppViewModel.reminderScheduler.cancel(kind)
+		}
+	}
+
+	/** Moves [kind] to a new time of day, and re-arms it there if it is switched on. */
+	fun setReminderTime(kind: ReminderKind, time: LocalTime) {
+		this.viewModelScope.launch {
+			this@AppViewModel.settingsStore.setReminderTime(kind, time)
+			if (this@AppViewModel.settingsStore.isReminderEnabled(kind)) this@AppViewModel.reminderScheduler.rearm(kind)
 		}
 	}
 

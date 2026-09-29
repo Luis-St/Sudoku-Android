@@ -78,6 +78,9 @@
 	<string name="daily_streak">Streak: %1$d</string>
 	<string name="daily_difficulty_button">Difficulty</string>
 	<string name="daily_remind_me">Remind me daily</string>
+	<string name="settings_reminder_time">At %1$s</string>
+	<string name="settings_end_of_day_reminder">Remind me in the evening if the daily is still open</string>
+	<string name="settings_reminder_time_dialog_title">Reminder time</string>
 	<string name="daily_locked_message">Today\'s daily is solved. Come back tomorrow!</string>
 	<string name="dialog_start_new_puzzle">Start a new puzzle</string>
 	<string name="dialog_overwrites_saved_game">This overwrites your saved game.</string>
@@ -470,6 +473,10 @@
 	<string name="notification_channel_daily">Daily puzzle reminder</string>
 	<string name="notification_daily_ready_title">Today\'s daily is ready</string>
 	<string name="notification_daily_ready_text">Keep your streak going.</string>
+	<!-- The end of day reminder, sent only while today's daily is still unsolved. -->
+	<string name="notification_channel_end_of_day">Unfinished daily puzzle reminder</string>
+	<string name="notification_end_of_day_title">Today\'s daily is still open</string>
+	<string name="notification_end_of_day_text">There is still time to keep your streak going.</string>
 
 	<!-- Puzzle loading (job 3): the wait before a board, which is worth explaining when the device is
 	     generating the puzzle itself. No dashes in player-facing copy, and never a raw code or tier index. -->

@@ -12,7 +12,8 @@
 #   ./send-notifications.sh jobs      the raw system job behind that schedule
 #   ./send-notifications.sh logs      follow the reminder's log output
 #
-# Every command runs against all connected devices unless -s is given.
+# Every command runs against all connected devices unless -s is given. `send` and `run` act on the morning
+# reminder unless -e is given, which picks the end of day one instead.
 
 set -euo pipefail
 
@@ -68,7 +69,7 @@ check_installed() {
 cmd_send() {
 	local serial="$1"
 	adb -s "${serial}" shell am broadcast \
-		-a "${SHOW_ACTION}" \
+		-a "${SHOW_ACTION}" "${KIND_EXTRA[@]}" \
 		-p "${PACKAGE}" \
 		--include-stopped-packages > /dev/null
 	echo "  Reminder broadcast sent."
@@ -107,7 +108,7 @@ wake_workmanager() {
 cmd_run() {
 	local serial="$1"
 	adb -s "${serial}" shell am broadcast \
-		-a "${RUN_ACTION}" \
+		-a "${RUN_ACTION}" "${KIND_EXTRA[@]}" \
 		-p "${PACKAGE}" \
 		--include-stopped-packages > /dev/null
 	echo "  Worker enqueued. './send-notifications.sh logs' shows what it decided."
@@ -171,10 +172,13 @@ cmd_logs() {
 
 SERIAL=""
 COMMAND=""
+# Passed to the debug receiver as the reminder kind; empty means the receiver's default, the daily one.
+KIND_EXTRA=()
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 		-s) SERIAL="${2:-}"; shift 2 ;;
+		-e) KIND_EXTRA=(--es net.luis.sudoku.extra.REMINDER_KIND END_OF_DAY); shift ;;
 		-h|--help|help) usage 0 ;;
 		send|run|status|jobs|logs) COMMAND="$1"; shift ;;
 		*) echo "Unknown argument: $1" >&2; usage 1 ;;

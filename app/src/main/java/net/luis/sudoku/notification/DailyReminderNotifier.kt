@@ -8,9 +8,10 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import net.luis.sudoku.MainActivity
 import net.luis.sudoku.R
+import net.luis.sudoku.data.local.ReminderKind
 
 /**
- * Builds and posts the daily reminder (feature-spec §8.3.2).
+ * Builds and posts the daily reminders (feature-spec §8.3.2), the morning one and the end of day one.
  *
  * Split out of [DailyReminderWorker] so that *what the notification is* is separate from *when it fires*.
  * The worker is the only caller in a release build; the debug build adds a broadcast receiver that posts
@@ -21,6 +22,13 @@ object DailyReminderNotifier {
 
 	const val CHANNEL_ID = "daily_reminder"
 
+	const val END_OF_DAY_CHANNEL_ID = "daily_end_of_day_reminder"
+
+	/**
+	 * Shared by both kinds on purpose: the evening reminder *replaces* a morning one the player never
+	 * dismissed, instead of stacking a second notice about the same puzzle under it. The channels stay
+	 * separate so either can be silenced in the system settings on its own.
+	 */
 	const val NOTIFICATION_ID = 1
 
 	/**
@@ -29,8 +37,8 @@ object DailyReminderNotifier {
 	 * Notification channels need no version guard - they have existed since API 26, well below minSdk. The
 	 * permission does: see [NotificationPermission], which is what makes this work below Android 13.
 	 */
-	fun show(context: Context) {
-		createChannel(context)
+	fun show(context: Context, kind: ReminderKind) {
+		createChannels(context)
 
 		if (!NotificationPermission.isGranted(context)) return
 
@@ -40,10 +48,14 @@ object DailyReminderNotifier {
 			android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT
 		)
 
-		val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+		val (channelId, title, text) = when (kind) {
+			ReminderKind.DAILY -> Triple(CHANNEL_ID, R.string.notification_daily_ready_title, R.string.notification_daily_ready_text)
+			ReminderKind.END_OF_DAY -> Triple(END_OF_DAY_CHANNEL_ID, R.string.notification_end_of_day_title, R.string.notification_end_of_day_text)
+		}
+		val notification = NotificationCompat.Builder(context, channelId)
 			.setSmallIcon(R.drawable.ic_notification) // the launcher's grid as a silhouette; the status bar tints it to a mask
-			.setContentTitle(context.getString(R.string.notification_daily_ready_title))
-			.setContentText(context.getString(R.string.notification_daily_ready_text))
+			.setContentTitle(context.getString(title))
+			.setContentText(context.getString(text))
 			.setContentIntent(pendingIntent)
 			.setAutoCancel(true)
 			.setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -56,13 +68,17 @@ object DailyReminderNotifier {
 		}
 	}
 
-	private fun createChannel(context: Context) {
+	private fun createChannels(context: Context) {
 		val manager = context.getSystemService(NotificationManager::class.java)
-		val channel = NotificationChannel(
-			CHANNEL_ID,
-			context.getString(R.string.notification_channel_daily),
-			NotificationManager.IMPORTANCE_DEFAULT
+		manager.createNotificationChannel(
+			NotificationChannel(CHANNEL_ID, context.getString(R.string.notification_channel_daily), NotificationManager.IMPORTANCE_DEFAULT)
 		)
-		manager.createNotificationChannel(channel)
+		manager.createNotificationChannel(
+			NotificationChannel(
+				END_OF_DAY_CHANNEL_ID,
+				context.getString(R.string.notification_channel_end_of_day),
+				NotificationManager.IMPORTANCE_DEFAULT
+			)
+		)
 	}
 }
