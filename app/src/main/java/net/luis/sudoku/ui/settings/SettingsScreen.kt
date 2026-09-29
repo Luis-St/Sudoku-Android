@@ -152,6 +152,29 @@ fun SettingsScreen(
 					checked = preferences.soundEnabled,
 					onCheckedChange = appViewModel::setSoundEnabled
 				)
+				// Both started in a beta section of their own and left it in 2.3.0. Each keeps its own switch and
+				// its own sentence, so turning one off does not turn off the other.
+				SettingSwitch(
+					label = stringResource(R.string.pref_dual_ink),
+					checked = preferences.dualInk,
+					onCheckedChange = appViewModel::setDualInk
+				)
+				Text(
+					text = stringResource(R.string.pref_dual_ink_note),
+					style = MaterialTheme.typography.bodySmall,
+					color = MaterialTheme.colorScheme.onSurfaceVariant
+				)
+				SettingSwitch(
+					label = stringResource(R.string.pref_every_occurrence_peers),
+					checked = preferences.everyOccurrencePeers,
+					onCheckedChange = appViewModel::setEveryOccurrencePeers,
+					modifier = Modifier.padding(top = 4.dp)
+				)
+				Text(
+					text = stringResource(R.string.pref_every_occurrence_peers_note),
+					style = MaterialTheme.typography.bodySmall,
+					color = MaterialTheme.colorScheme.onSurfaceVariant
+				)
 			}
 		}
 
@@ -169,46 +192,6 @@ fun SettingsScreen(
 					text = stringResource(R.string.settings_open_learn),
 					onClick = onOpenLearnSettings,
 					modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-				)
-			}
-		}
-
-		// Beta item 1: features that are still being tried out, each one off until the player asks for it.
-		//
-		// Its own section rather than a switch among the gameplay ones, because what the section says about
-		// its contents is the point: these are unfinished, they can change, and nothing about the app moves
-		// for anybody who never opens this card. Below the settled sections for the same reason.
-		SectionCard(title = stringResource(R.string.settings_header_beta), modifier = Modifier.padding(top = 12.dp)) {
-			Column {
-				Text(
-					text = stringResource(R.string.settings_beta_note),
-					style = MaterialTheme.typography.bodySmall,
-					color = MaterialTheme.colorScheme.onSurfaceVariant
-				)
-				SettingSwitch(
-					label = stringResource(R.string.pref_beta_dual_ink),
-					checked = preferences.betaDualInk,
-					onCheckedChange = appViewModel::setBetaDualInk,
-					modifier = Modifier.padding(top = 4.dp)
-				)
-				Text(
-					text = stringResource(R.string.pref_beta_dual_ink_note),
-					style = MaterialTheme.typography.bodySmall,
-					color = MaterialTheme.colorScheme.onSurfaceVariant
-				)
-				// Beta item 8 of 2.2.0. Each feature is its own switch with its own sentence under it, in the
-				// order they arrived - a section that groups them under one toggle would make opting into one
-				// mean opting into all of them.
-				SettingSwitch(
-					label = stringResource(R.string.pref_beta_every_occurrence_peers),
-					checked = preferences.betaEveryOccurrencePeers,
-					onCheckedChange = appViewModel::setBetaEveryOccurrencePeers,
-					modifier = Modifier.padding(top = 12.dp)
-				)
-				Text(
-					text = stringResource(R.string.pref_beta_every_occurrence_peers_note),
-					style = MaterialTheme.typography.bodySmall,
-					color = MaterialTheme.colorScheme.onSurfaceVariant
 				)
 			}
 		}
@@ -258,7 +241,7 @@ private fun SettingSwitch(
 		verticalAlignment = Alignment.CenterVertically
 	) {
 		// Beta item 3 of 2.2.0: the label takes the row's *leftover* width and wraps inside it, instead of
-		// both children asking for their ideal width and the row handing it out. A long label (the beta
+		// both children asking for their ideal width and the row handing it out. A long label (the ink
 		// switch's own, and its German translation on any phone) measured wider than the row, which left the
 		// Switch squashed to whatever was still free: the thumb and track were drawn narrower than a switch
 		// is, so the control read as a broken graphic rather than as something to tap. Weighting the text is

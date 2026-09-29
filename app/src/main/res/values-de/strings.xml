@@ -364,13 +364,11 @@
 	<string name="settings_learn_note">Das Training erklärt jede Übung, bevor sie beginnt. Ob es das weiterhin tut, stellst du hier ein.</string>
 	<string name="settings_open_learn">Einstellungen zum Lernbereich</string>
 
-	<!-- Beta item 1: features that are still being tried out, off until the player asks for them. -->
-	<string name="settings_header_beta">Beta Funktionen</string>
-	<string name="settings_beta_note">Funktionen, die noch erprobt werden. Sie bleiben aus, bis du sie einschaltest, und können sich noch ändern.</string>
-	<string name="pref_beta_dual_ink">Eigene Farben für Zahlen und Notizen</string>
-	<string name="pref_beta_dual_ink_note">Die ausgewählte Zahl ist überall dort orange, wo sie schon steht, ihre Notizen sind blau. Die Schaltflächen für Stift und Notiz, die Zahlenfelder und die Hervorhebungen richten sich danach, was du gerade benutzt.</string>
-	<string name="pref_beta_every_occurrence_peers">Alle Stellen einer Zahl hervorheben</string>
-	<string name="pref_beta_every_occurrence_peers_note">Wählst du eine Zahl aus, leuchten Zeile, Spalte und Block jedes Feldes auf, das sie schon enthält, damit du siehst, wo sie noch hinpasst. Ohne diese Funktion leuchten nur Zeile, Spalte und Block des angetippten Feldes.</string>
+	<!-- Pen and pencil inks and the every-occurrence highlight, beta features until 2.3.0. -->
+	<string name="pref_dual_ink">Eigene Farben für Zahlen und Notizen</string>
+	<string name="pref_dual_ink_note">Die ausgewählte Zahl ist überall dort orange, wo sie schon steht, ihre Notizen sind blau. Die Schaltflächen für Stift und Notiz, die Zahlenfelder und die Hervorhebungen richten sich danach, was du gerade benutzt.</string>
+	<string name="pref_every_occurrence_peers">Alle Stellen einer Zahl hervorheben</string>
+	<string name="pref_every_occurrence_peers_note">Wählst du eine Zahl aus, leuchten Zeile, Spalte und Block jedes Feldes auf, das sie schon enthält, damit du siehst, wo sie noch hinpasst. Ohne diese Funktion leuchten nur Zeile, Spalte und Block des angetippten Feldes.</string>
 	<string name="account_step_server">Server</string>
 	<string name="account_step_sign_in">Anmelden</string>
 	<string name="account_step_account">Konto</string>

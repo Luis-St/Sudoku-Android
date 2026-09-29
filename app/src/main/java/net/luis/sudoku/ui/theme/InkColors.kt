@@ -5,13 +5,12 @@ import androidx.compose.ui.graphics.Color
 import net.luis.sudoku.domain.InputMode
 
 /**
- * Beta feature: **pen and pencil get an ink of their own**, on the board and on everything that puts a
- * digit there.
+ * **Pen and pencil get an ink of their own**, on the board and on everything that puts a digit there.
  *
- * Off by default and opt-in from the settings screen (see `PreferenceSettings.betaDualInk`), which is why
- * this is a composition local carrying an [enabled] flag rather than two more fields on [BoardPalette]:
- * every consumer keeps its existing colours untouched while the beta is off, so nothing about the default
- * board changes shape while the feature is being tried out.
+ * Off by default, also since it left the beta in 2.3.0, and switched on in the settings screen (see
+ * `PreferenceSettings.dualInk`), which is why this is a composition local carrying an [enabled] flag rather
+ * than two more fields on [BoardPalette]: every consumer keeps its existing colours untouched while the
+ * feature is off.
  *
  * Deliberately *not* part of a board theme. A board theme is a look the player buys; this is a statement
  * about which of the two input modes is in use, and it has to read the same on every theme - so it is one

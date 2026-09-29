@@ -264,14 +264,14 @@ class AppViewModel @Inject constructor(
 		this.viewModelScope.launch { this@AppViewModel.settingsStore.setSoundEnabled(enabled) }
 	}
 
-	/** Beta item 1: pen and pencil in inks of their own (see `InkColors`). */
-	fun setBetaDualInk(enabled: Boolean) {
-		this.viewModelScope.launch { this@AppViewModel.settingsStore.setBetaDualInk(enabled) }
+	/** Pen and pencil in inks of their own (see `InkColors`). */
+	fun setDualInk(enabled: Boolean) {
+		this.viewModelScope.launch { this@AppViewModel.settingsStore.setDualInk(enabled) }
 	}
 
-	/** Beta item 8 of 2.2.0: the peer highlight follows every occurrence of the selected number. */
-	fun setBetaEveryOccurrencePeers(enabled: Boolean) {
-		this.viewModelScope.launch { this@AppViewModel.settingsStore.setBetaEveryOccurrencePeers(enabled) }
+	/** The peer highlight follows every occurrence of the selected number. */
+	fun setEveryOccurrencePeers(enabled: Boolean) {
+		this.viewModelScope.launch { this@AppViewModel.settingsStore.setEveryOccurrencePeers(enabled) }
 	}
 }
 

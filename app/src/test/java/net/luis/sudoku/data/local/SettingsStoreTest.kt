@@ -1,6 +1,8 @@
 package net.luis.sudoku.data.local
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
 import java.time.LocalDate
 import java.time.LocalTime
 import kotlinx.coroutines.runBlocking
@@ -83,50 +85,64 @@ class SettingsStoreTest {
 	}
 
 	@Test
-	fun betaDualInk_defaultsToOff() = runBlocking {
-		assertFalse(newStore().current().betaDualInk)
+	fun dualInk_defaultsToOff() = runBlocking {
+		assertFalse(newStore().current().dualInk)
 	}
 
 	@Test
-	fun setBetaDualInk_roundTrips() = runBlocking {
+	fun setDualInk_roundTrips() = runBlocking {
 		val store = newStore()
 
-		store.setBetaDualInk(true)
-		assertTrue(store.current().betaDualInk)
+		store.setDualInk(false)
+		assertFalse(store.current().dualInk)
 
-		store.setBetaDualInk(false)
-		assertFalse(store.current().betaDualInk)
+		store.setDualInk(true)
+		assertTrue(store.current().dualInk)
 	}
 
 	@Test
-	fun betaEveryOccurrencePeers_defaultsToOff() = runBlocking {
-		// Beta item 8 of 2.2.0, and the same rule as every beta feature: a board nobody opted into must
-		// look exactly as it did before the feature shipped.
-		assertFalse(newStore().current().betaEveryOccurrencePeers)
+	fun everyOccurrencePeers_defaultsToOff() = runBlocking {
+		assertFalse(newStore().current().everyOccurrencePeers)
 	}
 
 	@Test
-	fun setBetaEveryOccurrencePeers_roundTrips() = runBlocking {
+	fun setEveryOccurrencePeers_roundTrips() = runBlocking {
 		val store = newStore()
 
-		store.setBetaEveryOccurrencePeers(true)
-		assertTrue(store.current().betaEveryOccurrencePeers)
+		store.setEveryOccurrencePeers(false)
+		assertFalse(store.current().everyOccurrencePeers)
 
-		store.setBetaEveryOccurrencePeers(false)
-		assertFalse(store.current().betaEveryOccurrencePeers)
+		store.setEveryOccurrencePeers(true)
+		assertTrue(store.current().everyOccurrencePeers)
 	}
 
 	@Test
-	fun eachBetaFeature_isItsOwnSwitch() = runBlocking {
-		// Two features in one section, not one switch over both: opting into the ink must not opt the player
-		// into the highlight as well.
+	fun eachFeature_isItsOwnSwitch() = runBlocking {
+		// Two features, not one switch over both: turning the ink on must not turn the highlight on as well.
 		val store = newStore()
 
-		store.setBetaDualInk(true)
+		store.setDualInk(true)
 
 		val current = store.current()
-		assertTrue(current.betaDualInk)
-		assertFalse(current.betaEveryOccurrencePeers)
+		assertTrue(current.dualInk)
+		assertFalse(current.everyOccurrencePeers)
+	}
+
+	@Test
+	fun choiceMadeDuringTheBeta_survivesTheUpdate() = runBlocking {
+		// A player who switched either feature on while it was a beta wrote `true` under the beta key, and
+		// leaving the beta must read that back rather than switch it off again.
+		val file = java.io.File.createTempFile("settings", ".preferences_pb", RuntimeEnvironment.getApplication().cacheDir)
+		val dataStore = PreferenceDataStoreFactory.create { file }
+		dataStore.edit {
+			it[booleanPreferencesKey("beta_dual_ink")] = true
+			it[booleanPreferencesKey("beta_every_occurrence_peers")] = true
+		}
+
+		val current = SettingsStore(dataStore).current()
+
+		assertTrue(current.dualInk)
+		assertTrue(current.everyOccurrencePeers)
 	}
 
 	@Test
