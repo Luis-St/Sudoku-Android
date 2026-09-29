@@ -146,6 +146,22 @@ class SettingsStoreTest {
 	}
 
 	@Test
+	fun betaInputGuard_defaultsToOff() = runBlocking {
+		assertFalse(newStore().current().betaInputGuard)
+	}
+
+	@Test
+	fun setBetaInputGuard_roundTrips() = runBlocking {
+		val store = newStore()
+
+		store.setBetaInputGuard(true)
+		assertTrue(store.current().betaInputGuard)
+
+		store.setBetaInputGuard(false)
+		assertFalse(store.current().betaInputGuard)
+	}
+
+	@Test
 	fun eachPreference_roundTripsIndependently() = runBlocking {
 		val store = newStore()
 

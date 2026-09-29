@@ -20,6 +20,7 @@ import net.luis.sudoku.core.CellSnapshot
 import net.luis.sudoku.core.GameSession
 import net.luis.sudoku.core.PuzzleProvider
 import net.luis.sudoku.data.local.ServerConfigStore
+import net.luis.sudoku.data.local.SettingsStore
 import net.luis.sudoku.data.remote.dto.PuzzleResponse
 import net.luis.sudoku.data.remote.match.MatchOutcomeProbe
 import net.luis.sudoku.data.remote.match.MatchSocketClient
@@ -33,6 +34,7 @@ import net.luis.sudoku.data.remote.match.stringOrNull
 import net.luis.sudoku.domain.LockState
 import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.domain.PeerNotes
+import net.luis.sudoku.domain.InputGuard
 import net.luis.sudoku.domain.TapAction
 import net.luis.sudoku.domain.focusFollowsTap
 import net.luis.sudoku.domain.resolveNumberButtonTap
@@ -53,7 +55,8 @@ class DuelViewModel @AssistedInject constructor(
 	private val socketClient: MatchSocketClient,
 	private val serverConfigStore: ServerConfigStore,
 	private val outcomeProbe: MatchOutcomeProbe,
-	private val puzzleProvider: PuzzleProvider
+	private val puzzleProvider: PuzzleProvider,
+	private val settingsStore: SettingsStore
 ) : ViewModel() {
 
 	@AssistedFactory
@@ -142,7 +145,13 @@ class DuelViewModel @AssistedInject constructor(
 	/** Set once the player leaves deliberately, so the reconnect loop does not fight the teardown. */
 	private var leaving = false
 
+	/** Follows the settings screen, so switching the beta mid-match takes effect on the next tap. */
+	private var inputGuard = InputGuard.OFF
+
 	init {
+		this.viewModelScope.launch {
+			this@DuelViewModel.settingsStore.settings.collect { this@DuelViewModel.inputGuard = InputGuard.of(it.betaInputGuard, it.everyOccurrencePeers) }
+		}
 		this.viewModelScope.launch {
 			this@DuelViewModel.myUserId = this@DuelViewModel.serverConfigStore.current().userId ?: ""
 			openSocket(initial = true)
@@ -364,6 +373,7 @@ class DuelViewModel @AssistedInject constructor(
 	fun onCellTap(index: Int) {
 		if (!this.ready) return
 		val (action, nextLock) = resolveTap(this.cells[index], this.lock, this.activeIndex)
+		if (isGuarded(action)) return
 		// Game item 4: tapping the marked cell again unmarks it, here as everywhere else.
 		// Game item 1: writing a pencil mark is annotation, not selection, so it leaves the focus where it
 		// is - the single-player and co-op boards have always used [focusFollowsTap] for that and this one
@@ -382,8 +392,9 @@ class DuelViewModel @AssistedInject constructor(
 		// player has stopped working on one cell, so the cell they were on stops being highlighted. Without
 		// it a row and column stayed lit around a cell that had nothing to do with what was being entered,
 		// and with the every-occurrence beta on that is a large part of the board left standing.
-		this.activeIndex = null
 		val (action, nextLock) = resolveNumberButtonTap(this.lock, digit, longPress)
+		if (isGuarded(action)) return
+		this.activeIndex = null
 		sendIfEntry(action)
 		this.lock = nextLock
 	}
@@ -402,6 +413,13 @@ class DuelViewModel @AssistedInject constructor(
 			TapAction.None -> Unit
 		}
 	}
+
+	/**
+	 * Whether the beta input guard refuses [action] (see [InputGuard]). A refused tap does nothing at all: no
+	 * mistake, no life lost, and the lock and focus stay where they were so the player can pick again.
+	 */
+	private fun isGuarded(action: TapAction): Boolean =
+		this.inputGuard.blocks(action, this.cells, this.session::regionOf, this.session::peersOf)
 
 	fun regionOf(index: Int): Int = this.session.regionOf(index)
 	/** Beta item 8 of 2.2.0 needs the peers of cells the player never focused, so the board asks per index. */

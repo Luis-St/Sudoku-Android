@@ -51,6 +51,7 @@ import net.luis.sudoku.domain.LockState
 import net.luis.sudoku.domain.LockTarget
 import net.luis.sudoku.domain.MistakeChecker
 import net.luis.sudoku.domain.ModifierSet
+import net.luis.sudoku.domain.InputGuard
 import net.luis.sudoku.domain.TapAction
 import net.luis.sudoku.domain.TimerController
 import net.luis.sudoku.domain.focusFollowsTap
@@ -674,6 +675,7 @@ class GameViewModel @Inject constructor(
 		if (this.outcome != null) return
 		val cell = this.cells[index]
 		val (action, nextLock) = resolveTap(cell, this.lock, this.activeIndex)
+		if (isGuarded(action)) return
 		val mistaken = applyAction(action)
 		// Game item 4: the same tap that released the lock takes the focus off the cell too - a cell that is
 		// still lit after being unmarked is only half unmarked.
@@ -696,12 +698,21 @@ class GameViewModel @Inject constructor(
 		// player has stopped working on one cell. Leaving the old cell lit kept a row and column highlighted
 		// around a cell that no longer had anything to do with what was about to be entered - and after the
 		// cell-lock path writes into it, that cell is finished with by definition.
-		this.activeIndex = null
 		val (action, nextLock) = resolveNumberButtonTap(this.lock, digit, longPress)
+		if (isGuarded(action)) return
+		this.activeIndex = null
 		val mistaken = applyAction(action)
 		dropHintIfTargetFilled()
 		this.lock = lockAfter(nextLock, mistaken)
 	}
+
+	/**
+	 * Whether the beta input guard refuses [action] (see [InputGuard]). A refused tap does nothing at all: no
+	 * mistake, no life lost, and the lock and focus stay where they were so the player can pick again.
+	 */
+	private fun isGuarded(action: TapAction): Boolean =
+		InputGuard.of(this.preferences.betaInputGuard, this.preferences.everyOccurrencePeers)
+			.blocks(action, this.cells, this.session::regionOf, this.session::peersOf)
 
 	/**
 	 * A wrong digit releases the lock.

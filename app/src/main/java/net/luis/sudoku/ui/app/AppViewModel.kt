@@ -273,6 +273,11 @@ class AppViewModel @Inject constructor(
 	fun setEveryOccurrencePeers(enabled: Boolean) {
 		this.viewModelScope.launch { this@AppViewModel.settingsStore.setEveryOccurrencePeers(enabled) }
 	}
+
+	/** Beta feature of 2.3.0: an entry the board already rules out is refused (see `InputGuard`). */
+	fun setBetaInputGuard(enabled: Boolean) {
+		this.viewModelScope.launch { this@AppViewModel.settingsStore.setBetaInputGuard(enabled) }
+	}
 }
 
 /**

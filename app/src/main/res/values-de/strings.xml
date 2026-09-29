@@ -369,6 +369,11 @@
 	<string name="pref_dual_ink_note">Die ausgewählte Zahl ist überall dort orange, wo sie schon steht, ihre Notizen sind blau. Die Schaltflächen für Stift und Notiz, die Zahlenfelder und die Hervorhebungen richten sich danach, was du gerade benutzt.</string>
 	<string name="pref_every_occurrence_peers">Alle Stellen einer Zahl hervorheben</string>
 	<string name="pref_every_occurrence_peers_note">Wählst du eine Zahl aus, leuchten Zeile, Spalte und Block jedes Feldes auf, das sie schon enthält, damit du siehst, wo sie noch hinpasst. Ohne diese Funktion leuchten nur Zeile, Spalte und Block des angetippten Feldes.</string>
+	<!-- Features that are still being tried out, off until the player asks for them. -->
+	<string name="settings_header_beta">Beta Funktionen</string>
+	<string name="settings_beta_note">Funktionen, die noch erprobt werden. Sie bleiben aus, bis du sie einschaltest, und können sich noch ändern.</string>
+	<string name="pref_beta_input_guard">Unmögliche Zahlen sperren</string>
+	<string name="pref_beta_input_guard_note">Eine Zahl, die schon in einem Block steht, kann in diesem Block nirgends mehr eingetragen werden, weder als Zahl noch als Notiz. Ist zusätzlich das Hervorheben aller Stellen einer Zahl an, geht sie nur noch in die Felder, die nicht hervorgehoben sind.</string>
 	<string name="account_step_server">Server</string>
 	<string name="account_step_sign_in">Anmelden</string>
 	<string name="account_step_account">Konto</string>

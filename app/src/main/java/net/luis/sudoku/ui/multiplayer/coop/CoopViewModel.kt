@@ -19,6 +19,7 @@ import kotlinx.serialization.json.jsonObject
 import net.luis.sudoku.core.CellSnapshot
 import net.luis.sudoku.core.GameSession
 import net.luis.sudoku.core.PuzzleProvider
+import net.luis.sudoku.data.local.SettingsStore
 import net.luis.sudoku.data.remote.dto.PuzzleResponse
 import net.luis.sudoku.data.remote.match.MatchOutcomeProbe
 import net.luis.sudoku.data.remote.match.MatchSocketClient
@@ -38,6 +39,7 @@ import net.luis.sudoku.domain.MarkReview
 import net.luis.sudoku.domain.PeerNotes
 import net.luis.sudoku.domain.LockState
 import net.luis.sudoku.domain.LockTarget
+import net.luis.sudoku.domain.InputGuard
 import net.luis.sudoku.domain.TapAction
 import net.luis.sudoku.domain.focusFollowsTap
 import net.luis.sudoku.domain.resolveNumberButtonTap
@@ -73,7 +75,8 @@ class CoopViewModel @AssistedInject constructor(
 	@Assisted("matchId") private val matchId: String,
 	private val socketClient: MatchSocketClient,
 	private val outcomeProbe: MatchOutcomeProbe,
-	private val puzzleProvider: PuzzleProvider
+	private val puzzleProvider: PuzzleProvider,
+	private val settingsStore: SettingsStore
 ) : ViewModel() {
 
 	@AssistedFactory
@@ -278,7 +281,13 @@ class CoopViewModel @AssistedInject constructor(
 		this.hintPlan = HintPlan.EMPTY
 	}
 
+	/** Follows the settings screen, so switching the beta mid-match takes effect on the next tap. */
+	private var inputGuard = InputGuard.OFF
+
 	init {
+		this.viewModelScope.launch {
+			this@CoopViewModel.settingsStore.settings.collect { this@CoopViewModel.inputGuard = InputGuard.of(it.betaInputGuard, it.everyOccurrencePeers) }
+		}
 		this.viewModelScope.launch { openSocket(initial = true) }
 	}
 
@@ -587,6 +596,7 @@ class CoopViewModel @AssistedInject constructor(
 		if (!this.ready || this.endReason != null) return
 		clearMistakes()
 		val (action, nextLock) = resolveTap(this.cells[index], this.lock, this.activeIndex)
+		if (isGuarded(action)) return
 		// Game item 4: tapping the marked cell again unmarks it.
 		// Game item 1: a pencil mark is annotation, not selection - the same rule the single-player screen
 		// uses, and the same reason. Sharing the board does not change what marking means.
@@ -605,8 +615,9 @@ class CoopViewModel @AssistedInject constructor(
 	fun onNumberTap(digit: Int, longPress: Boolean = false) {
 		if (!this.ready || this.endReason != null) return
 		clearMistakes()
-		this.activeIndex = null
 		val (action, nextLock) = resolveNumberButtonTap(this.lock, digit, longPress)
+		if (isGuarded(action)) return
+		this.activeIndex = null
 		sendIfEntry(action)
 		this.lock = nextLock
 	}
@@ -748,6 +759,13 @@ class CoopViewModel @AssistedInject constructor(
 			TapAction.None -> Unit
 		}
 	}
+
+	/**
+	 * Whether the beta input guard refuses [action] (see [InputGuard]). A refused tap does nothing at all: no
+	 * mistake, no life lost, and the lock and focus stay where they were so the player can pick again.
+	 */
+	private fun isGuarded(action: TapAction): Boolean =
+		this.inputGuard.blocks(action, this.cells, this.session::regionOf, this.session::peersOf)
 
 	fun regionOf(index: Int): Int = this.session.regionOf(index)
 	/** Beta item 8 of 2.2.0 needs the peers of cells the player never focused, so the board asks per index. */
