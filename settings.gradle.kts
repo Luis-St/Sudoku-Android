@@ -17,10 +17,12 @@ plugins {
 dependencyResolutionManagement {
 	repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
 	repositories {
-		// shared-core resolves from ~/.m2 while the Artifactory (maven.luis-st.net) is down.
-		mavenLocal()
 		google()
 		mavenCentral()
+		// shared-core (sudoku-lib)
+		maven {
+			url = uri("https://artifact.luis-st.net/maven/libraries/")
+		}
 	}
 }
 
